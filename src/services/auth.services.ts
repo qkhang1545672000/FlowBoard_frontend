@@ -10,7 +10,6 @@ import {
   SignUpDto,
   User,
 } from "@/types/api.types";
-import { string } from "zod";
 
 function mapAuthUser(u: {
   id: string;
@@ -89,7 +88,6 @@ export const authService = {
   },
 
   signIn: async (data: SignInDto & { rememberMe?: boolean }): Promise<AuthResponse> => {
-    console.log("rrrrrrrrrrrr");
     const res = await getAuthClient().signIn.email({
       email: data.email,
       password: data.password,
@@ -129,7 +127,7 @@ export const authService = {
     }
 
     const token = await readSessionToken();
-    console.log("ussssssssssss", user);
+
     return { success: true, user, token };
   },
 

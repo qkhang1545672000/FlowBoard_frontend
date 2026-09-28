@@ -44,7 +44,6 @@ export function BoardCard({ board }: BoardCardProps) {
             </div>
           </div>
         </div>
-
         {/* Footer: Metadata */}
         <div className="border-t border-slate-700/40 pt-3 flex items-center justify-between text-xs text-slate-400">
           <div className="flex items-center gap-3">
