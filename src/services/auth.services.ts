@@ -10,6 +10,7 @@ import {
   SignUpDto,
   User,
 } from "@/types/api.types";
+import { string } from "zod";
 
 function mapAuthUser(u: {
   id: string;
@@ -17,6 +18,7 @@ function mapAuthUser(u: {
   name: string;
   image?: string | null;
   emailVerified: boolean;
+  role?: string;
   createdAt: Date;
   updatedAt: Date;
 }): User {
@@ -25,6 +27,7 @@ function mapAuthUser(u: {
     email: u.email,
     name: u.name,
     image: u.image ?? undefined,
+    role: u.role || "customer",
     emailVerified: u.emailVerified,
     createdAt:
       u.createdAt instanceof Date ? u.createdAt.toISOString() : String(u.createdAt),
@@ -86,6 +89,7 @@ export const authService = {
   },
 
   signIn: async (data: SignInDto & { rememberMe?: boolean }): Promise<AuthResponse> => {
+    console.log("rrrrrrrrrrrr");
     const res = await getAuthClient().signIn.email({
       email: data.email,
       password: data.password,
@@ -125,7 +129,7 @@ export const authService = {
     }
 
     const token = await readSessionToken();
-
+    console.log("ussssssssssss", user);
     return { success: true, user, token };
   },
 

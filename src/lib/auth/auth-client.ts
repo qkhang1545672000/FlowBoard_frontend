@@ -1,16 +1,16 @@
 import { createAuthClient } from "better-auth/client";
-
+import { adminClient } from "better-auth/client/plugins";
 function serverBaseUrl(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(
-    /\/+$/,
-    "",
-  );
+  return (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/+$/, "");
 }
 
 function createConfiguredClient(baseURL: string) {
   return createAuthClient({
     baseURL,
     basePath: "/api/auth",
+    plugins: [
+      adminClient(), // Tự động thêm `role` vào type User của client
+    ],
   });
 }
 

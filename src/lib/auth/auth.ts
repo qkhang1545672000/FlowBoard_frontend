@@ -66,6 +66,13 @@ export const auth = betterAuth({
       createdAt: "created_at",
       updatedAt: "updated_at",
     },
+    additionalFields: {
+      role: {
+        type: "string",
+        required: false,
+        defaultValue: "customer",
+      },
+    },
   },
   session: {
     expiresIn: 60 * 60 * 24 * 7,

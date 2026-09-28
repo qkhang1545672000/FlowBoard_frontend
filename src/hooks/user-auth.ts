@@ -1,32 +1,35 @@
-import { authService } from '@/services/auth.services';
+import { authService } from "@/services/auth.services";
+import { useAuthStore } from "@/store/useAuthStore";
+import { UserRole } from "@/types";
 import {
   ForgotPasswordDto,
   ResetPasswordDto,
   SignInDto,
   SignUpDto,
-} from '@/types/api.types';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { toast } from 'sonner';
+} from "@/types/api.types";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Console } from "console";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
 
 type AuthToastMessages = {
   success?: string;
   error?: string;
 };
 
-export const useSignUp = (
-  messages?: AuthToastMessages & { verifyEmail?: string },
-) => {
+export const useSignUp = (messages?: AuthToastMessages & { verifyEmail?: string }) => {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const setUser = useAuthStore((state) => state.setUser); // Lấy setter của Zustand
 
   return useMutation({
     mutationFn: (data: SignUpDto) => authService.signUp(data),
 
     onSuccess: (response) => {
+      // 1. Cập nhật TanStack Query Cache
       queryClient.setQueriesData(
-        { queryKey: ['auth', 'session'] },
+        { queryKey: ["auth", "session"] },
         {
           user: response.user,
           isGuest: false,
@@ -34,20 +37,22 @@ export const useSignUp = (
         },
       );
 
-      if (response.token) {
-        toast.success(messages?.success ?? 'Account created successfully!');
+      // 2. Cập nhật dữ liệu vào Zustand Store
+      setUser(response.user);
 
-        router.push('/product/catalog');
+      if (response.token) {
+        toast.success(messages?.success ?? "Account created successfully!");
+        router.push("/product/catalo");
         return;
       }
 
       toast.info(
         messages?.verifyEmail ??
           messages?.success ??
-          'Account created! Please check your email to verify your account.',
+          "Account created! Please check your email to verify your account.",
       );
 
-      router.push('/auth/signin');
+      router.push("/auth/signin");
     },
 
     onError: (error: unknown) => {
@@ -62,9 +67,7 @@ export const useSignUp = (
       )?.response?.data?.message;
 
       toast.error(
-        typeof message === 'string'
-          ? message
-          : (messages?.error ?? 'Sign up failed'),
+        typeof message === "string" ? message : (messages?.error ?? "Sign up failed"),
       );
     },
   });
@@ -76,8 +79,7 @@ export const useResendVerificationEmail = (messages?: AuthToastMessages) => {
 
     onSuccess: () => {
       toast.success(
-        messages?.success ??
-          'Verification email sent! Please check your inbox.',
+        messages?.success ?? "Verification email sent! Please check your inbox.",
       );
     },
 
@@ -89,28 +91,26 @@ export const useResendVerificationEmail = (messages?: AuthToastMessages) => {
       )?.response?.data?.message;
 
       toast.error(
-        typeof message === 'string'
+        typeof message === "string"
           ? message
-          : (messages?.error ?? 'Failed to send verification email'),
+          : (messages?.error ?? "Failed to send verification email"),
       );
     },
   });
 };
 
-export const useSignIn = (
-  messages?: AuthToastMessages,
-  redirectTo?: string,
-) => {
+export const useSignIn = (messages?: AuthToastMessages, redirectTo?: string) => {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const setUser = useAuthStore((state) => state.setUser); // Lấy setter của Zustand
 
   return useMutation({
-    mutationFn: (data: SignInDto & { rememberMe?: boolean }) =>
-      authService.signIn(data),
+    mutationFn: (data: SignInDto & { rememberMe?: boolean }) => authService.signIn(data),
 
     onSuccess: (response) => {
+      // 1. Cập nhật TanStack Query Cache
       queryClient.setQueriesData(
-        { queryKey: ['auth', 'session'] },
+        { queryKey: ["auth", "session"] },
         {
           user: response.user,
           isGuest: false,
@@ -118,9 +118,12 @@ export const useSignIn = (
         },
       );
 
-      toast.success(messages?.success ?? 'Sign in successful');
+      // 2. Cập nhật dữ liệu vào Zustand Store
+      setUser(response.user);
 
-      router.push(redirectTo ?? '/product/catalog');
+      toast.success(messages?.success ?? "Sign in successful");
+
+      router.push(redirectTo ?? "/");
     },
 
     onError: (error: unknown) => {
@@ -131,9 +134,7 @@ export const useSignIn = (
       )?.response?.data?.message;
 
       toast.error(
-        typeof message === 'string'
-          ? message
-          : (messages?.error ?? 'Sign in failed'),
+        typeof message === "string" ? message : (messages?.error ?? "Sign in failed"),
       );
     },
   });
@@ -144,17 +145,17 @@ export const useForgotPassword = (messages?: AuthToastMessages) => {
     mutationFn: (data: ForgotPasswordDto) => authService.forgotPassword(data),
 
     onSuccess: () => {
-      toast.success(messages?.success ?? 'Password reset email sent!');
+      toast.success(messages?.success ?? "Password reset email sent!");
     },
 
     onError: (error: unknown) => {
-      const message = (error as { response?: { data?: { message?: string } } })
-        ?.response?.data?.message;
+      const message = (error as { response?: { data?: { message?: string } } })?.response
+        ?.data?.message;
 
       toast.error(
-        typeof message === 'string'
+        typeof message === "string"
           ? message
-          : (messages?.error ?? 'Failed to send reset email'),
+          : (messages?.error ?? "Failed to send reset email"),
       );
     },
   });
@@ -166,18 +167,18 @@ export const useResetPassword = (messages?: AuthToastMessages) => {
     mutationFn: (data: ResetPasswordDto) => authService.resetPassword(data),
 
     onSuccess: () => {
-      toast.success(messages?.success ?? 'Password reset successful!');
-      router.push('/auth/signin');
+      toast.success(messages?.success ?? "Password reset successful!");
+      router.push("/auth/signin");
     },
 
     onError: (error: unknown) => {
-      const message = (error as { response?: { data?: { message?: string } } })
-        ?.response?.data?.message;
+      const message = (error as { response?: { data?: { message?: string } } })?.response
+        ?.data?.message;
 
       toast.error(
-        typeof message === 'string'
+        typeof message === "string"
           ? message
-          : (messages?.error ?? 'Password reset failed'),
+          : (messages?.error ?? "Password reset failed"),
       );
     },
   });
@@ -194,8 +195,7 @@ export const useGoogleSignIn = (messages?: { error?: string }) => {
       const msg = (error as Error)?.message;
       setIsLoading(false);
       toast.error(
-        (messages?.error ?? 'Unable to initialize Google sign in: ') +
-          (msg ?? ''),
+        (messages?.error ?? "Unable to initialize Google sign in: ") + (msg ?? ""),
       );
       return;
     }

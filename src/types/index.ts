@@ -50,6 +50,15 @@ export interface Workspace {
   logo?: string;
 }
 
+export interface WorkspaceResponse {
+  id: string;
+  name: string;
+  slug: string;
+  updatedAt: string;
+  boardsCount: number;
+  members: Participant[];
+}
+
 export interface Board {
   id: string;
   workspaceId: string;
@@ -60,4 +69,18 @@ export interface Board {
   activeTasksCount?: number;
   membersCount?: number;
   updatedAt: string;
+}
+
+export interface Participant {
+  _id: string;
+  displayName: string;
+  avatarUrl?: string | null;
+  joinedAt: string;
+}
+
+export interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+  setUser: (user: User | null) => void;
+  clearAuth: () => void;
 }

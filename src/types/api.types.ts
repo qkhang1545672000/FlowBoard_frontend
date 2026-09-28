@@ -5,7 +5,7 @@ export interface User {
   image?: string;
   phone?: string | null;
   emailVerified?: boolean;
-  role?: string;
+  role: string;
   isAnonymous?: boolean;
   birthday?: string | null;
   gender?: string | null;
@@ -101,7 +101,14 @@ export interface ProductSearchQuery {
   minPrice?: number;
   maxPrice?: number;
   isActive?: boolean;
-  sortBy?: 'relevance' | 'price_asc' | 'price_desc' | 'rating_desc' | 'name_asc' | 'name_desc' | 'created_desc';
+  sortBy?:
+    | "relevance"
+    | "price_asc"
+    | "price_desc"
+    | "rating_desc"
+    | "name_asc"
+    | "name_desc"
+    | "created_desc";
 }
 
 export interface LocaleApiRow {
@@ -420,20 +427,15 @@ export interface OrderDetailed extends Order {
   workflow?: WorkflowStep[];
 }
 
-export type PaymentMethod =
-  | 'cod'
-  | 'bank_transfer'
-  | 'vnpay'
-  | 'momo'
-  | 'zalopay';
+export type PaymentMethod = "cod" | "bank_transfer" | "vnpay" | "momo" | "zalopay";
 
 export type PaymentStatus =
-  | 'pending'
-  | 'processing'
-  | 'completed'
-  | 'failed'
-  | 'refunded'
-  | 'cancelled';
+  | "pending"
+  | "processing"
+  | "completed"
+  | "failed"
+  | "refunded"
+  | "cancelled";
 
 export interface Payment {
   id: number;

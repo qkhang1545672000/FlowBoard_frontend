@@ -1,25 +1,20 @@
-import { authService } from "@/services/auth.services";
+"use client";
+import { useAuthStore } from "@/store/useAuthStore";
 
-const GetMe = async () => {
-  const messenger = await authService.getMe();
+const GetMe = () => {
+  const user = useAuthStore((state) => state.user);
 
-  console.log("messenger:", messenger);
+  console.log("Check user Zustand:", user);
+
+  if (!user) {
+    return <div>Đang tải thông tin hoặc Chưa đăng nhập...</div>;
+  }
+
   return (
     <div>
-      <p>GetMe {messenger?.user?.email}</p>
-      {/* ✅ Lồng component Show vào bên trong JSX trả về */}
+      GetMe {user.name} ({user.role})
     </div>
   );
 };
 
 export default GetMe;
-
-// ✅ Định nghĩa Props đúng chuẩn TypeScript
-interface ShowProps {
-  name: any;
-}
-
-const Show = ({ name }: ShowProps) => {
-  // Hoặc hiển thị tên thực tế: return <div>{name?.username || "khang"}</div>;
-  return <div>khang {name}</div>;
-};
