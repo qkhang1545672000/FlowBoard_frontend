@@ -52,7 +52,7 @@ const ContentMain = () => {
             {workspaceDetail?.name}
           </h1>
           <p className="text-slate-400 text-sm">
-            {workspaceDetail?.description.trim() != ""
+            {workspaceDetail?.description?.trim() != ""
               ? workspaceDetail?.description
               : "không có thông tin"}
           </p>
