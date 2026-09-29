@@ -4,10 +4,11 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Plus, Briefcase, ChevronLeft, ChevronRight } from "lucide-react";
-import { Workspace } from "@/types";
+import { WorkspaceResponse } from "@/types/workSpace";
+import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 
 interface SidebarProps {
-  workspaces: Workspace[];
+  workspaces: WorkspaceResponse[];
   currentWorkspaceSlug?: string;
   isCollapsed: boolean;
   setIsCollapsed: (value: boolean) => void;
@@ -19,8 +20,8 @@ export function Sidebar({
   isCollapsed,
   setIsCollapsed,
 }: SidebarProps) {
-  const pathname = usePathname();
-
+  console.log("currentWorkspaceSlug", currentWorkspaceSlug);
+  const setActiveWorkspace = useWorkspaceStore((state) => state.setActiveWorkspace);
   return (
     <aside
       className={`relative bg-slate-900 border-r border-slate-800 flex flex-col justify-between h-screen text-slate-300 transition-all duration-300 ease-in-out z-40 ${
@@ -40,7 +41,7 @@ export function Sidebar({
 
       <div className="p-3 space-y-6 overflow-hidden">
         {/* Logo / Brand */}
-        <div className="flex items-center gap-3 px-1">
+        <Link href={"/"} className="flex items-center gap-3 px-1">
           <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold shrink-0">
             W
           </div>
@@ -49,7 +50,7 @@ export function Sidebar({
               Workspace Central
             </span>
           )}
-        </div>
+        </Link>
 
         {/* User Info Quick View */}
         <div className="bg-slate-800/60 rounded-xl p-2.5 flex items-center gap-3 border border-slate-700/50">
@@ -79,6 +80,7 @@ export function Sidebar({
               return (
                 <Link
                   key={ws.id}
+                  onClick={() => setActiveWorkspace({ id: ws.id, slug: ws.slug })}
                   href={`/w/${ws.slug}`}
                   title={ws.name}
                   className={`flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-sm transition-all ${

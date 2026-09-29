@@ -26,15 +26,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="vi"
-      className={`${inter.variable} ${spaceGrotesk.variable} h-full antialiased`}
-    >
+      className={`${inter.variable} ${spaceGrotesk.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <QueryProvider>
           {children}
-          <Toaster
-            position="bottom-right"
-            richColors
-          />
+          <Toaster position="bottom-right" richColors />
         </QueryProvider>
       </body>
     </html>

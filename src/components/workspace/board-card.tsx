@@ -2,8 +2,10 @@
 
 import React from "react";
 import Link from "next/link";
-import { Board } from "@/types";
+import { formatDistanceToNow } from "date-fns";
+import { vi } from "date-fns/locale"; // Định dạng tiếng Việt (nếu muốn)
 import { MoreHorizontal, Users, CheckSquare } from "lucide-react";
+import { Board } from "@/types/workSpace";
 
 interface BoardCardProps {
   board: Board;
@@ -49,14 +51,23 @@ export function BoardCard({ board }: BoardCardProps) {
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1">
               <CheckSquare className="w-3.5 h-3.5 text-indigo-400" />
-              {board.activeTasksCount || 0} Tasks
+              {board.tasksCount || 0} Tasks
             </span>
             <span className="flex items-center gap-1">
               <Users className="w-3.5 h-3.5 text-emerald-400" />
               {board.membersCount || 1}
             </span>
           </div>
-          <span>Updated {board.updatedAt}</span>
+
+          <span>
+            Updated{" "}
+            {board.updatedAt
+              ? formatDistanceToNow(new Date(board.updatedAt), {
+                  addSuffix: true,
+                  locale: vi, // Bỏ thuộc tính locale nếu muốn hiển thị tiếng Anh ("5 minutes ago")
+                })
+              : "gần đây"}
+          </span>
         </div>
       </div>
     </Link>

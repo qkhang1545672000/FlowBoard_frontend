@@ -1,17 +1,22 @@
+"use client";
 import { Folder, MoreHorizontal } from "lucide-react";
 import GroupChatAvatar from "../ui/GroupChatAvatar";
 import { WorkspaceResponse } from "@/types/workSpace";
 
 import Link from "next/link";
+import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 
 interface Props {
   ws: WorkspaceResponse;
 }
 const WorkspaceCard = ({ ws }: Props) => {
+  const setActiveWorkspace = useWorkspaceStore((state) => state.setActiveWorkspace);
+
   return (
     <Link
       key={ws.id}
       href={`/w/${ws.slug}`}
+      onClick={() => setActiveWorkspace({ id: ws.id, slug: ws.slug })}
       className={`group bg-slate-900/80 hover:bg-slate-800/90 border border-indigo-500/50 hover:border-indigo-500/60 p-4 rounded-2xl transition-all shadow-lg flex flex-col justify-between space-y-4 backdrop-blur-md`}>
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">

@@ -9,7 +9,7 @@ import {
   SignUpDto,
 } from "@/types/api.types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Console } from "console";
+
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
