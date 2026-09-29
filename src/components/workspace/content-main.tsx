@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Search, UserPlus, MoreVertical, ShieldCheck, Mail } from "lucide-react";
+import { Plus, Search, UserPlus, MoreVertical, Mail } from "lucide-react";
 import { BoardCard } from "./board-card";
-import { Board, BoardVisibility } from "@/types";
 import { useWorkspaceDetail } from "@/hooks/useWorkSpace";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 
@@ -41,16 +40,78 @@ const mockMembers = [
     status: "Away",
     avatar: "https://i.pravatar.cc/150?u=4",
   },
+  {
+    id: "m-5",
+    name: "Anh Nguyen",
+    email: "anh.nguyen@example.com",
+    role: "Lead Designer",
+    status: "Away",
+    avatar: "https://i.pravatar.cc/150?u=4",
+  },
+  {
+    id: "m-6",
+    name: "Anh Nguyen",
+    email: "anh.nguyen@example.com",
+    role: "Lead Designer",
+    status: "Away",
+    avatar: "https://i.pravatar.cc/150?u=4",
+  },
+  {
+    id: "m-7",
+    name: "Anh Nguyen",
+    email: "anh.nguyen@example.com",
+    role: "Lead Designer",
+    status: "Away",
+    avatar: "https://i.pravatar.cc/150?u=4",
+  },
+  {
+    id: "m-8",
+    name: "Anh Nguyen",
+    email: "anh.nguyen@example.com",
+    role: "Lead Designer",
+    status: "Away",
+    avatar: "https://i.pravatar.cc/150?u=4",
+  },
+  {
+    id: "m-9",
+    name: "Anh Nguyen",
+    email: "anh.nguyen@example.com",
+    role: "Lead Designer",
+    status: "Away",
+    avatar: "https://i.pravatar.cc/150?u=4",
+  },
+  {
+    id: "m-10",
+    name: "Anh Nguyen",
+    email: "anh.nguyen@example.com",
+    role: "Lead Designer",
+    status: "Away",
+    avatar: "https://i.pravatar.cc/150?u=4",
+  },
+  {
+    id: "m-11",
+    name: "Anh Nguyen",
+    email: "anh.nguyen@example.com",
+    role: "Lead Designer",
+    status: "Away",
+    avatar: "https://i.pravatar.cc/150?u=4",
+  },
 ];
+
+// Hàm chia mảng thành từng trang (Mỗi trang chứa tối đa 6 thành viên: 2 cột x 3 hàng)
+const chunkArray = (array: any[], size: number) => {
+  const result = [];
+  for (let i = 0; i < array.length; i += size) {
+    result.push(array.slice(i, i + size));
+  }
+  return result;
+};
 
 const ContentMain = () => {
   const activeWorkspaceId = useWorkspaceStore((state) => state.activeWorkspaceId);
-  const {
-    data: workspaceDetail,
-    isLoading,
-    isError,
-    error,
-  } = useWorkspaceDetail(activeWorkspaceId ?? "");
+  const { data: workspaceDetail, isLoading } = useWorkspaceDetail(
+    activeWorkspaceId ?? "",
+  );
 
   const [activeTab, setActiveTab] = useState<"boards" | "members">("boards");
   const [searchQuery, setSearchQuery] = useState("");
@@ -58,7 +119,6 @@ const ContentMain = () => {
 
   if (isLoading) return <div className="p-8 text-slate-400">Loading...</div>;
 
-  // Lấy danh sách members từ API hoặc mockup
   const membersList = workspaceDetail?.members || mockMembers;
   const filteredMembers = membersList.filter(
     (m: any) =>
@@ -67,18 +127,19 @@ const ContentMain = () => {
       m.email?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
+  // Chia danh sách thành viên đã lọc thành từng trang (mỗi trang 6 phần tử)
+  const memberPages = chunkArray(filteredMembers, 6);
+
   return (
     <main className="flex-1 p-8 max-w-7xl mx-auto w-full space-y-6 text-slate-200">
       {/* Workspace Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-white mb-1">
-            {workspaceDetail?.name || "ZCZXCZXCS"}
+            {workspaceDetail?.name || "Workspace"}
           </h1>
           <p className="text-slate-400 text-sm">
-            {workspaceDetail?.description?.trim()
-              ? workspaceDetail?.description
-              : "không có thông tin"}
+            {workspaceDetail?.description?.trim() || "không có thông tin"}
           </p>
         </div>
 
@@ -125,7 +186,7 @@ const ContentMain = () => {
         <div className="space-y-4">
           {workspaceDetail?.boards && workspaceDetail.boards.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {workspaceDetail.boards.map((board) => (
+              {workspaceDetail.boards.map((board: any) => (
                 <BoardCard key={board.id} board={board} />
               ))}
             </div>
@@ -156,54 +217,70 @@ const ContentMain = () => {
             </div>
           </div>
 
-          {/* Members Grid Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredMembers.map((member: any) => (
-              <div
-                key={member.id}
-                className="flex items-center justify-between p-4 bg-slate-900/60 border border-slate-800/80 rounded-2xl hover:border-slate-700 transition-all">
-                <div className="flex items-center gap-3.5">
-                  <div className="relative">
-                    <img
-                      src={member.avatar}
-                      alt={member.name}
-                      className="w-11 h-11 rounded-full object-cover border border-slate-700"
-                    />
-                    <span
-                      className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 ${
-                        member.status === "Online" ? "bg-emerald-500" : "bg-amber-500"
-                      }`}
-                    />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-white text-sm flex items-center gap-2">
-                      {member.name}
-                      {member.role?.includes("Owner") && (
-                        <span className="text-xs text-amber-400 font-normal">
-                          (Owner)
-                        </span>
-                      )}
-                    </h3>
-                    <p className="text-xs text-slate-400">{member.role || "Member"}</p>
-                  </div>
-                </div>
+          {/* Members Container - Cuộn ngang lật theo trang (2 cột x 3 hàng) */}
+          {memberPages.length > 0 ? (
+            <div className="flex gap-6 overflow-x-auto snap-x snap-mandatory pb-4 pt-1 scrollbar-thin scrollbar-thumb-slate-700">
+              {memberPages.map((pageMembers, pageIndex) => (
+                <div
+                  key={pageIndex}
+                  className="w-full shrink-0 snap-start grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                  {pageMembers.map((member: any) => (
+                    <div
+                      key={member.id}
+                      className="flex items-center justify-between p-4 bg-slate-900/60 border border-slate-800/80 rounded-2xl hover:border-slate-700 transition-all select-none">
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="relative shrink-0">
+                          <img
+                            src={member.avatar}
+                            alt={member.name}
+                            className="w-11 h-11 rounded-full object-cover border border-slate-700"
+                          />
+                          <span
+                            className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 ${
+                              member.status === "Online"
+                                ? "bg-emerald-500"
+                                : "bg-amber-500"
+                            }`}
+                          />
+                        </div>
+                        <div className="truncate">
+                          <h3 className="font-semibold text-white text-sm flex items-center gap-1.5 truncate">
+                            <span className="truncate">{member.name}</span>
+                            {member.role?.includes("Owner") && (
+                              <span className="text-xs text-amber-400 font-normal shrink-0">
+                                (Owner)
+                              </span>
+                            )}
+                          </h3>
+                          <p className="text-xs text-slate-400 truncate">
+                            {member.role || "Member"}
+                          </p>
+                        </div>
+                      </div>
 
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
-                      member.status === "Online"
-                        ? "text-emerald-400 border-emerald-500/20 bg-emerald-500/10"
-                        : "text-amber-400 border-amber-500/20 bg-amber-500/10"
-                    }`}>
-                    • {member.status}
-                  </span>
-                  <button className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors">
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
+                      <div className="flex items-center gap-2 shrink-0 ml-2">
+                        <span
+                          className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
+                            member.status === "Online"
+                              ? "text-emerald-400 border-emerald-500/20 bg-emerald-500/10"
+                              : "text-amber-400 border-amber-500/20 bg-amber-500/10"
+                          }`}>
+                          • {member.status}
+                        </span>
+                        <button className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors">
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-slate-400">
+              Không tìm thấy thành viên nào
+            </div>
+          )}
 
           {/* Invite Section */}
           <div className="p-6 bg-slate-900/40 border border-slate-800/80 rounded-2xl space-y-4">
