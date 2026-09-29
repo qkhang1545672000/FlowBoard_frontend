@@ -2,7 +2,6 @@
 
 import React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { Plus, Briefcase, ChevronLeft, ChevronRight } from "lucide-react";
 import { WorkspaceResponse } from "@/types/workSpace";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
@@ -15,13 +14,13 @@ interface SidebarProps {
 }
 
 export function Sidebar({
-  workspaces,
+  workspaces = [],
   currentWorkspaceSlug,
   isCollapsed,
   setIsCollapsed,
 }: SidebarProps) {
-  console.log("currentWorkspaceSlug", currentWorkspaceSlug);
   const setActiveWorkspace = useWorkspaceStore((state) => state.setActiveWorkspace);
+
   return (
     <aside
       className={`relative bg-slate-900 border-r border-slate-800 flex flex-col justify-between h-screen text-slate-300 transition-all duration-300 ease-in-out z-40 ${
@@ -39,7 +38,7 @@ export function Sidebar({
         )}
       </button>
 
-      <div className="p-3 space-y-6 overflow-hidden">
+      <div className="p-3 space-y-6 overflow-y-auto">
         {/* Logo / Brand */}
         <Link href={"/"} className="flex items-center gap-3 px-1">
           <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold shrink-0">
@@ -75,7 +74,7 @@ export function Sidebar({
             </div>
           )}
           <div className="space-y-1">
-            {workspaces.map((ws) => {
+            {workspaces?.map((ws) => {
               const isActive = currentWorkspaceSlug === ws.slug;
               return (
                 <Link

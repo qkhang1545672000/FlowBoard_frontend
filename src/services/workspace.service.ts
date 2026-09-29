@@ -1,20 +1,31 @@
 import axiosInstance from "@/lib/axios";
 import { CreateWorkspaceDto } from "@/types/apiWorkspace.type";
 import { WorkspaceDetailRespone, WorkspaceResponse } from "@/types/workSpace";
-
+export interface PaginatedWorkspaceResponse {
+  data: WorkspaceResponse[];
+  total: number;
+  hasMore: boolean;
+  page: number;
+  limit: number;
+}
 export const workSpaceService = {
   //Lấy danh sách workspace mà người dùng hiện có
-  getWorkSpace: async (): Promise<WorkspaceResponse[]> => {
+  getWorkSpace: async (
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<PaginatedWorkspaceResponse> => {
     try {
-      // Lấy toàn bộ headers/cookies từ Request gửi đến Next.js Server
-
-      const response =
-        await axiosInstance.get<WorkspaceResponse[]>("/api/v1/workspaces/");
+      const response = await axiosInstance.get<PaginatedWorkspaceResponse>(
+        "/api/v1/workspaces/",
+        {
+          params: { page, limit },
+        },
+      );
 
       return response.data;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      console.error("Lỗi getMeServer (Server):", error?.response?.data || error.message);
+      console.error("Lỗi getWorkSpace:", error?.response?.data || error.message);
       throw error;
     }
   },
@@ -86,6 +97,7 @@ export const workSpaceService = {
       );
 
       return response.data;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error(
         "Lỗi inviteMemberWorkspace (Server):",

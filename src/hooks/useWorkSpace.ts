@@ -1,15 +1,25 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { workSpaceService } from "@/services/workspace.service";
+import {
+  PaginatedWorkspaceResponse,
+  workSpaceService,
+} from "@/services/workspace.service";
 import { WorkspaceDetailRespone, WorkspaceResponse } from "@/types/workSpace";
 import { CreateWorkspaceDto } from "@/types/apiWorkspace.type";
 
-export const useWorkSpace = () => {
-  return useQuery<WorkspaceResponse[]>({
+import { useInfiniteQuery } from "@tanstack/react-query";
+
+export const useWorkSpace = (limit: number = 10) => {
+  return useInfiniteQuery<PaginatedWorkspaceResponse>({
     queryKey: ["workspace"],
-    queryFn: () => workSpaceService.getWorkSpace(),
+    queryFn: ({ pageParam = 1 }) =>
+      workSpaceService.getWorkSpace(pageParam as number, limit),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      // Nếu còn dữ liệu (hasMore = true), trang tiếp theo sẽ là page hiện tại + 1
+      return lastPage.hasMore ? lastPage.page + 1 : undefined;
+    },
   });
 };
-
 export const useWorkspaceDetail = (workspaceId: string) => {
   return useQuery<WorkspaceDetailRespone>({
     queryKey: ["workspace", workspaceId], // Query key bao gồm workspaceId để tự động refetch khi ID thay đổi

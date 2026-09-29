@@ -335,3 +335,27 @@
     min-height: 12rem;
   }
 }
+/* Tùy chỉnh thanh cuộn cho toàn bộ trình duyệt (Webkit: Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 6px; /* Độ rộng thanh cuộn dọc */
+  height: 6px; /* Độ cao thanh cuộn ngang */
+}
+
+::-webkit-scrollbar-track {
+  background: transparent; /* Nền của thanh cuộn trong suốt */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155; /* Màu con trượt (slate-700) */
+  border-radius: 9999px; /* Bo tròn hoàn toàn */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569; /* Đổi sang màu slate-600 khi hover vào */
+}
+
+/* Hỗ trợ cho Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 transparent;
+}
