@@ -1,6 +1,7 @@
 import HeaderIndex from "@/components/home/headerHome";
-import ContentIndex from "@/components/home/workspaceHome";
+
 import NotificationIndex from "@/components/home/notificationHome";
+import WorkspaceHome from "@/components/home/workspaceHome";
 // Dữ liệu giả lập test
 
 export default function Home() {
@@ -14,7 +15,7 @@ export default function Home() {
         <HeaderIndex />
 
         {/* 2. Phần MY WORKSPACES */}
-        <ContentIndex />
+        <WorkspaceHome />
 
         {/* 3. Phần MY NOTIFICATIONS (Tasks Sắp Quá Hạn) */}
         <NotificationIndex />

@@ -1,7 +1,11 @@
-import { Folder, MoreHorizontal, Plus } from "lucide-react";
-import Link from "next/link";
-import GroupChatAvatar from "../ui/GroupChatAvatar";
+"use client";
+import { MoreHorizontal, Plus } from "lucide-react";
 import { Participant } from "@/types";
+import WorkspaceCard from "./workspaceCard";
+import { useWorkSpace } from "@/hooks/useWorkSpace";
+
+import WorkspaceSkeleton from "./WorkspaceSkeleton";
+import { WorkspaceResponse } from "@/types/workSpace";
 interface Prop {
   mockWorkspaces: unknown;
   mockParticipants: Participant[];
@@ -96,7 +100,11 @@ const mockParticipants: Participant[] = [
   { _id: "7", displayName: "Liam Neeson", avatarUrl: null, joinedAt: "2026-01-01" },
   { _id: "8", displayName: "Olivia Parker", avatarUrl: null, joinedAt: "2026-01-01" },
 ];
-const ContentIndex = () => {
+const WorkspaceHome = () => {
+  const { data: workspaces, isLoading } = useWorkSpace();
+  if (isLoading) {
+    return <WorkspaceSkeleton />;
+  }
   return (
     <section className="bg-slate-900/40 border border-slate-800/80 rounded-3xl p-6 backdrop-blur-xl shadow-2xl space-y-4">
       <div className="flex items-center justify-between">
@@ -110,39 +118,8 @@ const ContentIndex = () => {
 
       {/* Grid chứa danh sách Workspace Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {mockWorkspaces.map((ws) => (
-          <Link
-            key={ws.id}
-            href={`/w/${ws.slug}`}
-            className={`group bg-slate-900/80 hover:bg-slate-800/90 border ${ws.borderColor} hover:border-indigo-500/60 p-4 rounded-2xl transition-all shadow-lg flex flex-col justify-between space-y-4 backdrop-blur-md`}>
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-slate-800/80 rounded-xl border border-slate-700/50">
-                  <Folder className={`w-5 h-5 ${ws.iconColor}`} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-100 group-hover:text-indigo-400 transition-colors">
-                    {ws.name}
-                  </h3>
-                  <p className="text-[11px] text-slate-400">{ws.boardsCount} boards</p>
-                </div>
-              </div>
-              <button className="text-slate-500 hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity">
-                <MoreHorizontal className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-800/60 pt-3">
-              <div className="flex items-center -space-x-1.5">
-                <GroupChatAvatar
-                  participants={mockParticipants}
-                  type="sidebar"
-                  maxVisible={3}
-                />
-              </div>
-              <span>{ws.updatedText}</span>
-            </div>
-          </Link>
+        {workspaces!.map((ws: WorkspaceResponse) => (
+          <WorkspaceCard key={ws.id} ws={ws} />
         ))}
 
         {/* Thẻ Nút Add New Workspace */}
@@ -155,4 +132,4 @@ const ContentIndex = () => {
     </section>
   );
 };
-export default ContentIndex;
+export default WorkspaceHome;

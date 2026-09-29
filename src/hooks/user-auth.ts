@@ -1,4 +1,5 @@
 import { authService } from "@/services/auth.services";
+import { workSpaceService } from "@/services/workspace.service";
 import { useAuthStore } from "@/store/useAuthStore";
 import { UserRole } from "@/types";
 import {
@@ -107,7 +108,7 @@ export const useSignIn = (messages?: AuthToastMessages, redirectTo?: string) => 
   return useMutation({
     mutationFn: (data: SignInDto & { rememberMe?: boolean }) => authService.signIn(data),
 
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       // 1. Cập nhật TanStack Query Cache
       queryClient.setQueriesData(
         { queryKey: ["auth", "session"] },
@@ -120,6 +121,10 @@ export const useSignIn = (messages?: AuthToastMessages, redirectTo?: string) => 
 
       // 2. Cập nhật dữ liệu vào Zustand Store
       setUser(response.user);
+      await queryClient.prefetchQuery({
+        queryKey: ["workspace"],
+        queryFn: () => workSpaceService.getWorkSpace(),
+      });
 
       toast.success(messages?.success ?? "Sign in successful");
 
