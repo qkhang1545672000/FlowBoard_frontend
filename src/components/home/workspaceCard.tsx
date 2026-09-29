@@ -7,7 +7,7 @@ import GroupChatAvatar from "../ui/GroupChatAvatar";
 import { WorkspaceResponse } from "@/types/workSpace";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { createPortal } from "react-dom";
-import { useDeleteWorkspace } from "@/hooks/useWorkSpace";
+import { useDeleteWorkspace, useInviteMemberW } from "@/hooks/useWorkSpace";
 import InviteMemberModal from "./InviteMemberModal"; // 👈 Import Modal mới
 
 interface Props {
@@ -19,6 +19,9 @@ interface Props {
 
 const WorkspaceCard = ({ ws, onDelete, onRename, onInviteMember }: Props) => {
   const setActiveWorkspace = useWorkspaceStore((state) => state.setActiveWorkspace);
+  const { mutateAsync: InviteMemberMutation, isPending: isInviteMemberAPI } =
+    useInviteMemberW();
+
   const { mutateAsync: deleteWorkspaceMutation, isPending: isDeleteAPI } =
     useDeleteWorkspace();
 
@@ -49,11 +52,7 @@ const WorkspaceCard = ({ ws, onDelete, onRename, onInviteMember }: Props) => {
 
   // Xử lý gửi email mời
   const handleInviteConfirm = async (email: string) => {
-    if (onInviteMember) {
-      await onInviteMember(ws.id, email);
-    } else {
-      console.log(`Gửi lời mời tham gia workspace ${ws.id} tới: ${email}`);
-    }
+    await InviteMemberMutation({ workspaceId: ws.id, email });
   };
 
   return (

@@ -54,7 +54,7 @@ export const workSpaceService = {
       throw error;
     }
   },
-
+  //Xóa workspace
   deleteWorkspace: async (workspaceId: string): Promise<WorkspaceDetailRespone> => {
     try {
       // Lấy toàn bộ headers/cookies từ Request gửi đến Next.js Server
@@ -66,6 +66,29 @@ export const workSpaceService = {
     } catch (error: any) {
       console.error(
         "Lỗi getWorkspaceDetail (Server):",
+        error?.response?.data || error.message,
+      );
+      throw error;
+    }
+  },
+  inviteMemberWorkspace: async (
+    workspaceId: string,
+    email: string,
+    role: string = "MEMBER",
+  ): Promise<void> => {
+    try {
+      const response = await axiosInstance.post(
+        `/api/v1/workspaces/${workspaceId}/invitations`,
+        {
+          email, // Hoặc email: email
+          role, // Hoặc role: role
+        },
+      );
+
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        "Lỗi inviteMemberWorkspace (Server):",
         error?.response?.data || error.message,
       );
       throw error;

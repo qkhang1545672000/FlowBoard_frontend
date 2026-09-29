@@ -62,3 +62,24 @@ export const useDeleteWorkspace = () => {
     },
   });
 };
+
+export const useInviteMemberW = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    // Hàm thực thi API mời thành viên
+    mutationFn: ({ workspaceId, email }: { workspaceId: string; email: string }) =>
+      workSpaceService.inviteMemberWorkspace(workspaceId, email),
+
+    // Chạy khi API thành công
+    onSuccess: () => {
+      // Làm mới (refetch) lại dữ liệu/danh sách workspace
+      queryClient.invalidateQueries({ queryKey: ["workspace"] });
+    },
+
+    // Chạy khi API thất bại
+    onError: (error) => {
+      console.error("Lỗi khi mời thành viên vào workspace:", error);
+    },
+  });
+};
