@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   PaginatedWorkspaceResponse,
+  WorkspaceFilterType,
   workSpaceService,
 } from "@/services/workspace.service";
 import { WorkspaceDetailResponse } from "@/types/workSpace";
@@ -8,14 +9,13 @@ import { CreateWorkspaceDto } from "@/types/apiWorkspace.type";
 
 import { useInfiniteQuery } from "@tanstack/react-query";
 
-export const useWorkSpace = (limit: number = 10) => {
+export const useWorkSpace = (limit: number = 10, type: WorkspaceFilterType = "all") => {
   return useInfiniteQuery<PaginatedWorkspaceResponse>({
-    queryKey: ["workspace"],
+    queryKey: ["workspace", type], // Query key phụ thuộc vào `type`
     queryFn: ({ pageParam = 1 }) =>
-      workSpaceService.getWorkSpace(pageParam as number, limit),
+      workSpaceService.getWorkSpace(pageParam as number, limit, type),
     initialPageParam: 1,
     getNextPageParam: (lastPage) => {
-      // Nếu còn dữ liệu (hasMore = true), trang tiếp theo sẽ là page hiện tại + 1
       return lastPage.hasMore ? lastPage.page + 1 : undefined;
     },
   });
@@ -90,6 +90,24 @@ export const useInviteMemberW = () => {
     // Chạy khi API thất bại
     onError: (error) => {
       console.error("Lỗi khi mời thành viên vào workspace:", error);
+    },
+  });
+};
+
+export const useWorkspaceCounts = () => {
+  return useQuery({
+    queryKey: ["workspace-counts"],
+    queryFn: async () => {
+      // Gọi song song 2 API với limit = 1 để lấy giá trị `total` của cả 2 tab nhanh nhất
+      const [ownedRes, joinedRes] = await Promise.all([
+        workSpaceService.getWorkSpace(1, 1, "owned"),
+        workSpaceService.getWorkSpace(1, 1, "joined"),
+      ]);
+
+      return {
+        ownedCount: ownedRes.total || 0,
+        joinedCount: joinedRes.total || 0,
+      };
     },
   });
 };

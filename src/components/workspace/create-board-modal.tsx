@@ -53,6 +53,7 @@ export const CreateBoardModal = ({
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const { mutate: createBoard, isPending } = useCreateBoard();
   const user = useAuthStore((state) => state.user);
+
   const workspaceId = useWorkspaceStore((state) => state.activeWorkspaceId) ?? "";
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -64,7 +65,10 @@ export const CreateBoardModal = ({
   // Khởi tạo mặc định: Thêm người tạo vào danh sách nhưng không gán isLeader
   useEffect(() => {
     if (isOpen && currentWorkspaceMember) {
-      setSelectedMembersMap(new Map([[currentWorkspaceMember.id, { isLeader: false }]]));
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedMembersMap(
+        new Map([[currentWorkspaceMember.user.id, { isLeader: false }]]),
+      );
     }
   }, [isOpen, currentWorkspaceMember?.id]);
 
@@ -90,7 +94,7 @@ export const CreateBoardModal = ({
 
   // Toggle chọn / bỏ chọn thành viên (Không áp dụng cho Người tạo)
   const toggleMember = (id: string) => {
-    if (id === currentWorkspaceMember?.id) return; // Người tạo không thể bị xóa
+    if (id === currentWorkspaceMember?.user?.id) return; // Người tạo không thể bị xóa
 
     setSelectedMembersMap((prev) => {
       const newMap = new Map(prev);
@@ -134,7 +138,7 @@ export const CreateBoardModal = ({
 
   const selectedMembersList: SelectedMemberData[] = Array.from(selectedMembersMap.keys())
     .map((id) => {
-      const member = workspaceMembers.find((m) => m.id === id);
+      const member = workspaceMembers.find((m) => m.user.id === id);
       const isLeader = selectedMembersMap.get(id)?.isLeader || false;
       return member ? { member, isLeader } : null;
     })
@@ -144,6 +148,7 @@ export const CreateBoardModal = ({
     e.preventDefault();
     if (!title.trim()) return;
     const memberIds = Array.from(selectedMembersMap.keys());
+
     const leaderId = currentLeaderId || null;
     createBoard({ title, description, memberIds, leaderId, workspaceId });
 
@@ -153,7 +158,7 @@ export const CreateBoardModal = ({
     setSelectedMembersMap(new Map());
     onClose();
   };
-
+  console.log("dfasfsaf", selectedMembersMap);
   return (
     <div
       onClick={handleBackdropClick}
@@ -302,7 +307,7 @@ export const CreateBoardModal = ({
                                     type="button"
                                     disabled={!isLeader && currentLeaderId !== undefined}
                                     onClick={() => {
-                                      toggleLeaderRole(member.id);
+                                      toggleLeaderRole(member.user.id);
                                       setOpenMenuId(null);
                                     }}
                                     className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between transition-colors ${
@@ -332,7 +337,7 @@ export const CreateBoardModal = ({
                             ) : (
                               <button
                                 type="button"
-                                onClick={() => toggleMember(member.id)}
+                                onClick={() => toggleMember(member.user.id)}
                                 className="p-1 hover:bg-slate-800 text-slate-400 hover:text-rose-400 rounded-lg transition-colors"
                                 title="Xóa khỏi board">
                                 <X className="w-3.5 h-3.5" />
@@ -374,13 +379,13 @@ export const CreateBoardModal = ({
             <div className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin scrollbar-thumb-slate-800">
               {filteredWorkspaceMembers.length > 0 ? (
                 filteredWorkspaceMembers.map((member) => {
-                  const isSelected = selectedMembersMap.has(member.id);
-                  const isOwner = member.id === currentWorkspaceMember?.id;
+                  const isSelected = selectedMembersMap.has(member.user.id);
+                  const isOwner = member.user.id === currentWorkspaceMember?.user?.id;
 
                   return (
                     <div
                       key={member.id}
-                      onClick={() => !isOwner && toggleMember(member.id)}
+                      onClick={() => !isOwner && toggleMember(member.user.id)}
                       className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
                         isOwner
                           ? "bg-indigo-950/20 border-indigo-500/30 opacity-75 cursor-not-allowed" // Khung nhã nhặn cho Owner ở cột phải

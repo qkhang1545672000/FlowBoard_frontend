@@ -8,17 +8,19 @@ export interface PaginatedWorkspaceResponse {
   page: number;
   limit: number;
 }
+export type WorkspaceFilterType = "all" | "owned" | "joined";
 export const workSpaceService = {
   //Lấy danh sách workspace mà người dùng hiện có
   getWorkSpace: async (
     page: number = 1,
     limit: number = 10,
+    type: WorkspaceFilterType = "all",
   ): Promise<PaginatedWorkspaceResponse> => {
     try {
       const response = await axiosInstance.get<PaginatedWorkspaceResponse>(
         "/api/v1/workspaces/",
         {
-          params: { page, limit },
+          params: { page, limit, type },
         },
       );
 
@@ -30,11 +32,11 @@ export const workSpaceService = {
     }
   },
   //Xem chi tiết của workspace
-  getWorkspaceDetail: async (workspaceId: string): Promise<WorkspaceDetailRespone> => {
+  getWorkspaceDetail: async (workspaceId: string): Promise<WorkspaceDetailResponse> => {
     try {
       // Lấy toàn bộ headers/cookies từ Request gửi đến Next.js Server
 
-      const response = await axiosInstance.get<WorkspaceDetailRespone>(
+      const response = await axiosInstance.get<WorkspaceDetailResponse>(
         `/api/v1/workspaces/${workspaceId}`,
       );
 
@@ -66,7 +68,7 @@ export const workSpaceService = {
     }
   },
   //Xóa workspace
-  deleteWorkspace: async (workspaceId: string): Promise<WorkspaceDetailRespone> => {
+  deleteWorkspace: async (workspaceId: string): Promise<WorkspaceDetailResponse> => {
     try {
       // Lấy toàn bộ headers/cookies từ Request gửi đến Next.js Server
 
