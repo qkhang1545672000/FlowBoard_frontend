@@ -1,6 +1,6 @@
 import axiosInstance from "@/lib/axios";
 import { CreateWorkspaceDto } from "@/types/apiWorkspace.type";
-import { WorkspaceDetailRespone, WorkspaceResponse } from "@/types/workSpace";
+import { WorkspaceDetailResponse, WorkspaceResponse } from "@/types/workSpace";
 export interface PaginatedWorkspaceResponse {
   data: WorkspaceResponse[];
   total: number;

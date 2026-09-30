@@ -3,7 +3,7 @@ import {
   PaginatedWorkspaceResponse,
   workSpaceService,
 } from "@/services/workspace.service";
-import { WorkspaceDetailRespone, WorkspaceResponse } from "@/types/workSpace";
+import { WorkspaceDetailResponse } from "@/types/workSpace";
 import { CreateWorkspaceDto } from "@/types/apiWorkspace.type";
 
 import { useInfiniteQuery } from "@tanstack/react-query";
@@ -21,7 +21,7 @@ export const useWorkSpace = (limit: number = 10) => {
   });
 };
 export const useWorkspaceDetail = (workspaceId: string) => {
-  return useQuery<WorkspaceDetailRespone>({
+  return useQuery<WorkspaceDetailResponse>({
     queryKey: ["workspace", workspaceId], // Query key bao gồm workspaceId để tự động refetch khi ID thay đổi
     queryFn: () => workSpaceService.getWorkspaceDetail(workspaceId),
     enabled: !!workspaceId, // Chỉ chạy query khi workspaceId có giá trị (tránh gọi API khi ID bị undefined/null)

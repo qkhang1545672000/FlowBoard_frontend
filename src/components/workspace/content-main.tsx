@@ -5,8 +5,11 @@ import { Plus, Search, UserPlus, MoreVertical, Mail } from "lucide-react";
 import { BoardCard } from "./board-card";
 import { useWorkspaceDetail } from "@/hooks/useWorkSpace";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
+import { CreateBoardModal } from "./create-board-modal";
+import UserAvatar from "../ui/UserAvatar";
+import { WorkspaceMember } from "@/types/workSpace";
 
-// Mock data giả lập danh sách thành viên nếu API chưa trả về
+// Mock data giả lập danh sách thành viên
 const mockMembers = [
   {
     id: "m-1",
@@ -98,7 +101,6 @@ const mockMembers = [
   },
 ];
 
-// Hàm chia mảng thành từng trang (Mỗi trang chứa tối đa 6 thành viên: 2 cột x 3 hàng)
 const chunkArray = (array: any[], size: number) => {
   const result = [];
   for (let i = 0; i < array.length; i += size) {
@@ -116,10 +118,11 @@ const ContentMain = () => {
   const [activeTab, setActiveTab] = useState<"boards" | "members">("boards");
   const [searchQuery, setSearchQuery] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   if (isLoading) return <div className="p-8 text-slate-400">Loading...</div>;
 
-  const membersList = workspaceDetail?.members || mockMembers;
+  const membersList = workspaceDetail?.members ?? [];
   const filteredMembers = membersList.filter(
     (m: any) =>
       m.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -127,8 +130,17 @@ const ContentMain = () => {
       m.email?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
-  // Chia danh sách thành viên đã lọc thành từng trang (mỗi trang 6 phần tử)
   const memberPages = chunkArray(filteredMembers, 6);
+
+  const handleCreateBoardSubmit = (data: {
+    title: string;
+    description: string;
+    memberIds: string[];
+    leaderId: string | null;
+  }) => {
+    console.log("Dữ liệu tạo board:", data);
+    // Call API tạo board tại đây
+  };
 
   return (
     <main className="flex-1 p-8 max-w-7xl mx-auto w-full space-y-6 text-slate-200">
@@ -143,10 +155,11 @@ const ContentMain = () => {
           </p>
         </div>
 
-        {/* Action Button theo Tab */}
         <div>
           {activeTab === "boards" ? (
-            <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-600/20">
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-600/20">
               <Plus className="w-4 h-4" />
               <span>Create Board</span>
             </button>
@@ -201,7 +214,6 @@ const ContentMain = () => {
       {/* TAB 2: MEMBERS MANAGEMENT */}
       {activeTab === "members" && (
         <div className="space-y-8">
-          {/* Header & Search Bar */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <h2 className="text-lg font-semibold text-slate-200">Current Members</h2>
 
@@ -217,35 +229,28 @@ const ContentMain = () => {
             </div>
           </div>
 
-          {/* Members Container - Cuộn ngang lật theo trang (2 cột x 3 hàng) */}
           {memberPages.length > 0 ? (
             <div className="flex gap-6 overflow-x-auto snap-x snap-mandatory pb-4 pt-1 scrollbar-thin scrollbar-thumb-slate-700">
               {memberPages.map((pageMembers, pageIndex) => (
                 <div
                   key={pageIndex}
                   className="w-full shrink-0 snap-start grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-                  {pageMembers.map((member: any) => (
+                  {pageMembers.map((member: WorkspaceMember) => (
                     <div
                       key={member.id}
                       className="flex items-center justify-between p-4 bg-slate-900/60 border border-slate-800/80 rounded-2xl hover:border-slate-700 transition-all select-none">
                       <div className="flex items-center gap-3.5 min-w-0">
                         <div className="relative shrink-0">
-                          <img
-                            src={member.avatar}
-                            alt={member.name}
-                            className="w-11 h-11 rounded-full object-cover border border-slate-700"
-                          />
+                          <UserAvatar name={member.user.name} type="chat" />
                           <span
                             className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 ${
-                              member.status === "Online"
-                                ? "bg-emerald-500"
-                                : "bg-amber-500"
+                              "Online" === "Online" ? "bg-emerald-500" : "bg-amber-500"
                             }`}
                           />
                         </div>
                         <div className="truncate">
                           <h3 className="font-semibold text-white text-sm flex items-center gap-1.5 truncate">
-                            <span className="truncate">{member.name}</span>
+                            <span className="truncate">{member.user.name}</span>
                             {member.role?.includes("Owner") && (
                               <span className="text-xs text-amber-400 font-normal shrink-0">
                                 (Owner)
@@ -261,11 +266,11 @@ const ContentMain = () => {
                       <div className="flex items-center gap-2 shrink-0 ml-2">
                         <span
                           className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
-                            member.status === "Online"
+                            "Online" === "Online"
                               ? "text-emerald-400 border-emerald-500/20 bg-emerald-500/10"
                               : "text-amber-400 border-amber-500/20 bg-amber-500/10"
                           }`}>
-                          • {member.status}
+                          • Online
                         </span>
                         <button className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors">
                           <MoreVertical className="w-4 h-4" />
@@ -303,6 +308,14 @@ const ContentMain = () => {
           </div>
         </div>
       )}
+
+      {/* Modal Tạo Board */}
+      <CreateBoardModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        workspaceMembers={membersList ?? []}
+        onCreateBoard={handleCreateBoardSubmit}
+      />
     </main>
   );
 };

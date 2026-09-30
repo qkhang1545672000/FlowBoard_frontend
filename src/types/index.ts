@@ -39,19 +39,15 @@ export interface User {
   name: string;
   email: string;
   image?: string;
-  role: UserRole;
+  role?: UserRole;
 }
 
 export interface Board {
   id: string;
-  workspaceId: string;
   title: string;
-  description?: string;
-  background?: string;
-  visibility: BoardVisibility;
-  activeTasksCount?: number;
+  tasksCount?: number;
   membersCount?: number;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface Participant {

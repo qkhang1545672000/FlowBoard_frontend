@@ -1,4 +1,5 @@
-import { Participant } from ".";
+import { Participant, WorkspaceRole } from ".";
+import { User } from "./api.types";
 
 export interface Workspace {
   id: string;
@@ -25,10 +26,11 @@ export interface Board {
 }
 
 // 2. Interface cho Workspace (chứa danh sách các boards)
-export interface WorkspaceDetailRespone {
+export interface WorkspaceDetailResponse {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
+  members: WorkspaceMember[];
   boards: Board[];
 }
 
@@ -42,4 +44,11 @@ export interface WorkspaceStore {
   setActiveWorkspaceId: (id: string | null) => void;
   setActiveWorkspaceSlug: (slug: string | null) => void;
   clearActiveWorkspace: () => void;
+}
+
+export interface WorkspaceMember {
+  id: string;
+  role: WorkspaceRole; // Thêm các role có thể có
+  joinedAt: string;
+  user: User;
 }
