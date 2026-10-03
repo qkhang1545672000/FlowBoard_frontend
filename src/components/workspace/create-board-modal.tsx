@@ -18,6 +18,7 @@ import UserAvatar from "../ui/UserAvatar";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useCreateBoard } from "@/hooks/useBoard";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
+import { formatWorkspaceSlug } from "@/lib/took";
 
 interface SelectedMemberData {
   member: WorkspaceMember;
@@ -148,9 +149,9 @@ export const CreateBoardModal = ({
     e.preventDefault();
     if (!title.trim()) return;
     const memberIds = Array.from(selectedMembersMap.keys());
-
+    const slug = formatWorkspaceSlug(title); // Tạo slug từ tên board
     const leaderId = currentLeaderId || null;
-    createBoard({ title, description, memberIds, leaderId, workspaceId });
+    createBoard({ title, description, slug, memberIds, leaderId, workspaceId });
 
     // Reset Form
     setTitle("");

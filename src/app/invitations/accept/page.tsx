@@ -41,7 +41,7 @@ export default function AcceptInvitationPage() {
           // Đã đăng nhập và gia nhập thành công -> Xóa token tạm và chuyển vào Workspace
           localStorage.removeItem("pending_invite_token");
           setMessage("Tham gia Workspace thành công! Đang chuyển hướng...");
-          setTimeout(() => router.push(`/workspaces/${data.workspaceId}`), 1500);
+          setTimeout(() => router.push(`/w/${data.slug}`), 1500);
         } else {
           setMessage(data.message || "Lời mời không hợp lệ hoặc đã hết hạn.");
         }

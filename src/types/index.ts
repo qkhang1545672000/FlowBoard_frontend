@@ -14,6 +14,12 @@ export enum BoardVisibility {
   WORKSPACE = "WORKSPACE",
   PUBLIC = "PUBLIC",
 }
+export enum BoardMemberRole {
+  ADMIN = "ADMIN",
+  MEMBER = "MEMBER",
+  VIEWER = "VIEWER",
+  LEADER = "LEADER",
+}
 
 export enum TaskPriority {
   LOW = "LOW",
@@ -40,14 +46,6 @@ export interface User {
   email: string;
   image?: string;
   role?: UserRole;
-}
-
-export interface Board {
-  id: string;
-  title: string;
-  tasksCount?: number;
-  membersCount?: number;
-  updatedAt?: string;
 }
 
 export interface Participant {

@@ -3,30 +3,35 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 interface IUserAvatarProps {
   type: "sidebar" | "chat" | "profile" | "min";
-  name: string;
+  name?: string;
   avatarUrl?: string;
-  className?: string;
+  className?: string; // Tùy chỉnh Avatar container (kích thước, border,...)
+  fallbackClassName?: string; // Tùy chỉnh màu nền & style riêng cho Fallback từ bên ngoài
 }
 
-const UserAvatar = ({ type, name, avatarUrl, className }: IUserAvatarProps) => {
-  const bgColor = !avatarUrl ? "bg-blue-500" : "";
-
-  if (!name) {
-    name = "Moji";
-  }
-
+const UserAvatar = ({
+  type,
+  name = "Moji", // Sử dụng default parameter thay vì gán lại biến
+  avatarUrl,
+  className,
+  fallbackClassName,
+}: IUserAvatarProps) => {
   return (
     <Avatar
       className={cn(
-        className ?? "",
         type === "sidebar" && "size-12 text-base",
         type === "chat" && "size-8 text-sm",
         type === "profile" && "size-24 text-3xl shadow-md",
-        type === "min" && "size-7 text-3xl shadow-md",
+        type === "min" && "size-7 text-xs shadow-md", // Đã sửa size-7 đi kèm text-xs cho phù hợp
+        className,
       )}>
       <AvatarImage src={avatarUrl} alt={name} />
-      <AvatarFallback className={`${bgColor} text-white font-semibold`}>
-        {name.charAt(0)}
+      <AvatarFallback
+        className={cn(
+          "font-semibold text-white bg-blue-500", // Màu mặc định nếu không có avatarUrl
+          fallbackClassName, // Cho phép ghi đè màu nền từ bên ngoài (VD: "bg-emerald-600", "bg-rose-500")
+        )}>
+        {name ? name.charAt(0).toUpperCase() : "M"}
       </AvatarFallback>
     </Avatar>
   );

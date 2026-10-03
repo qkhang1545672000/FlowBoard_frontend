@@ -116,6 +116,7 @@ export const auth = betterAuth({
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      allowAccountLinking: true,
       mapProfileToUser: (profile) => ({
         emailVerified: profile.email_verified,
       }),

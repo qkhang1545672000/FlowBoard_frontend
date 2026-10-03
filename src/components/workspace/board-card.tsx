@@ -5,15 +5,20 @@ import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale"; // Định dạng tiếng Việt (nếu muốn)
 import { MoreHorizontal, Users, CheckSquare } from "lucide-react";
-import { Board } from "@/types/workSpace";
+
+import { BoardOverview } from "@/types/board";
+import { useBoardStore } from "@/store/useBoardStore";
 
 interface BoardCardProps {
-  board: Board;
+  board: BoardOverview;
 }
 
 export function BoardCard({ board }: BoardCardProps) {
+  const setActiveBoard = useBoardStore((state) => state.setActiveBoard);
   return (
-    <Link href={`/b/${board.id}`}>
+    <Link
+      href={`/b/${board.slug}`}
+      onClick={() => setActiveBoard({ id: board.id, slug: board.slug })}>
       <div className="group bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 rounded-2xl p-5 transition-all duration-200 hover:shadow-xl hover:border-slate-600 cursor-pointer flex flex-col justify-between h-56 backdrop-blur-sm">
         {/* Header: Title & Actions */}
         <div>

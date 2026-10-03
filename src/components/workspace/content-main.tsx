@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus, Search, UserPlus, MoreVertical, Mail } from "lucide-react";
 import { BoardCard } from "./board-card";
 import { useWorkspaceDetail } from "@/hooks/useWorkSpace";
@@ -8,101 +9,11 @@ import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { CreateBoardModal } from "./create-board-modal";
 import UserAvatar from "../ui/UserAvatar";
 import { WorkspaceMember } from "@/types/workSpace";
+import { useAuthStore } from "@/store/useAuthStore";
+import { BoardOverview } from "@/types/board";
 
-// Mock data giả lập danh sách thành viên
-const mockMembers = [
-  {
-    id: "m-1",
-    name: "Thao Nguyen",
-    email: "thao.nguyen@example.com",
-    role: "Frontend Developer",
-    status: "Online",
-    avatar: "https://i.pravatar.cc/150?u=1",
-  },
-  {
-    id: "m-2",
-    name: "Minh Tran",
-    email: "minh.tran@example.com",
-    role: "Project Manager",
-    status: "Online",
-    avatar: "https://i.pravatar.cc/150?u=2",
-  },
-  {
-    id: "m-3",
-    name: "Alex Rivera",
-    email: "alex.rivera@example.com",
-    role: "Workspace Owner",
-    status: "Online",
-    avatar: "https://i.pravatar.cc/150?u=3",
-  },
-  {
-    id: "m-4",
-    name: "Anh Nguyen",
-    email: "anh.nguyen@example.com",
-    role: "Lead Designer",
-    status: "Away",
-    avatar: "https://i.pravatar.cc/150?u=4",
-  },
-  {
-    id: "m-5",
-    name: "Anh Nguyen",
-    email: "anh.nguyen@example.com",
-    role: "Lead Designer",
-    status: "Away",
-    avatar: "https://i.pravatar.cc/150?u=4",
-  },
-  {
-    id: "m-6",
-    name: "Anh Nguyen",
-    email: "anh.nguyen@example.com",
-    role: "Lead Designer",
-    status: "Away",
-    avatar: "https://i.pravatar.cc/150?u=4",
-  },
-  {
-    id: "m-7",
-    name: "Anh Nguyen",
-    email: "anh.nguyen@example.com",
-    role: "Lead Designer",
-    status: "Away",
-    avatar: "https://i.pravatar.cc/150?u=4",
-  },
-  {
-    id: "m-8",
-    name: "Anh Nguyen",
-    email: "anh.nguyen@example.com",
-    role: "Lead Designer",
-    status: "Away",
-    avatar: "https://i.pravatar.cc/150?u=4",
-  },
-  {
-    id: "m-9",
-    name: "Anh Nguyen",
-    email: "anh.nguyen@example.com",
-    role: "Lead Designer",
-    status: "Away",
-    avatar: "https://i.pravatar.cc/150?u=4",
-  },
-  {
-    id: "m-10",
-    name: "Anh Nguyen",
-    email: "anh.nguyen@example.com",
-    role: "Lead Designer",
-    status: "Away",
-    avatar: "https://i.pravatar.cc/150?u=4",
-  },
-  {
-    id: "m-11",
-    name: "Anh Nguyen",
-    email: "anh.nguyen@example.com",
-    role: "Lead Designer",
-    status: "Away",
-    avatar: "https://i.pravatar.cc/150?u=4",
-  },
-];
-
-const chunkArray = (array: any[], size: number) => {
-  const result = [];
+const chunkArray = <T,>(array: T[], size: number): T[][] => {
+  const result: T[][] = [];
   for (let i = 0; i < array.length; i += size) {
     result.push(array.slice(i, i + size));
   }
@@ -111,26 +22,50 @@ const chunkArray = (array: any[], size: number) => {
 
 const ContentMain = () => {
   const activeWorkspaceId = useWorkspaceStore((state) => state.activeWorkspaceId);
+  const userCurrent = useAuthStore((state) => state.user);
+
   const { data: workspaceDetail, isLoading } = useWorkspaceDetail(
     activeWorkspaceId ?? "",
   );
+
+  // 1. Kiểm tra vai trò OWNER bằng useMemo
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
+  const isOwn = useMemo(() => {
+    if (!workspaceDetail?.members || !userCurrent?.id) return false;
+    return workspaceDetail.members.some(
+      (m) => m.user?.id === userCurrent.id && m.role === "OWNER",
+    );
+  }, [workspaceDetail?.members, userCurrent?.id]);
 
   const [activeTab, setActiveTab] = useState<"boards" | "members">("boards");
   const [searchQuery, setSearchQuery] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  if (isLoading) return <div className="p-8 text-slate-400">Loading...</div>;
-
+  // 2. Tách danh sách Members
   const membersList = workspaceDetail?.members ?? [];
-  const filteredMembers = membersList.filter(
-    (m: any) =>
-      m.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.role?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.email?.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+
+  // 3. ĐÃ SỬA LỖI: Lọc thành viên đúng theo m.user.name và m.user.email
+  const filteredMembers = useMemo(() => {
+    if (!searchQuery.trim()) return membersList;
+    const query = searchQuery.toLowerCase();
+
+    return membersList.filter((m: WorkspaceMember) => {
+      const userName = m.user?.name?.toLowerCase() ?? "";
+      const userEmail = m.user?.email?.toLowerCase() ?? "";
+      const memberRole = m.role?.toLowerCase() ?? "";
+
+      return (
+        userName.includes(query) ||
+        userEmail.includes(query) ||
+        memberRole.includes(query)
+      );
+    });
+  }, [membersList, searchQuery]);
 
   const memberPages = chunkArray(filteredMembers, 6);
+
+  if (isLoading) return <div className="p-8 text-slate-400">Loading...</div>;
 
   const handleCreateBoardSubmit = (data: {
     title: string;
@@ -157,14 +92,16 @@ const ContentMain = () => {
 
         <div>
           {activeTab === "boards" ? (
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-600/20">
-              <Plus className="w-4 h-4" />
-              <span>Create Board</span>
-            </button>
+            isOwn && (
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-600/20 cursor-pointer">
+                <Plus className="w-4 h-4" />
+                <span>Create Board</span>
+              </button>
+            )
           ) : (
-            <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-600/20">
+            <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-600/20 cursor-pointer">
               <UserPlus className="w-4 h-4" />
               <span>Manage Members</span>
             </button>
@@ -176,7 +113,7 @@ const ContentMain = () => {
       <div className="flex items-center space-x-6 border-b border-slate-800 pb-1">
         <button
           onClick={() => setActiveTab("boards")}
-          className={`pb-3 font-semibold text-sm transition-colors relative ${
+          className={`pb-3 font-semibold text-sm transition-colors relative cursor-pointer ${
             activeTab === "boards"
               ? "text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-indigo-500"
               : "text-slate-400 hover:text-slate-200"
@@ -185,7 +122,7 @@ const ContentMain = () => {
         </button>
         <button
           onClick={() => setActiveTab("members")}
-          className={`pb-3 font-semibold text-sm transition-colors relative ${
+          className={`pb-3 font-semibold text-sm transition-colors relative cursor-pointer ${
             activeTab === "members"
               ? "text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-indigo-500"
               : "text-slate-400 hover:text-slate-200"
@@ -199,7 +136,7 @@ const ContentMain = () => {
         <div className="space-y-4">
           {workspaceDetail?.boards && workspaceDetail.boards.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {workspaceDetail.boards.map((board: any) => (
+              {workspaceDetail.boards.map((board: BoardOverview) => (
                 <BoardCard key={board.id} board={board} />
               ))}
             </div>
@@ -241,17 +178,13 @@ const ContentMain = () => {
                       className="flex items-center justify-between p-4 bg-slate-900/60 border border-slate-800/80 rounded-2xl hover:border-slate-700 transition-all select-none">
                       <div className="flex items-center gap-3.5 min-w-0">
                         <div className="relative shrink-0">
-                          <UserAvatar name={member.user.name} type="chat" />
-                          <span
-                            className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 ${
-                              "Online" === "Online" ? "bg-emerald-500" : "bg-amber-500"
-                            }`}
-                          />
+                          <UserAvatar name={member.user?.name} type="chat" />
+                          <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 bg-emerald-500" />
                         </div>
                         <div className="truncate">
                           <h3 className="font-semibold text-white text-sm flex items-center gap-1.5 truncate">
-                            <span className="truncate">{member.user.name}</span>
-                            {member.role?.includes("Owner") && (
+                            <span className="truncate">{member.user?.name}</span>
+                            {member.role === "OWNER" && (
                               <span className="text-xs text-amber-400 font-normal shrink-0">
                                 (Owner)
                               </span>
@@ -264,15 +197,10 @@ const ContentMain = () => {
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0 ml-2">
-                        <span
-                          className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
-                            "Online" === "Online"
-                              ? "text-emerald-400 border-emerald-500/20 bg-emerald-500/10"
-                              : "text-amber-400 border-amber-500/20 bg-amber-500/10"
-                          }`}>
+                        <span className="text-xs font-medium px-2.5 py-1 rounded-full border text-emerald-400 border-emerald-500/20 bg-emerald-500/10">
                           • Online
                         </span>
-                        <button className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors">
+                        <button className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer">
                           <MoreVertical className="w-4 h-4" />
                         </button>
                       </div>
@@ -301,7 +229,7 @@ const ContentMain = () => {
                 onChange={(e) => setInviteEmail(e.target.value)}
                 className="flex-1 bg-slate-950/60 border border-slate-800 focus:border-indigo-500 text-sm text-white rounded-xl px-4 py-2.5 outline-none transition-all placeholder:text-slate-500"
               />
-              <button className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-6 py-2.5 rounded-xl transition-all shadow-md shadow-indigo-600/20 whitespace-nowrap">
+              <button className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-6 py-2.5 rounded-xl transition-all shadow-md shadow-indigo-600/20 whitespace-nowrap cursor-pointer">
                 Send Invites
               </button>
             </div>
@@ -313,7 +241,7 @@ const ContentMain = () => {
       <CreateBoardModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        workspaceMembers={membersList ?? []}
+        workspaceMembers={membersList}
         onCreateBoard={handleCreateBoardSubmit}
       />
     </main>

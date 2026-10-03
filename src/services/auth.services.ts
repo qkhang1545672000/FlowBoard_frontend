@@ -166,9 +166,7 @@ export const authService = {
     if (typeof window === "undefined") return;
 
     const redirect =
-      redirectPath !== undefined && redirectPath !== ""
-        ? redirectPath
-        : "/product/catalog";
+      redirectPath !== undefined && redirectPath !== "" ? redirectPath : "/";
 
     const encoded = encodeURIComponent(
       redirect.startsWith("/") ? redirect : `/${redirect}`,

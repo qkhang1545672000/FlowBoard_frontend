@@ -1,23 +1,27 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import { Sidebar } from "@/components/workspace/sidebar";
 import { SidebarSkeleton } from "@/components/workspace/SidebarSkeleton";
 import { useWorkSpace } from "@/hooks/useWorkSpace";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
+import { WorkspaceSlugSync } from "@/components/workspace/WorkspaceSlugSync";
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
-  // 1. Dùng destructured props đúng với useInfiniteQuery
-  const { data, isPending } = useWorkSpace();
   const activeWorkspaceSlug = useWorkspaceStore((state) => state.activeWorkspaceSlug);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { data, isPending } = useWorkSpace();
 
-  // 2. Phẳng hóa mảng workspaces từ các trang (pages)
   const workspacesList = data?.pages.flatMap((page) => page.data) ?? [];
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950">
-      {/* 1. Giữ nguyên khung Flexbox layout, switch giữa Skeleton và Sidebar */}
+      {/* 1. Component đồng bộ slug được bọc trong Suspense */}
+      <Suspense fallback={null}>
+        <WorkspaceSlugSync />
+      </Suspense>
+
+      {/* 2. Sidebar */}
       {isPending && !data ? (
         <SidebarSkeleton isCollapsed={isCollapsed} />
       ) : (
@@ -29,7 +33,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
         />
       )}
 
-      {/* 2. Nội dung chính */}
+      {/* 3. Nội dung chính */}
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto transition-all duration-300">
         {children}
       </div>
