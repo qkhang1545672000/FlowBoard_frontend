@@ -8,6 +8,8 @@ import { Clock } from "lucide-react";
 import { TaskPriority } from "@/types";
 import { useAuthStore } from "@/store/useAuthStore";
 import UserAvatar from "../ui/UserAvatar";
+import { useBoardPermission } from "./useBoardPermission";
+import { useBoardStore } from "@/store/useBoardStore";
 
 interface Props {
   task: Task;
@@ -15,8 +17,10 @@ interface Props {
 }
 
 export function TaskCard({ task, isOverlay }: Props) {
+  const boardId = useBoardStore((state) => state.activeBoardId) ?? "";
+  const { isOwn } = useBoardPermission(boardId);
   const user = useAuthStore((state) => state.user);
-  const isAssignee = task.assignee?.id === user?.id;
+  const isAssignee = task.assignee?.id === user?.id || user?.role === "ADMIN" || isOwn;
 
   const { setNodeRef, attributes, listeners, transform, transition, isDragging } =
     useSortable({

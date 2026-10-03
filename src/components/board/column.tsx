@@ -8,13 +8,22 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Column, ColumnLockType } from "@/types/column";
-import { Plus, MoreHorizontal, Lock, Unlock, Trash2, PlusCircle } from "lucide-react";
+import {
+  Plus,
+  MoreHorizontal,
+  Lock,
+  Unlock,
+  Trash2,
+  PlusCircle,
+  ArrowDownLeft,
+  Check,
+} from "lucide-react";
 import { TaskCard } from "./taskCard";
 import { useCreateTask } from "@/hooks/useTask";
 import { useBoardStore } from "@/store/useBoardStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { TaskPriority } from "@/types";
-import { useCreateColumn } from "@/hooks/useColumn";
+import { useCreateColumn, useUpdateColumnClock } from "@/hooks/useColumn";
 
 interface Props {
   column: Column;
@@ -22,6 +31,7 @@ interface Props {
   onAddTask?: (columnId: string, title: string) => void;
   onAddColumnRight?: (targetColumnId: string, title: string) => void;
   onDeleteColumn?: (columnId: string) => void;
+  onChangeLockType?: (columnId: string, newLockType: ColumnLockType) => void;
 }
 
 export function ColumnComponent({
@@ -30,28 +40,31 @@ export function ColumnComponent({
   onAddTask,
   onAddColumnRight,
   onDeleteColumn,
+  onChangeLockType,
 }: Props) {
   const userCurrent = useAuthStore((state) => state.user);
 
   const boardId = useBoardStore((state) => state.activeBoardId) ?? "";
-  const { mutate: createTask, isPending } = useCreateTask(boardId);
-  const { mutate: createColumn, isPending: isCreatingColumnn } = useCreateColumn(boardId);
-  // Trạng thái tạo task mới
+  const { mutate: createTask } = useCreateTask(boardId);
+  const { mutate: updateColumnClock } = useUpdateColumnClock(boardId);
+  const { mutate: createColumn } = useCreateColumn(boardId);
+
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const taskInputRef = useRef<HTMLTextAreaElement>(null);
-  // Lấy thời gian hiện tại và cộng thêm 1 ngày
+
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-
-  // 1. Nếu cần truyền dạng ISO String (ví dụ: '2026-10-04T08:14:00.000Z') cho API/Database:
   const tomorrowISO = tomorrow.toISOString();
 
-  // Trạng thái Sub Menu 3 chấm
+  // State quản lý Menu More (3 chấm)
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Trạng thái tạo cột mới nằm bên phải
+  // State quản lý Sub Menu Khóa (Ổ khóa)
+  const [isLockMenuOpen, setIsLockMenuOpen] = useState(false);
+  const lockMenuRef = useRef<HTMLDivElement>(null);
+
   const [isCreatingColumn, setIsCreatingColumn] = useState(false);
   const [newColumnTitle, setNewColumnTitle] = useState("");
   const colInputRef = useRef<HTMLInputElement>(null);
@@ -74,36 +87,42 @@ export function ColumnComponent({
     transform: CSS.Translate.toString(transform),
   };
 
-  // Focus ô nhập task
   useEffect(() => {
     if (isCreatingTask) {
       taskInputRef.current?.focus();
     }
   }, [isCreatingTask]);
 
-  // Focus ô nhập tiêu đề cột mới khi bật tạo cột
   useEffect(() => {
     if (isCreatingColumn) {
       colInputRef.current?.focus();
     }
   }, [isCreatingColumn]);
 
-  // Đóng Sub Menu khi nhấp chuột ra ngoài
+  // Click outside cho cả 2 menu
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsMenuOpen(false);
       }
+      if (lockMenuRef.current && !lockMenuRef.current.contains(event.target as Node)) {
+        setIsLockMenuOpen(false);
+      }
     };
-    if (isMenuOpen) {
+    if (isMenuOpen || isLockMenuOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isMenuOpen]);
+  }, [isMenuOpen, isLockMenuOpen]);
 
-  // Xử lý tạo Task
+  // Chọn trạng thái khóa từ Sub Menu
+  const handleSelectLockType = (lockType: ColumnLockType) => {
+    setIsLockMenuOpen(false);
+    updateColumnClock({ columnId: column.id, lock: lockType });
+  };
+
   const handleCreateTask = async () => {
     if (newTaskTitle.trim()) {
       await createTask({
@@ -111,7 +130,6 @@ export function ColumnComponent({
         columnId: column.id,
         assigneeId: userCurrent?.id,
         dueDate: tomorrowISO,
-
         position: 100.0,
         priority: TaskPriority.MEDIUM,
         description: "",
@@ -134,7 +152,6 @@ export function ColumnComponent({
     }
   };
 
-  // Xử lý tạo Cột mới bên phải
   const handleCreateColumnRight = () => {
     if (newColumnTitle.trim()) {
       createColumn({
@@ -163,7 +180,6 @@ export function ColumnComponent({
 
   return (
     <div className="flex gap-3 shrink-0 items-start">
-      {/* Cột hiện tại */}
       <div
         ref={setNodeRef}
         style={style}
@@ -181,19 +197,99 @@ export function ColumnComponent({
               {column.tasks?.length || 0}
             </span>
           </div>
-          <div className="flex items-center gap-1 text-slate-400">
-            {column.lock_type === ColumnLockType.UNLOCKED ? (
-              <Unlock className="w-3.5 h-3.5 text-slate-400" />
-            ) : (
-              <Lock className="w-3.5 h-3.5 text-amber-500" />
-            )}
 
-            {/* Nút 3 chấm & Sub Menu */}
+          <div className="flex items-center gap-1.5 text-slate-400">
+            {/* SUB-MENU CHỌN TRẠNG THÁI KHÓA CỘT */}
+            <div className="relative" ref={lockMenuRef}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsLockMenuOpen((prev) => !prev);
+                  setIsMenuOpen(false);
+                }}
+                className="p-1 rounded-md hover:bg-slate-800 transition-colors"
+                title="Cấu hình trạng thái khóa cột">
+                {column.lock_type === ColumnLockType.UNLOCKED && (
+                  <Unlock className="w-3.5 h-3.5 text-slate-400" />
+                )}
+                {column.lock_type === ColumnLockType.ONE_WAY_LOCKED && (
+                  <ArrowDownLeft className="w-3.5 h-3.5 text-amber-500" />
+                )}
+                {column.lock_type === ColumnLockType.FULLY_LOCKED && (
+                  <Lock className="w-3.5 h-3.5 text-red-500" />
+                )}
+              </button>
+
+              {isLockMenuOpen && (
+                <div className="absolute right-0 top-7 w-52 bg-slate-800 border border-slate-700 rounded-xl shadow-xl py-1.5 z-50 text-xs text-slate-300 backdrop-blur-md animate-in fade-in zoom-in-95 duration-100">
+                  <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-400 border-b border-slate-700/60 mb-1">
+                    Trạng thái khóa cột
+                  </div>
+
+                  {/* Option 1: Unlocked */}
+                  <button
+                    onClick={() => handleSelectLockType(ColumnLockType.UNLOCKED)}
+                    className="w-full flex items-center justify-between px-3 py-2 hover:bg-slate-700/60 hover:text-white transition-colors text-left">
+                    <div className="flex items-center gap-2">
+                      <Unlock className="w-3.5 h-3.5 text-slate-400" />
+                      <div>
+                        <div className="font-medium">Mở khóa</div>
+                        <div className="text-[10px] text-slate-400">
+                          Tự do di chuyển thẻ
+                        </div>
+                      </div>
+                    </div>
+                    {column.lock_type === ColumnLockType.UNLOCKED && (
+                      <Check className="w-3.5 h-3.5 text-indigo-400" />
+                    )}
+                  </button>
+
+                  {/* Option 2: One Way Locked */}
+                  <button
+                    onClick={() => handleSelectLockType(ColumnLockType.ONE_WAY_LOCKED)}
+                    className="w-full flex items-center justify-between px-3 py-2 hover:bg-slate-700/60 hover:text-white transition-colors text-left">
+                    <div className="flex items-center gap-2">
+                      <ArrowDownLeft className="w-3.5 h-3.5 text-amber-500" />
+                      <div>
+                        <div className="font-medium text-amber-400">Khóa 1 chiều</div>
+                        <div className="text-[10px] text-slate-400">
+                          Chỉ kéo vào, không kéo ra
+                        </div>
+                      </div>
+                    </div>
+                    {column.lock_type === ColumnLockType.ONE_WAY_LOCKED && (
+                      <Check className="w-3.5 h-3.5 text-amber-400" />
+                    )}
+                  </button>
+
+                  {/* Option 3: Fully Locked */}
+                  <button
+                    onClick={() => handleSelectLockType(ColumnLockType.FULLY_LOCKED)}
+                    className="w-full flex items-center justify-between px-3 py-2 hover:bg-slate-700/60 hover:text-white transition-colors text-left">
+                    <div className="flex items-center gap-2">
+                      <Lock className="w-3.5 h-3.5 text-red-500" />
+                      <div>
+                        <div className="font-medium text-red-400">Khóa hoàn toàn</div>
+                        <div className="text-[10px] text-slate-400">
+                          Chặn mọi thao tác kéo thả
+                        </div>
+                      </div>
+                    </div>
+                    {column.lock_type === ColumnLockType.FULLY_LOCKED && (
+                      <Check className="w-3.5 h-3.5 text-red-400" />
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* SUB-MENU TÙY CHỌN CỘT (3 chấm) */}
             <div className="relative" ref={menuRef}>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsMenuOpen((prev) => !prev);
+                  setIsLockMenuOpen(false);
                 }}
                 className="hover:text-slate-200 p-1 rounded-md hover:bg-slate-800 transition-colors">
                 <MoreHorizontal className="w-4 h-4" />
@@ -226,7 +322,7 @@ export function ColumnComponent({
           </div>
         </div>
 
-        {/* Button thêm Card */}
+        {/* Nút thêm Card */}
         {!isCreatingTask && (
           <button
             onClick={() => setIsCreatingTask(true)}
@@ -235,7 +331,7 @@ export function ColumnComponent({
           </button>
         )}
 
-        {/* Form Tạo Card Trượt Xuống */}
+        {/* Form Tạo Card */}
         <div
           className={`grid transition-all duration-300 ease-in-out ${
             isCreatingTask
@@ -276,10 +372,9 @@ export function ColumnComponent({
         </div>
       </div>
 
-      {/* Cột trống hiển thị bên phải khi nhấn Thêm cột (Mockup giống hình ảnh của bạn) */}
+      {/* Cột phụ khi nhấn tạo thêm bên phải */}
       {isCreatingColumn && (
         <div className="w-80 bg-slate-900/70 border border-indigo-500/80 rounded-2xl p-3.5 flex flex-col backdrop-blur-md shrink-0 animate-in fade-in zoom-in-95 duration-150 shadow-2xl">
-          {/* Header với Input nhập tiêu đề */}
           <div className="flex justify-between items-center mb-3 px-1">
             <div className="flex items-center gap-2 flex-1 mr-2">
               <input
@@ -302,12 +397,10 @@ export function ColumnComponent({
             </div>
           </div>
 
-          {/* Vùng trống chứa task (No tasks here) */}
           <div className="flex items-center justify-center h-24 text-slate-500 text-xs border border-dashed border-slate-800/80 rounded-xl">
             No tasks here
           </div>
 
-          {/* Hướng dẫn thao tác */}
           <div className="flex items-center justify-between text-[10px] text-slate-400 pt-2 px-1">
             <span>
               Nhấn{" "}

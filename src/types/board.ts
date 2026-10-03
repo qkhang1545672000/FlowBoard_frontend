@@ -1,3 +1,5 @@
+import { BoardMemberRole } from ".";
+import { User } from "./api.types";
 import { Column } from "./column";
 
 export interface CreateBoardDto extends Pick<
@@ -17,6 +19,14 @@ export interface Board {
   createdAt: string;
   updatedAt?: string;
 }
+export interface MemberBoard {
+  boardId: string;
+  createdAt: string;
+  id: string;
+  role: BoardMemberRole;
+  updatedAt: string;
+  user: User;
+}
 export interface BoardOverview extends Board {
   tasksCount?: number;
   membersCount?: number;
@@ -35,4 +45,5 @@ export interface BoardStore {
 }
 export interface BoardDetail extends Board {
   columns: Column[];
+  members: MemberBoard[];
 }
