@@ -23,7 +23,11 @@ import { useCreateTask } from "@/hooks/useTask";
 import { useBoardStore } from "@/store/useBoardStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { TaskPriority } from "@/types";
-import { useCreateColumn, useUpdateColumnClock } from "@/hooks/useColumn";
+import {
+  useCreateColumn,
+  useDeleteColumn,
+  useUpdateColumnClock,
+} from "@/hooks/useColumn";
 
 interface Props {
   column: Column;
@@ -40,13 +44,13 @@ export function ColumnComponent({
   onAddTask,
   onAddColumnRight,
   onDeleteColumn,
-  onChangeLockType,
 }: Props) {
   const userCurrent = useAuthStore((state) => state.user);
 
   const boardId = useBoardStore((state) => state.activeBoardId) ?? "";
   const { mutate: createTask } = useCreateTask(boardId);
   const { mutate: updateColumnClock } = useUpdateColumnClock(boardId);
+  const { mutate: deleteColumn } = useDeleteColumn(boardId);
   const { mutate: createColumn } = useCreateColumn(boardId);
 
   const [isCreatingTask, setIsCreatingTask] = useState(false);
@@ -138,6 +142,13 @@ export function ColumnComponent({
       setIsCreatingTask(false);
     } else {
       setIsCreatingTask(false);
+    }
+  };
+  const handleDeleteColumn = async (id: string) => {
+    try {
+      await deleteColumn(id);
+    } catch (error) {
+      console.log(error);
     }
   };
 
@@ -310,7 +321,7 @@ export function ColumnComponent({
                   <button
                     onClick={() => {
                       setIsMenuOpen(false);
-                      if (onDeleteColumn) onDeleteColumn(column.id);
+                      handleDeleteColumn(column.id);
                     }}
                     className="w-full flex items-center gap-2 px-3 py-2 hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors text-left">
                     <Trash2 className="w-3.5 h-3.5" />

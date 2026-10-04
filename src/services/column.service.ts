@@ -34,4 +34,14 @@ export const columnService = {
       throw error;
     }
   },
+  deleteColumn: async (columnId: string): Promise<Column> => {
+    try {
+      const response = await axiosInstance.delete<Column>(`/api/v1/columns/${columnId}`);
+      return response.data;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      console.error("Lỗi deleteColumn (Server):", error?.response?.data || error.message);
+      throw error;
+    }
+  },
 };

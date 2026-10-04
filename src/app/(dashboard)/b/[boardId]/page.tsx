@@ -22,31 +22,156 @@ import {
   horizontalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { createPortal } from "react-dom";
+import { toast } from "sonner";
+
+// Components
 import { Header } from "@/components/workspace/header";
 import { BoardBar } from "@/components/board/board-bar";
-import { Column, Task, ColumnLockType } from "@/types/column";
 import { ColumnComponent } from "@/components/board/column";
 import { TaskCard } from "@/components/board/taskCard";
+import { EmptyColumnComponent } from "@/components/board/EmptyColumnComponent";
+
+// Hooks & Stores
 import { useBoardDetail } from "@/hooks/useBoard";
+import { useMoveTask } from "@/hooks/useTask";
 import { useBoardStore } from "@/store/useBoardStore";
 import { useAuthStore } from "@/store/useAuthStore";
-import { toast } from "sonner";
-import { EmptyColumnComponent } from "@/components/board/EmptyColumnComponent";
-import { useMoveTask } from "@/hooks/useTask";
+import { useSocket } from "@/hooks/useSocket";
+
+// Types
+import { Column, Task, ColumnLockType } from "@/types/column";
 
 export default function BoardDetailPage() {
+  // ==========================================
+  // 1. STATE & HOOKS
+  // ==========================================
   const activeBoardId = useBoardStore((state) => state.activeBoardId);
+  const user = useAuthStore((state) => state.user);
+  const socket = useSocket();
+
+  // API Mutate & Data Fetching
   const { mutate: moveTask } = useMoveTask(activeBoardId || "");
   const { data: boardDetail, isLoading } = useBoardDetail(activeBoardId ?? "");
-  const user = useAuthStore((state) => state.user);
+
+  // Drag and Drop Local States
   const [columns, setColumns] = useState<Column[]>([]);
   const [activeColumn, setActiveColumn] = useState<Column | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
-
-  // Lưu lại cột ban đầu trước khi bắt đầu kéo để phục vụ rollback nếu kéo sai
   const [sourceColumnId, setSourceColumnId] = useState<string | null>(null);
 
-  // Kiểm tra quyền Admin / Leader
+  // SSR Hydration State
+  const [isMounted, setIsMounted] = useState(false);
+
+  // ==========================================
+  // 2. REALTIME SOCKET.IO LOGIC
+  // ==========================================
+  useEffect(() => {
+    if (!socket || !activeBoardId) return;
+
+    // 1. Hàm join room dùng chung
+    const joinBoardRoom = () => {
+      console.log("[Socket] Đang join vào board:", activeBoardId);
+      socket.emit("join-board", activeBoardId);
+    };
+
+    // Kích hoạt join room nếu socket đã kết nối, đồng thời đăng ký lắng nghe sự kiện 'connect'
+    if (socket.connected) {
+      joinBoardRoom();
+    }
+    socket.on("connect", joinBoardRoom);
+
+    // 2. Lắng nghe sự kiện di chuyển Task từ máy khác
+    const handleTaskMoved = (data: {
+      activeId: string;
+      columnId: string;
+      position: number;
+    }) => {
+      setColumns((prevCols) => {
+        let movedTask: Task | null = null;
+
+        // Xóa task khỏi cột cũ
+        const updatedCols = prevCols.map((col) => {
+          const taskIndex = col.tasks?.findIndex((t) => t.id === data.activeId);
+          if (taskIndex !== undefined && taskIndex !== -1) {
+            const tasks = [...col.tasks];
+            [movedTask] = tasks.splice(taskIndex, 1);
+            return { ...col, tasks };
+          }
+          return col;
+        });
+
+        if (!movedTask) return prevCols;
+
+        // Cập nhật columnId & position mới
+        movedTask = {
+          ...movedTask,
+          columnId: data.columnId,
+          position: data.position,
+        };
+
+        // Thêm task vào cột mới và sort lại theo position
+        return updatedCols.map((col) => {
+          if (col.id === data.columnId) {
+            const newTasks = [...(col.tasks || []), movedTask!].sort(
+              (a, b) => a.position - b.position,
+            );
+            return { ...col, tasks: newTasks };
+          }
+          return col;
+        });
+      });
+    };
+
+    // 3. Lắng nghe sự kiện di chuyển Cột từ máy khác
+    const handleColumnMoved = (data: { columns: Column[] }) => {
+      setColumns(data.columns);
+    };
+
+    // 4. Lắng nghe sự kiện Tạo Cột Mới từ máy khác
+    const handleColumnCreated = (data: { newColumn: Column }) => {
+      setColumns((prevCols) => {
+        const exists = prevCols.some((col) => col.id === data.newColumn.id);
+        if (exists) return prevCols;
+
+        const columnWithTasks = {
+          ...data.newColumn,
+          tasks: data.newColumn.tasks || [],
+        };
+
+        return [...prevCols, columnWithTasks];
+      });
+    };
+
+    // 5. Lắng nghe sự kiện Xóa Cột từ máy khác
+    const handleColumnDeleted = (data: { columnId: string }) => {
+      console.log("Đã nhận sự kiện xóa cột ID:", data.columnId);
+      setColumns((prevCols) => prevCols.filter((col) => col.id !== data.columnId));
+    };
+
+    // --- ĐĂNG KÝ LISTENERS ---
+    socket.on("task-moved", handleTaskMoved);
+    socket.on("column-moved", handleColumnMoved);
+    socket.on("column-created", handleColumnCreated);
+    socket.on("column-deleted", handleColumnDeleted);
+
+    // --- CLEANUP LISTENERS KHI UNMOUNT HẶC ĐỔI BOARD ---
+    return () => {
+      if (socket.connected) {
+        socket.emit("leave-board", activeBoardId);
+      }
+      socket.off("connect", joinBoardRoom);
+      socket.off("task-moved", handleTaskMoved);
+      socket.off("column-moved", handleColumnMoved);
+      socket.off("column-created", handleColumnCreated);
+      socket.off("column-deleted", handleColumnDeleted);
+    };
+  }, [socket, activeBoardId]);
+
+  // ==========================================
+  // 3. COMPUTED VALUES & EFFECTS
+  // ==========================================
+
+  // Kiểm tra vai trò người dùng (Admin hoặc Leader)
   const isOwn = useMemo(() => {
     if (!boardDetail?.members || !user?.id) return false;
     return boardDetail.members.some(
@@ -54,19 +179,24 @@ export default function BoardDetailPage() {
     );
   }, [boardDetail, user]);
 
-  const [isMounted, setIsMounted] = useState(false);
+  // Danh sách ID cột dùng cho SortableContext
+  const columnsId = useMemo(() => columns?.map((col) => col.id), [columns]);
 
+  // Cập nhật Local State khi dữ liệu từ API thay đổi
   useEffect(() => {
     if (boardDetail?.columns) {
       setColumns(boardDetail.columns as Column[]);
     }
-  }, [boardDetail]);
+  }, [boardDetail?.columns]);
 
+  // Đánh dấu component đã mount client-side
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  const columnsId = useMemo(() => columns?.map((col) => col.id), [columns]);
+  // ==========================================
+  // 4. DND-KIT SENSORS & COLLISION DETECTION
+  // ==========================================
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -93,21 +223,10 @@ export default function BoardDetailPage() {
     [activeColumn],
   );
 
-  // Xử lý đổi 3 trạng thái khóa cột
-  const handleToggleLock = (columnId: string, nextLockType: ColumnLockType) => {
-    if (!isOwn) {
-      toast.error("Chỉ Admin hoặc Leader mới có quyền đổi trạng thái khóa!");
-      return;
-    }
+  // ==========================================
+  // 5. DND-KIT EVENT HANDLERS
+  // ==========================================
 
-    setColumns((prev) =>
-      prev.map((col) =>
-        col.id === columnId ? { ...col, lock_type: nextLockType } : col,
-      ),
-    );
-  };
-
-  // 1. Bắt đầu kéo
   const onDragStart = (event: DragStartEvent) => {
     const { current } = event.active.data;
 
@@ -116,7 +235,6 @@ export default function BoardDetailPage() {
       const sourceColumn = columns.find((c) => c.tasks?.some((t) => t.id === task.id));
 
       if (sourceColumn) {
-        // Kiểm tra điều kiện khóa cột nguồn (FULL_LOCKED hoặc ONE_WAY_LOCKED)
         const isSourceLocked =
           sourceColumn.lock_type === ColumnLockType.FULLY_LOCKED ||
           sourceColumn.lock_type === ColumnLockType.ONE_WAY_LOCKED;
@@ -143,7 +261,6 @@ export default function BoardDetailPage() {
     }
   };
 
-  // 2. Trong quá trình kéo
   const onDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
     if (!over) return;
@@ -155,18 +272,13 @@ export default function BoardDetailPage() {
     const isActiveTask = active.data.current?.type === "TASK";
     if (!isActiveTask) return;
 
-    // Lấy thông tin cột xuất phát (nguồn)
     const sourceColumn = columns.find((c) => c.tasks?.some((t) => t.id === activeId));
-
-    // Nếu cột nguồn bị khóa (FULL hoặc ONE_WAY) và người dùng không phải Admin/Leader -> Ngăn không cho di chuyển sang cột khác
     if (sourceColumn) {
       const isSourceLocked =
         sourceColumn.lock_type === ColumnLockType.FULLY_LOCKED ||
         sourceColumn.lock_type === ColumnLockType.ONE_WAY_LOCKED;
 
-      if (isSourceLocked && !isOwn) {
-        return; // Dừng không cập nhật State cột
-      }
+      if (isSourceLocked && !isOwn) return;
     }
 
     const isOverTask = over.data.current?.type === "TASK";
@@ -179,7 +291,6 @@ export default function BoardDetailPage() {
       targetColumn = columns.find((c) => c.id === overId);
     }
 
-    // Nếu cột đích bị khóa FULLY_LOCKED -> Không cho di chuyển vào
     if (
       targetColumn &&
       targetColumn.lock_type === ColumnLockType.FULLY_LOCKED &&
@@ -257,7 +368,6 @@ export default function BoardDetailPage() {
     }
   };
 
-  // 3. Khi thả thẻ
   const onDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
@@ -286,14 +396,12 @@ export default function BoardDetailPage() {
         return;
       }
 
-      // Kiểm tra lại khóa cột nguồn khi thả thẻ
       if (originalColumn) {
         const isSourceLocked =
           originalColumn.lock_type === ColumnLockType.FULLY_LOCKED ||
           originalColumn.lock_type === ColumnLockType.ONE_WAY_LOCKED;
 
         if (isSourceLocked && !isOwn) {
-          // Hoàn tác lại vị trí ban đầu
           if (boardDetail?.columns) setColumns(boardDetail.columns as Column[]);
           setSourceColumnId(null);
           return;
@@ -345,6 +453,7 @@ export default function BoardDetailPage() {
 
       taskList[newIndex].position = newPosition;
 
+      // 1. Lưu thay đổi xuống Database
       moveTask({
         id: activeId,
         dto: {
@@ -352,18 +461,41 @@ export default function BoardDetailPage() {
           position: newPosition,
         },
       });
+
+      // 2. Bắn sự kiện qua Socket cho các máy khác
+      if (socket && activeBoardId) {
+        socket.emit("move-task", {
+          boardId: activeBoardId,
+          activeId,
+          columnId: targetColumn.id,
+          position: newPosition,
+        });
+      }
     }
 
     if (active.data.current?.type === "COLUMN") {
       setColumns((prevCols) => {
         const activeColIndex = prevCols.findIndex((c) => c.id === activeId);
         const overColIndex = prevCols.findIndex((c) => c.id === over.id);
-        return arrayMove(prevCols, activeColIndex, overColIndex);
+        const newCols = arrayMove(prevCols, activeColIndex, overColIndex);
+
+        if (socket && activeBoardId) {
+          socket.emit("move-column", {
+            boardId: activeBoardId,
+            columns: newCols,
+          });
+        }
+
+        return newCols;
       });
     }
 
     setSourceColumnId(null);
   };
+
+  // ==========================================
+  // 6. RENDER CONDITIONAL STATES
+  // ==========================================
 
   if (isLoading) {
     return "loading";
@@ -387,6 +519,9 @@ export default function BoardDetailPage() {
     );
   }
 
+  // ==========================================
+  // 7. MAIN RENDER
+  // ==========================================
   return (
     <div className="flex-1 flex flex-col bg-slate-950 h-screen text-slate-100 overflow-hidden">
       <Header />
@@ -408,11 +543,7 @@ export default function BoardDetailPage() {
           <SortableContext items={columnsId} strategy={horizontalListSortingStrategy}>
             {columns.length === 0 && <EmptyColumnComponent />}
             {columns.map((column) => (
-              <ColumnComponent
-                key={column.id}
-                column={column}
-                onToggleLock={handleToggleLock}
-              />
+              <ColumnComponent key={column.id} column={column} />
             ))}
           </SortableContext>
         </div>
@@ -426,16 +557,7 @@ export default function BoardDetailPage() {
                 }),
               }}>
               {activeColumn && <ColumnComponent column={activeColumn} isOverlay />}
-              {activeTask && (
-                <TaskCard
-                  task={activeTask}
-                  isOverlay
-                  columnLockType={
-                    columns.find((c) => c.tasks?.some((t) => t.id === activeTask.id))
-                      ?.lock_type
-                  }
-                />
-              )}
+              {activeTask && <TaskCard task={activeTask} isOverlay />}
             </DragOverlay>,
             document.body,
           )}
