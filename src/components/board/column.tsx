@@ -163,7 +163,7 @@ export function ColumnComponent({
     }
   };
 
-  const handleCreateColumnRight = () => {
+  const handleCreateColumnRight = async () => {
     if (newColumnTitle.trim()) {
       createColumn({
         boardId: boardId,

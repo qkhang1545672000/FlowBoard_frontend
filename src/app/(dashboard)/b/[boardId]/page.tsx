@@ -24,154 +24,58 @@ import {
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
-// Components
+// Các thành phần giao diện (UI Components)
 import { Header } from "@/components/workspace/header";
 import { BoardBar } from "@/components/board/board-bar";
 import { ColumnComponent } from "@/components/board/column";
 import { TaskCard } from "@/components/board/taskCard";
 import { EmptyColumnComponent } from "@/components/board/EmptyColumnComponent";
 
-// Hooks & Stores
+// Custom Hooks & Global Stores
 import { useBoardDetail } from "@/hooks/useBoard";
 import { useMoveTask } from "@/hooks/useTask";
 import { useBoardStore } from "@/store/useBoardStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useSocket } from "@/hooks/useSocket";
+import { useBoardSocket } from "@/hooks/useBoardSocket";
 
-// Types
+// Khai báo kiểu dữ liệu (Types)
 import { Column, Task, ColumnLockType } from "@/types/column";
 
 export default function BoardDetailPage() {
-  // ==========================================
-  // 1. STATE & HOOKS
-  // ==========================================
+  // 1. LẤY DỮ LIỆU TỪ GLOBAL STORES (Zustand & Auth)
   const activeBoardId = useBoardStore((state) => state.activeBoardId);
   const user = useAuthStore((state) => state.user);
   const socket = useSocket();
 
-  // API Mutate & Data Fetching
+  // 2. KẾT NỐI API BẰNG TANSTACK QUERY HOOKS
   const { mutate: moveTask } = useMoveTask(activeBoardId || "");
   const { data: boardDetail, isLoading } = useBoardDetail(activeBoardId ?? "");
 
-  // Drag and Drop Local States
-  const [columns, setColumns] = useState<Column[]>([]);
-  const [activeColumn, setActiveColumn] = useState<Column | null>(null);
-  const [activeTask, setActiveTask] = useState<Task | null>(null);
-  const [sourceColumnId, setSourceColumnId] = useState<string | null>(null);
+  // 3. QUẢN LÝ TRẠNG THÁI LOCAL (State dùng cho Kéo thả DnD-Kit)
+  const [columns, setColumns] = useState<Column[]>([]); // Lưu danh sách các Cột và Task đang hiển thị
+  const [activeColumn, setActiveColumn] = useState<Column | null>(null); // Cột đang được giữ/kéo
+  const [activeTask, setActiveTask] = useState<Task | null>(null); // Task đang được giữ/kéo
+  const [sourceColumnId, setSourceColumnId] = useState<string | null>(null); // Cột ban đầu của Task trước khi kéo
+  const [isMounted, setIsMounted] = useState(false); // Đánh dấu Client-side đã sẵn sàng (ngừa lỗi SSR Hydration)
 
-  // SSR Hydration State
-  const [isMounted, setIsMounted] = useState(false);
+  // ----------------------------------------------------------------------------------
+  // 4. LẮNG NGHE SOCKET REALTIME (Cập nhật giao diện tức thì khi người khác thao tác)
+  // ----------------------------------------------------------------------------------
+  const isDragging = Boolean(activeTask || activeColumn);
 
-  // ==========================================
-  // 2. REALTIME SOCKET.IO LOGIC
-  // ==========================================
-  useEffect(() => {
-    if (!socket || !activeBoardId) return;
+  /**
+   * [VÍ DỤ VỀ REALTIME SOCKET]:
+   * Bạn A và Bạn B cùng mở 1 Board.
+   * - Bạn A kéo Task 1 từ "Cần làm" sang "Đã xong".
+   * - Socket phát đi sự kiện `move-task`.
+   * - Custom hook `useBoardSocket` của Bạn B nhận được dữ liệu và cập nhật trực tiếp `setColumns`,
+   *   giúp màn hình Bạn B tự dịch chuyển Task 1 sang "Đã xong" ngay lập tức mà KHÔNG cần F5.
+   * - `isDragging` truyền vào để chặn Socket ghi đè làm giật thẻ khi Bạn B CŨNG đang giữ chuột kéo thẻ khác.
+   */
+  useBoardSocket({ socket, activeBoardId, setColumns, isDragging });
 
-    // 1. Hàm join room dùng chung
-    const joinBoardRoom = () => {
-      console.log("[Socket] Đang join vào board:", activeBoardId);
-      socket.emit("join-board", activeBoardId);
-    };
-
-    // Kích hoạt join room nếu socket đã kết nối, đồng thời đăng ký lắng nghe sự kiện 'connect'
-    if (socket.connected) {
-      joinBoardRoom();
-    }
-    socket.on("connect", joinBoardRoom);
-
-    // 2. Lắng nghe sự kiện di chuyển Task từ máy khác
-    const handleTaskMoved = (data: {
-      activeId: string;
-      columnId: string;
-      position: number;
-    }) => {
-      setColumns((prevCols) => {
-        let movedTask: Task | null = null;
-
-        // Xóa task khỏi cột cũ
-        const updatedCols = prevCols.map((col) => {
-          const taskIndex = col.tasks?.findIndex((t) => t.id === data.activeId);
-          if (taskIndex !== undefined && taskIndex !== -1) {
-            const tasks = [...col.tasks];
-            [movedTask] = tasks.splice(taskIndex, 1);
-            return { ...col, tasks };
-          }
-          return col;
-        });
-
-        if (!movedTask) return prevCols;
-
-        // Cập nhật columnId & position mới
-        movedTask = {
-          ...movedTask,
-          columnId: data.columnId,
-          position: data.position,
-        };
-
-        // Thêm task vào cột mới và sort lại theo position
-        return updatedCols.map((col) => {
-          if (col.id === data.columnId) {
-            const newTasks = [...(col.tasks || []), movedTask!].sort(
-              (a, b) => a.position - b.position,
-            );
-            return { ...col, tasks: newTasks };
-          }
-          return col;
-        });
-      });
-    };
-
-    // 3. Lắng nghe sự kiện di chuyển Cột từ máy khác
-    const handleColumnMoved = (data: { columns: Column[] }) => {
-      setColumns(data.columns);
-    };
-
-    // 4. Lắng nghe sự kiện Tạo Cột Mới từ máy khác
-    const handleColumnCreated = (data: { newColumn: Column }) => {
-      setColumns((prevCols) => {
-        const exists = prevCols.some((col) => col.id === data.newColumn.id);
-        if (exists) return prevCols;
-
-        const columnWithTasks = {
-          ...data.newColumn,
-          tasks: data.newColumn.tasks || [],
-        };
-
-        return [...prevCols, columnWithTasks];
-      });
-    };
-
-    // 5. Lắng nghe sự kiện Xóa Cột từ máy khác
-    const handleColumnDeleted = (data: { columnId: string }) => {
-      console.log("Đã nhận sự kiện xóa cột ID:", data.columnId);
-      setColumns((prevCols) => prevCols.filter((col) => col.id !== data.columnId));
-    };
-
-    // --- ĐĂNG KÝ LISTENERS ---
-    socket.on("task-moved", handleTaskMoved);
-    socket.on("column-moved", handleColumnMoved);
-    socket.on("column-created", handleColumnCreated);
-    socket.on("column-deleted", handleColumnDeleted);
-
-    // --- CLEANUP LISTENERS KHI UNMOUNT HẶC ĐỔI BOARD ---
-    return () => {
-      if (socket.connected) {
-        socket.emit("leave-board", activeBoardId);
-      }
-      socket.off("connect", joinBoardRoom);
-      socket.off("task-moved", handleTaskMoved);
-      socket.off("column-moved", handleColumnMoved);
-      socket.off("column-created", handleColumnCreated);
-      socket.off("column-deleted", handleColumnDeleted);
-    };
-  }, [socket, activeBoardId]);
-
-  // ==========================================
-  // 3. COMPUTED VALUES & EFFECTS
-  // ==========================================
-
-  // Kiểm tra vai trò người dùng (Admin hoặc Leader)
+  // 5. KIỂM TRA QUYỀN HẠN CỦA USER (ADMIN / LEADER)
   const isOwn = useMemo(() => {
     if (!boardDetail?.members || !user?.id) return false;
     return boardDetail.members.some(
@@ -179,142 +83,154 @@ export default function BoardDetailPage() {
     );
   }, [boardDetail, user]);
 
-  // Danh sách ID cột dùng cho SortableContext
+  // Lấy ra danh sách các ID của cột để truyền vào SortableContext của DnD-Kit
   const columnsId = useMemo(() => columns?.map((col) => col.id), [columns]);
 
-  // Cập nhật Local State khi dữ liệu từ API thay đổi
+  // ----------------------------------------------------------------------------------
+  // 6. ĐỒNG BỘ DỮ LIỆU TỪ SERVERS (TanStack Query) VÀO STATE LOCAL
+  // ----------------------------------------------------------------------------------
+  /**
+   * [ĐOẠN NÀY LẮNG NGHE DỮ LIỆU TỪ SERVER]:
+   * Lắng nghe biến `boardDetail`. Khi TanStack Query refetch dữ liệu mới (hoặc khi đổi Board),
+   * hàm `setColumns` sẽ chèn toàn bộ danh sách Cột/Task mới nhất vào State local để DnD-Kit vẽ lại.
+   */
   useEffect(() => {
     if (boardDetail?.columns) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setColumns(boardDetail.columns as Column[]);
     }
-  }, [boardDetail?.columns]);
+  }, [boardDetail]);
 
-  // Đánh dấu component đã mount client-side
+  // Đánh dấu component đã mounted trên trình duyệt (Xử lý React Portal)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsMounted(true);
   }, []);
 
-  // ==========================================
-  // 4. DND-KIT SENSORS & COLLISION DETECTION
-  // ==========================================
-
+  // ----------------------------------------------------------------------------------
+  // 7. CẤU HÌNH SENSORS (Cảm biến kéo thả của DnD-Kit)
+  // ----------------------------------------------------------------------------------
   const sensors = useSensors(
     useSensor(PointerSensor, {
+      // Yêu cầu con trỏ chuột di chuyển ít nhất 8px mới tính là "Kéo" (Tránh bị nhầm khi chỉ Click chuột)
       activationConstraint: { distance: 8 },
     }),
   );
 
+  // 8. THUẬT TOÁN PHÁT HIỆN VA CHẠM (Custom Collision Detection)
+  // Giúp phát hiện chính xác con trỏ chuột đang nằm trên Cột nào hay Task nào
   const customCollisionDetection: CollisionDetection = useCallback(
     (args) => {
-      if (activeColumn) {
-        return rectIntersection(args);
-      }
+      if (activeColumn) return rectIntersection(args);
 
       const pointerCollisions = pointerWithin(args);
       if (!pointerCollisions.length) return [];
 
       const firstCollision = getFirstCollision(pointerCollisions, "id");
-      if (firstCollision) {
-        return pointerCollisions;
-      }
-
-      return rectIntersection(args);
+      return firstCollision ? pointerCollisions : rectIntersection(args);
     },
     [activeColumn],
   );
 
-  // ==========================================
-  // 5. DND-KIT EVENT HANDLERS
-  // ==========================================
+  // ----------------------------------------------------------------------------------
+  // 9. BẮT ĐẦU KÉO (Drag Start)
+  // ----------------------------------------------------------------------------------
+  const onDragStart = useCallback(
+    (event: DragStartEvent) => {
+      const { current } = event.active.data;
 
-  const onDragStart = (event: DragStartEvent) => {
-    const { current } = event.active.data;
+      // Xử lý khi đối tượng bắt đầu kéo là TASK
+      if (current?.type === "TASK") {
+        const task = current.task as Task;
+        const sourceColumn = columns.find((c) => c.tasks?.some((t) => t.id === task.id));
 
-    if (current?.type === "TASK") {
-      const task = current.task as Task;
-      const sourceColumn = columns.find((c) => c.tasks?.some((t) => t.id === task.id));
+        // Kiểm tra 1: Cột chứa Task có bị khóa không?
+        if (sourceColumn) {
+          const isSourceLocked =
+            sourceColumn.lock_type === ColumnLockType.FULLY_LOCKED ||
+            sourceColumn.lock_type === ColumnLockType.ONE_WAY_LOCKED;
 
-      if (sourceColumn) {
-        const isSourceLocked =
-          sourceColumn.lock_type === ColumnLockType.FULLY_LOCKED ||
-          sourceColumn.lock_type === ColumnLockType.ONE_WAY_LOCKED;
+          if (isSourceLocked && !isOwn) {
+            toast.error("Cột này đã bị khóa. Bạn không thể di chuyển thẻ ra ngoài!");
+            setActiveTask(null);
+            setSourceColumnId(null);
+            return;
+          }
+          setSourceColumnId(sourceColumn.id);
+        }
 
-        if (isSourceLocked && !isOwn) {
-          toast.error("Cột này đã bị khóa. Bạn không thể di chuyển thẻ ra ngoài!");
+        // Kiểm tra 2: User có phải người phụ trách Task (Assignee) hoặc ADMIN không?
+        if (task.assignee?.id !== user?.id && !isOwn) {
+          toast.error("Bạn không có quyền di chuyển công việc này!");
+          setActiveTask(null);
+          setSourceColumnId(null);
           return;
         }
 
-        setSourceColumnId(sourceColumn.id);
+        setActiveTask(task); // Đặt Task vào trạng thái "Đang kéo" để hiện hiệu ứng nổi (Overlay)
       }
 
-      const isAssignee = task.assignee?.id === user?.id;
-      if (!isAssignee && !isOwn) {
-        toast.error("Bạn không có quyền di chuyển công việc này!");
-        return;
+      // Xử lý khi đối tượng bắt đầu kéo là CỘT (COLUMN)
+      if (current?.type === "COLUMN") {
+        setActiveColumn(current.column);
       }
+    },
+    [columns, isOwn, user?.id],
+  );
 
-      setActiveTask(task);
-    }
+  // ----------------------------------------------------------------------------------
+  // 10. TRONG LÚC ĐANG KÉO (Drag Over - Thay đổi vị trí tạm thời trên UI)
+  // ----------------------------------------------------------------------------------
+  const onDragOver = useCallback(
+    (event: DragOverEvent) => {
+      const { active, over } = event;
+      if (!over || !activeTask) return; // Nếu bị khóa ở DragStart thì hủy ngay
 
-    if (current?.type === "COLUMN") {
-      setActiveColumn(current.column);
-    }
-  };
+      const activeId = active.id;
+      const overId = over.id;
+      if (activeId === overId) return;
 
-  const onDragOver = (event: DragOverEvent) => {
-    const { active, over } = event;
-    if (!over) return;
+      const isActiveTask = active.data.current?.type === "TASK";
+      if (!isActiveTask) return;
 
-    const activeId = active.id;
-    const overId = over.id;
-    if (activeId === overId) return;
+      const isOverTask = over.data.current?.type === "TASK";
+      const isOverColumn = over.data.current?.type === "COLUMN";
 
-    const isActiveTask = active.data.current?.type === "TASK";
-    if (!isActiveTask) return;
-
-    const sourceColumn = columns.find((c) => c.tasks?.some((t) => t.id === activeId));
-    if (sourceColumn) {
-      const isSourceLocked =
-        sourceColumn.lock_type === ColumnLockType.FULLY_LOCKED ||
-        sourceColumn.lock_type === ColumnLockType.ONE_WAY_LOCKED;
-
-      if (isSourceLocked && !isOwn) return;
-    }
-
-    const isOverTask = over.data.current?.type === "TASK";
-    const isOverColumn = over.data.current?.type === "COLUMN";
-
-    let targetColumn: Column | undefined;
-    if (isOverTask) {
-      targetColumn = columns.find((c) => c.tasks?.some((t) => t.id === overId));
-    } else if (isOverColumn) {
-      targetColumn = columns.find((c) => c.id === overId);
-    }
-
-    if (
-      targetColumn &&
-      targetColumn.lock_type === ColumnLockType.FULLY_LOCKED &&
-      !isOwn
-    ) {
-      return;
-    }
-
-    if (isActiveTask && isOverTask) {
+      // Cập nhật mảng State local `columns` ngay lập tức để người dùng thấy thẻ bay qua cột mới
       setColumns((prevCols) => {
         const activeColIndex = prevCols.findIndex((c) =>
           c.tasks?.some((t) => t.id === activeId),
         );
-        const overColIndex = prevCols.findIndex((c) =>
-          c.tasks?.some((t) => t.id === overId),
-        );
+        let overColIndex = -1;
+
+        if (isOverTask) {
+          overColIndex = prevCols.findIndex((c) => c.tasks?.some((t) => t.id === overId));
+        } else if (isOverColumn) {
+          overColIndex = prevCols.findIndex((c) => c.id === overId);
+        }
 
         if (activeColIndex === -1 || overColIndex === -1) return prevCols;
 
+        // Kiểm tra Cột nguồn bị khóa
+        const sourceCol = prevCols[activeColIndex];
+        const isSourceLocked =
+          sourceCol?.lock_type === ColumnLockType.FULLY_LOCKED ||
+          sourceCol?.lock_type === ColumnLockType.ONE_WAY_LOCKED;
+
+        if (isSourceLocked && !isOwn) return prevCols;
+
+        // Kiểm tra Cột đích bị khóa -> Bỏ qua không cho rớt vào
+        const targetColumn = prevCols[overColIndex];
+        const isTargetLocked =
+          targetColumn.lock_type === ColumnLockType.FULLY_LOCKED ||
+          targetColumn.lock_type === ColumnLockType.ONE_WAY_LOCKED;
+
+        if (activeColIndex !== overColIndex && isTargetLocked && !isOwn) {
+          return prevCols;
+        }
+
         const activeTaskIndex = prevCols[activeColIndex].tasks.findIndex(
           (t) => t.id === activeId,
-        );
-        const overTaskIndex = prevCols[overColIndex].tasks.findIndex(
-          (t) => t.id === overId,
         );
 
         const updatedCols = prevCols.map((col) => ({
@@ -322,14 +238,24 @@ export default function BoardDetailPage() {
           tasks: [...(col.tasks || [])],
         }));
 
+        // Chuyển Task sang Cột khác
         if (activeColIndex !== overColIndex) {
           const [movedTask] = updatedCols[activeColIndex].tasks.splice(
             activeTaskIndex,
             1,
           );
-          movedTask.columnId = updatedCols[overColIndex].id;
+          movedTask.columnId = targetColumn.id;
+
+          const overTaskIndex = isOverTask
+            ? updatedCols[overColIndex].tasks.findIndex((t) => t.id === overId)
+            : updatedCols[overColIndex].tasks.length;
+
           updatedCols[overColIndex].tasks.splice(overTaskIndex, 0, movedTask);
-        } else {
+        } else if (isOverTask) {
+          // Sắp xếp lại thứ tự Task trong CÙNG MỘT CỘT
+          const overTaskIndex = updatedCols[overColIndex].tasks.findIndex(
+            (t) => t.id === overId,
+          );
           updatedCols[activeColIndex].tasks = arrayMove(
             updatedCols[activeColIndex].tasks,
             activeTaskIndex,
@@ -339,168 +265,151 @@ export default function BoardDetailPage() {
 
         return updatedCols;
       });
-    }
+    },
+    [activeTask, isOwn],
+  );
 
-    if (isActiveTask && isOverColumn) {
-      setColumns((prevCols) => {
-        const activeColIndex = prevCols.findIndex((c) =>
-          c.tasks?.some((t) => t.id === activeId),
-        );
-        const overColIndex = prevCols.findIndex((c) => c.id === overId);
+  // ----------------------------------------------------------------------------------
+  // 11. THẢ CHUỘT / KẾT THÚC KÉO (Drag End - Tính toán position chuẩn & Lưu vào DB)
+  // ----------------------------------------------------------------------------------
+  const onDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
 
-        if (activeColIndex === -1 || overColIndex === -1) return prevCols;
+      const currentTask = activeTask;
+      setActiveColumn(null); // Reset trạng thái thả
+      setActiveTask(null);
 
-        const activeTaskIndex = prevCols[activeColIndex].tasks.findIndex(
-          (t) => t.id === activeId,
-        );
-
-        const updatedCols = prevCols.map((col) => ({
-          ...col,
-          tasks: [...(col.tasks || [])],
-        }));
-
-        const [movedTask] = updatedCols[activeColIndex].tasks.splice(activeTaskIndex, 1);
-        movedTask.columnId = updatedCols[overColIndex].id;
-        updatedCols[overColIndex].tasks.push(movedTask);
-
-        return updatedCols;
-      });
-    }
-  };
-
-  const onDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    setActiveColumn(null);
-    setActiveTask(null);
-
-    if (!over) {
-      setSourceColumnId(null);
-      return;
-    }
-
-    const activeId = active.id as string;
-    const isActiveTask = active.data.current?.type === "TASK";
-
-    if (isActiveTask) {
-      const originalColumn = boardDetail?.columns?.find((col) =>
-        col.tasks?.some((t) => t.id === activeId),
-      );
-
-      const targetColumn = columns.find((col) =>
-        col.tasks?.some((t) => t.id === activeId),
-      );
-
-      if (!targetColumn) {
+      if (!over || !currentTask) {
         setSourceColumnId(null);
         return;
       }
 
-      if (originalColumn) {
-        const isSourceLocked =
-          originalColumn.lock_type === ColumnLockType.FULLY_LOCKED ||
-          originalColumn.lock_type === ColumnLockType.ONE_WAY_LOCKED;
+      const activeId = active.id as string;
+      const isActiveTask = active.data.current?.type === "TASK";
 
-        if (isSourceLocked && !isOwn) {
-          if (boardDetail?.columns) setColumns(boardDetail.columns as Column[]);
-          setSourceColumnId(null);
-          return;
-        }
-      }
-
-      if (originalColumn && originalColumn.id !== targetColumn.id) {
-        if (targetColumn.lock_type === ColumnLockType.FULLY_LOCKED && !isOwn) {
-          toast.error("Cột này đã bị khóa hoàn toàn. Bạn không thể chuyển thẻ vào!");
-          if (boardDetail?.columns) setColumns(boardDetail.columns as Column[]);
+      if (isActiveTask) {
+        const targetColumn = columns.find((col) =>
+          col.tasks?.some((t) => t.id === activeId),
+        );
+        if (!targetColumn) {
           setSourceColumnId(null);
           return;
         }
 
-        if (targetColumn.lock_type === ColumnLockType.ONE_WAY_LOCKED && !isOwn) {
-          const confirmMove = window.confirm(
-            `Cột "${targetColumn.title}" là cột khóa 1 chiều. Sau khi chuyển vào, bạn sẽ KHÔNG THỂ TỰ KÉO RA ĐƯỢC NỮA. Bạn có chắc chắn muốn di chuyển không?`,
-          );
+        // Kiểm tra an toàn lần cuối
+        if (sourceColumnId && sourceColumnId !== targetColumn.id) {
+          const sourceColObj = columns.find((c) => c.id === sourceColumnId);
+          const isSourceLocked =
+            sourceColObj?.lock_type === ColumnLockType.FULLY_LOCKED ||
+            sourceColObj?.lock_type === ColumnLockType.ONE_WAY_LOCKED;
 
-          if (!confirmMove) {
-            if (boardDetail?.columns) setColumns(boardDetail.columns as Column[]);
+          const isTargetLocked =
+            targetColumn.lock_type === ColumnLockType.FULLY_LOCKED ||
+            targetColumn.lock_type === ColumnLockType.ONE_WAY_LOCKED;
+
+          if ((isSourceLocked || isTargetLocked) && !isOwn) {
             setSourceColumnId(null);
             return;
           }
         }
-      }
 
-      const taskList = targetColumn.tasks || [];
-      const newIndex = taskList.findIndex((t) => t.id === activeId);
+        // ==============================================================================
+        // THUẬT TOÁN TÍNH POSITION (SẮP XẾP CHUẨN TỪNG TẠO ĐỘ)
+        // ==============================================================================
+        /**
+         * [VÍ DỤ CHI TIẾT CÁCH TÍNH POSITION]:
+         * Giả sử Cột Đích đang có 2 Task:
+         *   - Task A (position: 100)
+         *   - Task B (position: 200)
+         *
+         * TH 1: Bạn kéo Task X vào CỘT TRỐNG:
+         *   => gán newPosition = 100.0
+         *
+         * TH 2: Bạn kéo Task X lên ĐẦU DANH SÁCH (Đứng trước Task A):
+         *   => newPosition = Task A / 2 = 100 / 2 = 50.0
+         *
+         * TH 3: Bạn kéo Task X xuống CUỐI DANH SÁCH (Đứng sau Task B):
+         *   => newPosition = Task B + 100 = 200 + 100 = 300.0
+         *
+         * TH 4: Bạn chèn Task X vào GIỮA Task A và Task B:
+         *   => newPosition = (Position A + Position B) / 2 = (100 + 200) / 2 = 150.0
+         *
+         * LỢI ÍCH: Với thuật toán này, khi di chuyển 1 Task, bạn CHỈ CẦN cập nhật position
+         * cho ĐÚNG 1 TASK ĐÓ vào DB, thay vì phải ghi đè lại index của toàn bộ hàng trăm Task!
+         */
+        const taskList = targetColumn.tasks || [];
+        const newIndex = taskList.findIndex((t) => t.id === activeId);
 
-      if (newIndex === -1) {
-        setSourceColumnId(null);
-        return;
-      }
-
-      let newPosition = 100.0;
-
-      if (taskList.length === 1) {
-        newPosition = 100.0;
-      } else if (newIndex === 0) {
-        newPosition = taskList[1].position / 2;
-      } else if (newIndex === taskList.length - 1) {
-        newPosition = taskList[taskList.length - 2].position + 100.0;
-      } else {
-        const prevPosition = taskList[newIndex - 1].position;
-        const nextPosition = taskList[newIndex + 1].position;
-        newPosition = (prevPosition + nextPosition) / 2;
-      }
-
-      taskList[newIndex].position = newPosition;
-
-      // 1. Lưu thay đổi xuống Database
-      moveTask({
-        id: activeId,
-        dto: {
-          columnId: targetColumn.id,
-          position: newPosition,
-        },
-      });
-
-      // 2. Bắn sự kiện qua Socket cho các máy khác
-      if (socket && activeBoardId) {
-        socket.emit("move-task", {
-          boardId: activeBoardId,
-          activeId,
-          columnId: targetColumn.id,
-          position: newPosition,
-        });
-      }
-    }
-
-    if (active.data.current?.type === "COLUMN") {
-      setColumns((prevCols) => {
-        const activeColIndex = prevCols.findIndex((c) => c.id === activeId);
-        const overColIndex = prevCols.findIndex((c) => c.id === over.id);
-        const newCols = arrayMove(prevCols, activeColIndex, overColIndex);
-
-        if (socket && activeBoardId) {
-          socket.emit("move-column", {
-            boardId: activeBoardId,
-            columns: newCols,
-          });
+        if (newIndex === -1) {
+          setSourceColumnId(null);
+          return;
         }
 
-        return newCols;
-      });
-    }
+        // Lọc danh sách loại bỏ chính Task đang kéo
+        const destinationTasks = taskList.filter((t) => t.id !== activeId);
 
-    setSourceColumnId(null);
-  };
+        let newPosition = 100.0;
 
-  // ==========================================
-  // 6. RENDER CONDITIONAL STATES
-  // ==========================================
+        if (destinationTasks.length === 0) {
+          newPosition = 100.0; // TH 1: Cột trống
+        } else if (newIndex === 0) {
+          newPosition = destinationTasks[0].position / 2; // TH 2: Chèn lên đầu
+        } else if (newIndex >= destinationTasks.length) {
+          newPosition = destinationTasks[destinationTasks.length - 1].position + 100.0; // TH 3: Chèn xuống cuối
+        } else {
+          const prevPos = destinationTasks[newIndex - 1].position;
+          const nextPos = destinationTasks[newIndex].position;
+          newPosition = (prevPos + nextPos) / 2; // TH 4: Chèn vào giữa
+        }
 
-  if (isLoading) {
-    return "loading";
-  }
+        // Gán vị trí mới cho Task hiện tại
+        taskList[newIndex].position = newPosition;
 
+        // 1. Gọi API gửi vị trí mới xuống cơ sở dữ liệu
+        moveTask({
+          id: activeId,
+          dto: { columnId: targetColumn.id, position: newPosition },
+        });
+
+        // 2. Phát tín hiệu Socket cho các client (người dùng khác) đồng bộ theo
+        if (socket && activeBoardId) {
+          socket.emit("move-task", {
+            boardId: activeBoardId,
+            activeId,
+            columnId: targetColumn.id,
+            position: newPosition,
+          });
+        }
+      }
+
+      // Kéo thả CỘT (COLUMN)
+      if (active.data.current?.type === "COLUMN") {
+        setColumns((prevCols) => {
+          const activeColIndex = prevCols.findIndex((c) => c.id === activeId);
+          const overColIndex = prevCols.findIndex((c) => c.id === over.id);
+          const newCols = arrayMove(prevCols, activeColIndex, overColIndex);
+
+          if (socket && activeBoardId) {
+            socket.emit("move-column", {
+              boardId: activeBoardId,
+              columns: newCols,
+            });
+          }
+
+          return newCols;
+        });
+      }
+
+      setSourceColumnId(null);
+    },
+    [activeTask, columns, moveTask, socket, activeBoardId, sourceColumnId, isOwn],
+  );
+
+  // Giao diện khi đang tải dữ liệu API
+  if (isLoading) return "loading";
+
+  // Giao diện Skeleton khi ở Server-Side Rendering (tránh lệch giao diện khi Hydrate)
   if (!isMounted) {
     return (
       <div className="flex-1 flex flex-col bg-slate-950 h-screen text-slate-100 overflow-hidden">
@@ -519,9 +428,9 @@ export default function BoardDetailPage() {
     );
   }
 
-  // ==========================================
-  // 7. MAIN RENDER
-  // ==========================================
+  // ----------------------------------------------------------------------------------
+  // 12. GIAO DIỆN CHÍNH (RENDER BOARD KANBAN)
+  // ----------------------------------------------------------------------------------
   return (
     <div className="flex-1 flex flex-col bg-slate-950 h-screen text-slate-100 overflow-hidden">
       <Header />
@@ -533,6 +442,7 @@ export default function BoardDetailPage() {
         onOpenActivityLog={() => {}}
       />
 
+      {/* Bọc toàn bộ khu vực Kanban vào DndContext để kích hoạt kéo thả */}
       <DndContext
         sensors={sensors}
         collisionDetection={customCollisionDetection}
@@ -540,6 +450,7 @@ export default function BoardDetailPage() {
         onDragOver={onDragOver}
         onDragEnd={onDragEnd}>
         <div className="flex-1 flex gap-4 p-6 overflow-x-auto items-start h-[calc(100vh-80px)]">
+          {/* Quản lý danh sách các cột có thể sắp xếp nằm ngang */}
           <SortableContext items={columnsId} strategy={horizontalListSortingStrategy}>
             {columns.length === 0 && <EmptyColumnComponent />}
             {columns.map((column) => (
@@ -548,6 +459,7 @@ export default function BoardDetailPage() {
           </SortableContext>
         </div>
 
+        {/* DragOverlay: Tạo ra một thẻ "bóng" bay theo con trỏ chuột trong lúc kéo */}
         {typeof window !== "undefined" &&
           createPortal(
             <DragOverlay

@@ -56,7 +56,7 @@ const WorkspaceHome = () => {
     }
     setIsCreating(false);
   };
-
+  console.log("hêlll");
   return (
     <section className="bg-slate-900/40 border border-slate-800/80 rounded-3xl p-6 backdrop-blur-xl shadow-2xl space-y-6">
       {/* HEADER TABS SWITCHER */}

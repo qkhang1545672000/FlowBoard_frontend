@@ -31,14 +31,22 @@ export const useCreateColumn = (boardId: string) => {
 
 export const useUpdateColumnClock = (boardId: string) => {
   const queryClient = useQueryClient();
+  const socket = useSocket();
 
   return useMutation({
     mutationFn: (data: UpdateColumnClockPayload) => columnService.updateColumnClock(data),
-    onSuccess: () => {
+    onSuccess: (newColumn: Column) => {
       // Tự động refetch lại API Workspace Detail để cập nhật danh sách Board mới
       queryClient.invalidateQueries({
         queryKey: ["board", boardId],
       });
+      if (socket && boardId) {
+        socket.emit("typeLock-column", {
+          boardId,
+          columnId: newColumn.id,
+          typeLock: newColumn.lock_type,
+        });
+      }
     },
   });
 };
@@ -62,7 +70,6 @@ export const useDeleteColumn = (boardId: string) => {
           boardId,
           columnId: deletedColumnId,
         });
-        console.log("sfsdfsdf");
       } else {
         console.error("Socket chưa sẵn sàng hoặc thiếu boardId!", { socket, boardId });
       }
