@@ -2,6 +2,7 @@ import axiosInstance from "@/lib/axios";
 import { ColumnLockType } from "@/types";
 import { Column, CreateColumn } from "@/types/column";
 export interface UpdateColumnClockPayload {
+  boardId: string;
   columnId: string;
   lock: ColumnLockType; // Hoặc clock tùy theo biến tên bạn muốn đặt
 }
@@ -21,6 +22,7 @@ export const columnService = {
       const response = await axiosInstance.patch<Column>(
         `/api/v1/columns/${data.columnId}`,
         {
+          boardId: data.boardId,
           lock_type: data.lock,
         },
       );

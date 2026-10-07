@@ -25,4 +25,14 @@ export const taskService = {
       throw error;
     }
   },
+  deleteTask: async (taskId: string): Promise<Task> => {
+    try {
+      const response = await axiosInstance.delete<Task>(`/api/v1/tasks/${taskId}`);
+      return response.data;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      console.error("Lỗi deleteTask (Server):", error?.response?.data || error.message);
+      throw error;
+    }
+  },
 };

@@ -28,23 +28,14 @@ import {
   useDeleteColumn,
   useUpdateColumnClock,
 } from "@/hooks/useColumn";
+import { useBoardPermission } from "./useBoardPermission";
 
 interface Props {
   column: Column;
   isOverlay?: boolean;
-  onAddTask?: (columnId: string, title: string) => void;
-  onAddColumnRight?: (targetColumnId: string, title: string) => void;
-  onDeleteColumn?: (columnId: string) => void;
-  onChangeLockType?: (columnId: string, newLockType: ColumnLockType) => void;
 }
 
-export function ColumnComponent({
-  column,
-  isOverlay,
-  onAddTask,
-  onAddColumnRight,
-  onDeleteColumn,
-}: Props) {
+export function ColumnComponent({ column, isOverlay }: Props) {
   const userCurrent = useAuthStore((state) => state.user);
 
   const boardId = useBoardStore((state) => state.activeBoardId) ?? "";
@@ -72,7 +63,7 @@ export function ColumnComponent({
   const [isCreatingColumn, setIsCreatingColumn] = useState(false);
   const [newColumnTitle, setNewColumnTitle] = useState("");
   const colInputRef = useRef<HTMLInputElement>(null);
-
+  const { isOwn } = useBoardPermission(boardId);
   const tasksIds = useMemo(() => {
     return column.tasks ? column.tasks.map((task) => task.id) : [];
   }, [column.tasks]);
@@ -124,7 +115,7 @@ export function ColumnComponent({
   // Chọn trạng thái khóa từ Sub Menu
   const handleSelectLockType = (lockType: ColumnLockType) => {
     setIsLockMenuOpen(false);
-    updateColumnClock({ columnId: column.id, lock: lockType });
+    updateColumnClock({ boardId, columnId: column.id, lock: lockType });
   };
 
   const handleCreateTask = async () => {
@@ -231,7 +222,7 @@ export function ColumnComponent({
                 )}
               </button>
 
-              {isLockMenuOpen && (
+              {isLockMenuOpen && isOwn && (
                 <div className="absolute right-0 top-7 w-52 bg-slate-800 border border-slate-700 rounded-xl shadow-xl py-1.5 z-50 text-xs text-slate-300 backdrop-blur-md animate-in fade-in zoom-in-95 duration-100">
                   <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-400 border-b border-slate-700/60 mb-1">
                     Trạng thái khóa cột

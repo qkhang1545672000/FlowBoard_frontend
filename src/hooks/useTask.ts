@@ -45,3 +45,24 @@ export const useMoveTask = (boardId: string) => {
     },
   });
 };
+
+export const useDeleteTask = (boardId: string) => {
+  const queryClient = useQueryClient();
+  // const socket = useSocket();
+  return useMutation({
+    mutationFn: (taskId: string) => taskService.deleteTask(taskId),
+    onSuccess: (newTask: Task) => {
+      // Tự động refetch lại API Workspace Detail để cập nhật danh sách Board mới
+      queryClient.invalidateQueries({
+        queryKey: ["board", boardId],
+      });
+      // if (socket && boardId) {
+      //   socket.emit("create-task", {
+      //     boardId,
+      //     columnId: newTask.columnId,
+      //     newTask: newTask,
+      //   });
+      // }
+    },
+  });
+};
