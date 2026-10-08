@@ -200,37 +200,56 @@ export default function BoardDetailPage() {
   // --------------------------------------------------------------------------
   const onDragOver = useCallback(
     (event: DragOverEvent) => {
+      // =========================================================================
+      // NHÓM 1: KIỂM TRA AN TOÀN & BỎ QUA VA CHẠM VÔ NGHĨA (GUARD CLAUSES)
+      // =========================================================================
       const { active, over } = event;
-      if (!over || !activeTask) return; // Nếu rê ra ngoài khung hoặc không kéo thẻ -> Bỏ qua
 
-      const activeId = active.id; // ID thẻ đang kéo
-      const overId = over.id; // ID vật thể (thẻ hoặc cột) đang bị rê qua
-      if (activeId === overId) return; // Nếu đang đè lên chính nó -> Không làm gì
+      // Chặn nếu rê ra ngoài khung chứa hoặc không có Task nào đang được gắp
 
+      if (!over || !activeTask) return;
+
+      const activeId = active.id; // ID của thẻ đang kéo
+      const overId = over.id; // ID của vật thể (thẻ/cột) đang bị rê chuột đè lên
+
+      // Chặn nếu con trỏ chuột đang đè lên chính nó
+      if (activeId === overId) return;
+
+      // Chặn nếu vật thể đang gắp không phải là Task (ví dụ đang kéo Cột)
       const isActiveTask = active.data.current?.type === "TASK";
       if (!isActiveTask) return;
 
+      // Xác định loại vật thể đang bị đè lên dưới con trỏ chuột
       const isOverTask = over.data.current?.type === "TASK";
       const isOverColumn = over.data.current?.type === "COLUMN";
 
-      // Cập nhật giao diện tạm thời trên màn hình để người dùng thấy Thẻ tự nhảy vị trí
+      // =========================================================================
+      // BẮT ĐẦU CẬP NHẬT GIAO DIỆN XEM TRƯỚC (UI PREVIEW)
+      // =========================================================================
       setColumns((prevCols) => {
-        // Tìm chỉ số (Index) của Cột chứa thẻ đang kéo
+        // =======================================================================
+        // NHÓM 2: TÌM CHỈ SỐ INDEX CỦA CỘT NGUỒN VÀ CỘT ĐÍCH
+        // =======================================================================
+        // Tìm chỉ số Cột chứa thẻ đang kéo (Cột Nguồn)
         const activeColIndex = prevCols.findIndex((c) =>
           c.tasks?.some((t) => t.id === activeId),
         );
         let overColIndex = -1;
 
-        // Tìm chỉ số (Index) của Cột đang bị rê chuột đè lên
+        // Tìm chỉ số Cột bị rê chuột đè lên (Cột Đích)
         if (isOverTask) {
           overColIndex = prevCols.findIndex((c) => c.tasks?.some((t) => t.id === overId));
         } else if (isOverColumn) {
           overColIndex = prevCols.findIndex((c) => c.id === overId);
         }
 
+        // Chặn nếu không xác định được 1 trong 2 cột
         if (activeColIndex === -1 || overColIndex === -1) return prevCols;
 
-        // KIỂM TRA Khóa Cột Nguồn
+        // =======================================================================
+        // NHÓM 3: KIỂM TRA PHÂN QUYỀN CỘT NGUỒN
+        // =======================================================================
+        // Nếu Cột Nguồn bị khóa -> Không cho phép kéo thẻ ra ngoài
         const sourceCol = prevCols[activeColIndex];
         const isSourceLocked =
           sourceCol?.lock_type === ColumnLockType.FULLY_LOCKED ||
@@ -238,53 +257,50 @@ export default function BoardDetailPage() {
 
         if (isSourceLocked && !isOwn) return prevCols;
 
-        // KIỂM TRA Khóa Cột Đích: Nếu Cột đích bị "Khóa hoàn toàn" -> Chặn không cho nhảy Preview vào
-        const targetColumn = prevCols[overColIndex];
-        if (
-          activeColIndex !== overColIndex &&
-          targetColumn.lock_type === ColumnLockType.FULLY_LOCKED &&
-          !isOwn
-        ) {
-          return prevCols;
-        }
-
-        // LƯU Ý: Với Cột "Khóa 1 chiều" (ONE_WAY_LOCKED), hệ thống VẪN CHO PHÉP thẻ nhảy tạm sang
-        // để khi người dùng buông chuột (Drag End) mới hiện Bảng hỏi xác nhận!
-
+        // =======================================================================
+        // NHÓM 4: TRÁO ĐỔI VỊ TRÍ DỮ LIỆU ĐỂ HIỂN THỊ TRÊN MÀN HÌNH (STATE MUTATION)
+        // =======================================================================
         const activeTaskIndex = prevCols[activeColIndex].tasks.findIndex(
           (t) => t.id === activeId,
         );
 
-        // Tạo bản sao mảng dữ liệu để không biến đổi trực tiếp state cũ
+        // Tạo bản sao Immer-safe (không thay đổi trực tiếp State cũ)
         const updatedCols = prevCols.map((col) => ({
           ...col,
           tasks: [...(col.tasks || [])],
         }));
 
-        // Trường hợp A: Rê thẻ sang CỘT KHÁC
+        // KỊCH BẢN A: Rê thẻ sang CỘT KHÁC
         if (activeColIndex !== overColIndex) {
+          const targetColumn = prevCols[overColIndex];
+
+          // GỘP KIỂM TRA CỘT ĐÍCH: Nếu Cột đích bị Khóa Hoàn Toàn -> Chặn không cho nhảy Preview vào
+          if (targetColumn.lock_type === ColumnLockType.FULLY_LOCKED && !isOwn) {
+            return prevCols;
+          }
+
           // Bốc thẻ ra khỏi cột cũ
           const [movedTask] = updatedCols[activeColIndex].tasks.splice(
             activeTaskIndex,
             1,
           );
-          // Gắn ID cột mới cho thẻ
+          // Gán ID cột mới cho thẻ
           movedTask.columnId = targetColumn.id;
 
-          // Xác định vị trí chèn mới
+          // Xác định vị trí chèn mới trong cột mới
           const overTaskIndex = isOverTask
             ? updatedCols[overColIndex].tasks.findIndex((t) => t.id === overId)
             : updatedCols[overColIndex].tasks.length;
 
-          // Nhét thẻ vào cột mới
+          // Nhét thẻ vào mảng tasks của cột mới
           updatedCols[overColIndex].tasks.splice(overTaskIndex, 0, movedTask);
         }
-        // Trường hợp B: Đổi vị trí các thẻ TRONG CÙNG 1 CỘT
+        // KỊCH BẢN B: Đổi vị trí các thẻ TRONG CÙNG 1 CỘT
         else if (isOverTask) {
           const overTaskIndex = updatedCols[overColIndex].tasks.findIndex(
             (t) => t.id === overId,
           );
-          // Đáo đổi vị trí 2 thẻ trong mảng
+          // Đáo đổi vị trí 2 thẻ bằng hàm arrayMove của dnd-kit
           updatedCols[activeColIndex].tasks = arrayMove(
             updatedCols[activeColIndex].tasks,
             activeTaskIndex,
@@ -303,6 +319,7 @@ export default function BoardDetailPage() {
   // --------------------------------------------------------------------------
   const onDragEnd = useCallback(
     (event: DragEndEvent) => {
+      console.log("đây kéo ở end");
       const { active, over } = event;
 
       const currentTask = activeTask;
