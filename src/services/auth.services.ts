@@ -86,6 +86,16 @@ export const authService = {
       });
     }
   },
+  signOut: async (): Promise<void> => {
+    const res = await getAuthClient().signOut();
+
+    if (res.error) {
+      const msg = res.error.message || "Đăng xuất thất bại";
+      throw Object.assign(new Error(msg), {
+        response: { data: { message: msg } },
+      });
+    }
+  },
 
   signIn: async (data: SignInDto & { rememberMe?: boolean }): Promise<AuthResponse> => {
     const res = await getAuthClient().signIn.email({

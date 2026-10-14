@@ -14,7 +14,7 @@ import {
 import WorkspaceCard from "./workspaceCard";
 import CreateWorkspaceCard from "./CreateWorkspaceCard";
 import { useCreateWorkspace, useWorkSpace } from "@/hooks/useWorkSpace";
-import { useWorkspaceCounts } from "@/hooks/useWorkSpace"; // 👈 Import hook vừa tạo
+import { useWorkspaceCounts } from "@/hooks/useWorkSpace";
 
 import WorkspaceSkeleton from "./WorkspaceSkeleton";
 import { WorkspaceResponse } from "@/types/workSpace";
@@ -53,12 +53,13 @@ const WorkspaceHome = () => {
       setIsCreating(false);
     } catch (error) {
       // Xử lý lỗi UI nếu cần
+    } finally {
+      setIsCreating(false);
     }
-    setIsCreating(false);
   };
-  console.log("hêlll");
+
   return (
-    <section className="bg-slate-900/40 border border-slate-800/80 rounded-3xl p-6 backdrop-blur-xl shadow-2xl space-y-6">
+    <section className="bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6 backdrop-blur-md shadow-xl space-y-6">
       {/* HEADER TABS SWITCHER */}
       <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
         <div className="flex items-center gap-2">
@@ -72,7 +73,6 @@ const WorkspaceHome = () => {
             }`}>
             <Briefcase className="w-4 h-4" />
             <span>MY WORKSPACES</span>
-            {/* ✅ Luôn hiện badge số lượng */}
             <span className="px-2 py-0.5 rounded-full bg-slate-800 text-[10px] text-slate-300">
               {counts?.ownedCount ?? 0}
             </span>
@@ -88,7 +88,6 @@ const WorkspaceHome = () => {
             }`}>
             <Users className="w-4 h-4" />
             <span>JOINED WORKSPACES</span>
-            {/* ✅ Luôn hiện badge số lượng */}
             <span className="px-2 py-0.5 rounded-full bg-slate-800 text-[10px] text-slate-300">
               {counts?.joinedCount ?? 0}
             </span>
@@ -131,7 +130,7 @@ const WorkspaceHome = () => {
           </div>
         ) : null}
 
-        {/* Nút Xem thêm / Thu lại */}
+        {/* Nút Xem thêm / Về đầu trang (Thu lại mượt mà) */}
         {hasNextPage ? (
           <button
             onClick={() => fetchNextPage()}
@@ -156,7 +155,8 @@ const WorkspaceHome = () => {
         ) : isExpanded ? (
           <button
             onClick={() => {
-              window.location.reload();
+              // Thay vì reload lại toàn bộ trang gây giật, cuộn mượt về đầu danh sách
+              window.scrollTo({ top: 0, behavior: "smooth" });
             }}
             className="bg-slate-900/30 hover:bg-slate-800/60 border border-slate-800 hover:border-amber-500/50 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group min-h-[110px]">
             <div className="p-2.5 bg-slate-800/60 rounded-xl group-hover:bg-amber-500/10 group-hover:text-amber-400 text-slate-400 transition-colors">

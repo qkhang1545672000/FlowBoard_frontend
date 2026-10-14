@@ -1,14 +1,17 @@
 import { Bell, ChevronDown, MessageSquare, Search } from "lucide-react";
+import UserAvatar from "../ui/UserAvatar";
+import { UserProfileMenu } from "./user-profile-menu";
 
 const HeaderIndex = () => {
   return (
-    <header className="flex items-center justify-between bg-slate-900/60 border border-slate-800/80 rounded-2xl p-3.5 backdrop-blur-xl shadow-xl">
+    <header className="relative z-50 flex items-center justify-between bg-slate-900/60 border border-slate-800/80 rounded-2xl p-3.5 backdrop-blur-xl shadow-xl">
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center font-extrabold text-white text-lg shadow-lg shadow-indigo-500/20">
           TF
         </div>
         <span className="text-xl font-bold tracking-tight text-white">TaskFlow</span>
       </div>
+
       {/* Thanh Search Bar */}
       <div className="relative w-96">
         <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -21,6 +24,7 @@ const HeaderIndex = () => {
           Ctrl+K
         </kbd>
       </div>
+
       {/* Quick Action & User */}
       <div className="flex items-center gap-4">
         <button className="text-slate-400 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-slate-800">
@@ -34,21 +38,20 @@ const HeaderIndex = () => {
             3
           </span>
         </div>
-
-        <div className="flex items-center gap-2.5 pl-3 border-l border-slate-800">
-          <img
-            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop"
-            alt="Alex Rivera"
-            className="w-8 h-8 rounded-full object-cover ring-2 ring-indigo-500/40"
-          />
-          <div className="flex flex-col text-left">
-            <span className="text-xs font-semibold text-slate-200 leading-tight">
-              Alex Rivera
-            </span>
-            <span className="text-[10px] text-slate-400">Logged in</span>
+        <UserProfileMenu>
+          <div className="flex items-center gap-2.5 pl-3 border-l border-slate-800">
+            <UserAvatar
+              type="chat"
+              avatarUrl="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop"
+            />
+            <div className="flex flex-col text-left">
+              <span className="text-xs font-semibold text-slate-200 leading-tight">
+                Alex Rivera
+              </span>
+              <span className="text-[10px] text-slate-400">Logged in</span>
+            </div>
           </div>
-          <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-1" />
-        </div>
+        </UserProfileMenu>
       </div>
     </header>
   );

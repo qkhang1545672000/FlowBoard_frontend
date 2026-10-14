@@ -9,6 +9,7 @@ export const useCreateTask = (boardId: string) => {
   return useMutation({
     mutationFn: (data: createTask) => taskService.createTask(data),
     onSuccess: (newTask: Task) => {
+      console.log("newTask:", newTask);
       // Tự động refetch lại API Workspace Detail để cập nhật danh sách Board mới
       queryClient.invalidateQueries({
         queryKey: ["board", boardId],
@@ -51,6 +52,28 @@ export const useDeleteTask = (boardId: string) => {
   // const socket = useSocket();
   return useMutation({
     mutationFn: (taskId: string) => taskService.deleteTask(taskId),
+    onSuccess: (newTask: Task) => {
+      // Tự động refetch lại API Workspace Detail để cập nhật danh sách Board mới
+      queryClient.invalidateQueries({
+        queryKey: ["board", boardId],
+      });
+      // if (socket && boardId) {
+      //   socket.emit("create-task", {
+      //     boardId,
+      //     columnId: newTask.columnId,
+      //     newTask: newTask,
+      //   });
+      // }
+    },
+  });
+};
+
+export const useUpdateAssignTask = (boardId: string) => {
+  const queryClient = useQueryClient();
+  // const socket = useSocket();
+  return useMutation({
+    mutationFn: ({ taskId, userId }: { taskId: string; userId: string }) =>
+      taskService.updateAssign(taskId, userId),
     onSuccess: (newTask: Task) => {
       // Tự động refetch lại API Workspace Detail để cập nhật danh sách Board mới
       queryClient.invalidateQueries({

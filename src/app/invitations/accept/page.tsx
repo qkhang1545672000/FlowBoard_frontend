@@ -1,15 +1,20 @@
 // Frontend: app/invitations/accept/page.tsx (Next.js)
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { useWorkspaceStore } from "@/store/useWorkspaceStore";
+import { useAcceptMemberW } from "@/hooks/useWorkSpace";
 
-export default function AcceptInvitationPage() {
+function AcceptInvitationContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [message, setMessage] = useState("Đang kiểm tra thông tin lời mời...");
-
+  const setWorkspace = useWorkspaceStore((state) => state.setActiveWorkspace);
+  const { mutateAsync: acceptMember, isPending: isDeleteAPI } = useAcceptMemberW();
   useEffect(() => {
     if (!token) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -21,37 +26,25 @@ export default function AcceptInvitationPage() {
     localStorage.setItem("pending_invite_token", token);
 
     // 2. Thử gọi API chấp nhận lời mời (với Session/Token hiện tại nếu có)
-    fetch(`http://localhost:8080/api/v1/workspaces/invitations/accept?token=${token}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include", // Nếu dùng Cookie/Session
-    })
-      .then(async (res) => {
-        if (res.status === 401 || res.status === 403) {
-          // Chưa đăng nhập -> Chuyển sang trang Đăng ký (hoặc Đăng nhập)
-          setMessage("Bạn cần đăng ký/đăng nhập để gia nhập Workspace.");
-          setTimeout(() => {
-            router.push(`/auth/signin?redirect=/invitations/accept?token=${token}`);
-          }, 1500);
-          return;
-        }
-
-        const data = await res.json();
-        if (res.ok && data.success) {
-          // Đã đăng nhập và gia nhập thành công -> Xóa token tạm và chuyển vào Workspace
-          localStorage.removeItem("pending_invite_token");
-          setMessage("Tham gia Workspace thành công! Đang chuyển hướng...");
-          setTimeout(() => router.push(`/w/${data.slug}`), 1500);
-        } else {
-          setMessage(data.message || "Lời mời không hợp lệ hoặc đã hết hạn.");
-        }
-      })
-      .catch(() => setMessage("Lỗi kết nối máy chủ."));
-  }, [token, router]);
+    acceptMember(token);
+  }, [token, router, queryClient]);
 
   return (
     <div style={{ padding: "50px", textAlign: "center" }}>
       <h2>{message}</h2>
     </div>
+  );
+}
+
+export default function AcceptInvitationPage() {
+  return (
+    <Suspense
+      fallback={
+        <div style={{ padding: "50px", textAlign: "center" }}>
+          <h2>Đang tải...</h2>
+        </div>
+      }>
+      <AcceptInvitationContent />
+    </Suspense>
   );
 }

@@ -9,7 +9,7 @@ export const useBoardPermission = (boardId: string) => {
   const isOwn = useMemo(() => {
     if (!boardDetail?.members || !user?.id) return false;
     return boardDetail.members.some(
-      (m) => m.user?.id === user.id && (m.role === "ADMIN" || m.role === "LEADER"),
+      (m) => m.user?.id === user.id && (m.role === "OWNER" || m.role === "BOARD_LEADER"),
     );
   }, [boardDetail, user]);
 

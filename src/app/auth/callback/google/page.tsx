@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useAcceptMemberW } from "@/hooks/useWorkSpace";
 
 type AuthMeResponse = {
   success: boolean;
@@ -41,12 +42,14 @@ function GoogleCallbackPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
+  const { mutate: acceptMemberW, isPending } = useAcceptMemberW();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const setUser = useAuthStore((state) => state.setUser);
   useEffect(() => {
     let cancelled = false;
     let redirectTimer: ReturnType<typeof setTimeout> | undefined;
     const redirectTo = searchParams.get("redirect") || "/";
+    const pendingToken = localStorage.getItem("pending_invite_token");
 
     void (async () => {
       const user = await fetchMeWithRetry();
@@ -64,6 +67,9 @@ function GoogleCallbackPageInner() {
           toast.info("Vui lòng kiểm tra email để xác minh tài khoản.");
         } else {
           toast.success("Đăng nhập thành công! Đang chuyển hướng...");
+        }
+        if (pendingToken) {
+          acceptMemberW(pendingToken);
         }
         redirectTimer = setTimeout(() => router.push(redirectTo), 600);
         return;

@@ -8,6 +8,7 @@ export const taskService = {
   createTask: async (dto: createTask): Promise<Task> => {
     try {
       const response = await axiosInstance.post<Task>(`/api/v1/tasks`, dto);
+      console.log("task tạo trong service:", response.data);
       return response.data;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
@@ -32,6 +33,19 @@ export const taskService = {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error("Lỗi deleteTask (Server):", error?.response?.data || error.message);
+      throw error;
+    }
+  },
+  updateAssign: async (taskId: string, userId: string): Promise<Task> => {
+    try {
+      const response = await axiosInstance.patch<Task>(`/api/v1/tasks/${taskId}`, {
+        assigneeId: userId,
+      });
+      console.log("sfsadsdfxxxx", response.data);
+      return response.data;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      console.error("Lỗi updateAssign (Server):", error?.response?.data || error.message);
       throw error;
     }
   },

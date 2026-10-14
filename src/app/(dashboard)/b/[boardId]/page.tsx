@@ -50,6 +50,7 @@ export default function BoardDetailPage() {
   // --------------------------------------------------------------------------
   // Lấy ID của bảng hiện tại (VD: "board-123")
   const activeBoardId = useBoardStore((state) => state.activeBoardId);
+
   // Lấy thông tin người dùng đang đăng nhập (VD: { id: "user-1", name: "Nam" })
   const user = useAuthStore((state) => state.user);
   // Lấy đối tượng socket để gửi tín hiệu trực tiếp sang máy người dùng khác
@@ -319,7 +320,6 @@ export default function BoardDetailPage() {
   // --------------------------------------------------------------------------
   const onDragEnd = useCallback(
     (event: DragEndEvent) => {
-      console.log("đây kéo ở end");
       const { active, over } = event;
 
       const currentTask = activeTask;

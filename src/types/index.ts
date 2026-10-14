@@ -5,8 +5,7 @@ export enum UserRole {
 
 export enum WorkspaceRole {
   OWNER = "OWNER",
-  ADMIN = "ADMIN",
-  MEMBER = "MEMBER",
+  MEMBER_WORKSPACE = "MEMBER_WORKSPACE",
 }
 
 export enum BoardVisibility {
@@ -15,10 +14,9 @@ export enum BoardVisibility {
   PUBLIC = "PUBLIC",
 }
 export enum BoardMemberRole {
-  ADMIN = "ADMIN",
-  MEMBER = "MEMBER",
-  VIEWER = "VIEWER",
-  LEADER = "LEADER",
+  OWNER = "OWNER",
+  BOARD_LEADER = "BOARD_LEADER",
+  BOARD_MEMBER = "BOARD_MEMBER",
 }
 
 export enum TaskPriority {

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { boardService } from "@/services/board.service";
 
 import { BoardDetail, CreateBoardDto } from "@/types/board";
+import { toast } from "sonner";
 
 // Hook Mutation Tạo Board mới
 export const useCreateBoard = () => {
@@ -14,6 +15,17 @@ export const useCreateBoard = () => {
       queryClient.invalidateQueries({
         queryKey: ["workspace"],
       });
+    },
+    onError: (error: unknown) => {
+      const message = (
+        error as {
+          response?: { data?: { message?: string } };
+        }
+      )?.response?.data?.message;
+
+      toast.error(
+        typeof message === "string" ? message : (message?.error ?? "Sign in failed"),
+      );
     },
   });
 };

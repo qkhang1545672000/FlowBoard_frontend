@@ -2,6 +2,8 @@ import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { Socket } from "socket.io-client";
 import { Column, Task } from "@/types/column";
 import { ColumnLockType } from "@/types";
+import { useAuthStore } from "@/store/useAuthStore";
+import { useSafeUser } from "./useSafeUser";
 
 export interface LockedUser {
   id: string;
@@ -26,6 +28,7 @@ export const useBoardSocket = ({
   setColumns,
   isDragging,
 }: UseBoardSocketProps) => {
+  const user = useSafeUser();
   // State lưu danh sách các thẻ đang bị khóa bởi người dùng khác
   const [lockedTasks, setLockedTasks] = useState<LockedTasksState>({});
 
@@ -97,6 +100,7 @@ export const useBoardSocket = ({
   const handleTaskCreated = useCallback(
     (data: { columnId: string; newTask: Task }) => {
       setColumns((prevCols) => {
+        console.log("dfasfsdTTTT", data.newTask, "user trong BoardSocket:", user?.id);
         // 1. Kiểm tra xem Cột chứa Task có tồn tại hay không
         const columnCurrent = prevCols.find((col) => col.id === data.columnId);
         if (!columnCurrent) return prevCols;

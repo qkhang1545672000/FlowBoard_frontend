@@ -1,4 +1,5 @@
 import axiosInstance from "@/lib/axios";
+import { WorkspaceRole } from "@/types";
 import { CreateWorkspaceDto } from "@/types/apiWorkspace.type";
 import { WorkspaceDetailResponse, WorkspaceResponse } from "@/types/workSpace";
 export interface PaginatedWorkspaceResponse {
@@ -87,7 +88,7 @@ export const workSpaceService = {
   inviteMemberWorkspace: async (
     workspaceId: string,
     email: string,
-    role: string = "MEMBER",
+    role: WorkspaceRole.MEMBER_WORKSPACE,
   ): Promise<void> => {
     try {
       const response = await axiosInstance.post(
@@ -103,6 +104,24 @@ export const workSpaceService = {
     } catch (error: any) {
       console.error(
         "Lỗi inviteMemberWorkspace (Server):",
+        error?.response?.data || error.message,
+      );
+      throw error;
+    }
+  },
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  acceptMemberWorkspace: async (token: string): Promise<any> => {
+    try {
+      const response = await axiosInstance.post(
+        `/api/v1/workspaces/invitations/accept?token=${token}`,
+      );
+
+      return response.data;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      console.error(
+        "Lỗi acceptMemberWorkspace (Server):",
         error?.response?.data || error.message,
       );
       throw error;

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Plus, Briefcase, ChevronLeft, ChevronRight } from "lucide-react";
 import { WorkspaceResponse } from "@/types/workSpace";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
+import { useBoardStore } from "@/store/useBoardStore";
+import { useWorkspaceDetail } from "@/hooks/useWorkSpace";
 
 interface SidebarProps {
   workspaces: WorkspaceResponse[];
@@ -20,6 +22,10 @@ export function Sidebar({
   setIsCollapsed,
 }: SidebarProps) {
   const setActiveWorkspace = useWorkspaceStore((state) => state.setActiveWorkspace);
+  const activeBoardId = useBoardStore((state) => state.activeBoardId);
+  const setBoardId = useBoardStore((state) => state.setActiveBoard);
+  const activeWorkspaceId = useWorkspaceStore((state) => state.activeWorkspaceId) ?? "";
+  const { data: workSpaceDetail, isPending } = useWorkspaceDetail(activeWorkspaceId);
 
   return (
     <aside
@@ -68,32 +74,66 @@ export function Sidebar({
 
         {/* Workspaces List */}
         <div>
-          {!isCollapsed && (
-            <div className="text-[11px] font-semibold uppercase text-slate-500 px-2 mb-2 tracking-wider whitespace-nowrap">
-              Workspaces
-            </div>
-          )}
           <div className="space-y-1">
-            {workspaces?.map((ws) => {
-              const isActive = currentWorkspaceSlug === ws.slug;
-              return (
-                <Link
-                  key={ws.id}
-                  onClick={() => setActiveWorkspace({ id: ws.id, slug: ws.slug })}
-                  href={`/w/${ws.slug}`}
-                  title={ws.name}
-                  className={`flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-sm transition-all ${
-                    isActive
-                      ? "bg-indigo-600/20 text-indigo-400 font-medium border border-indigo-500/30"
-                      : "hover:bg-slate-800/80 text-slate-400 hover:text-slate-200"
-                  }`}>
-                  <Briefcase className="w-4 h-4 shrink-0" />
-                  {!isCollapsed && (
-                    <span className="truncate whitespace-nowrap">{ws.name}</span>
-                  )}
-                </Link>
-              );
-            })}
+            {!activeBoardId ? (
+              // Nhánh 1: Khi chưa chọn Board (Hiển thị danh sách Workspace)
+              <>
+                {!isCollapsed && (
+                  <div className="text-[11px] font-semibold uppercase text-slate-500 px-2 mb-2 tracking-wider whitespace-nowrap">
+                    Workspaces
+                  </div>
+                )}
+                {workspaces?.map((ws) => {
+                  const isActive = currentWorkspaceSlug === ws.slug;
+                  return (
+                    <Link
+                      key={ws.id}
+                      onClick={() => setActiveWorkspace({ id: ws.id, slug: ws.slug })}
+                      href={`/w/${ws.slug}`}
+                      title={ws.name}
+                      className={`flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-sm transition-all ${
+                        isActive
+                          ? "bg-indigo-600/20 text-indigo-400 font-medium border border-indigo-500/30"
+                          : "hover:bg-slate-800/80 text-slate-400 hover:text-slate-200"
+                      }`}>
+                      <Briefcase className="w-4 h-4 shrink-0" />
+                      {!isCollapsed && (
+                        <span className="truncate whitespace-nowrap">{ws.name}</span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </>
+            ) : (
+              // Nhánh 2: Khi đã chọn Board (Hiển thị danh sách Board)
+              <>
+                {!isCollapsed && (
+                  <div className="text-[11px] font-semibold uppercase text-slate-500 px-2 mb-2 tracking-wider whitespace-nowrap">
+                    Boards
+                  </div>
+                )}
+                {workSpaceDetail?.boards?.map((ws) => {
+                  const isActive = currentWorkspaceSlug === ws.slug;
+                  return (
+                    <Link
+                      key={ws.id}
+                      onClick={() => setBoardId({ id: ws.id, slug: ws.slug })}
+                      href={`/b/${ws.slug}`}
+                      title={ws.title}
+                      className={`flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-sm transition-all ${
+                        isActive
+                          ? "bg-indigo-600/20 text-indigo-400 font-medium border border-indigo-500/30"
+                          : "hover:bg-slate-800/80 text-slate-400 hover:text-slate-200"
+                      }`}>
+                      <Briefcase className="w-4 h-4 shrink-0" />
+                      {!isCollapsed && (
+                        <span className="truncate whitespace-nowrap">{ws.title}</span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </>
+            )}
           </div>
         </div>
       </div>

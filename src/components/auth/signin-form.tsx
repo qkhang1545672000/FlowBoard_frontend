@@ -17,13 +17,14 @@ import { SignInDto } from "@/types/api.types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
-import React, { useMemo } from "react";
+import React, { useMemo, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useGoogleSignIn } from "@/hooks/user-auth";
 import { SocialAuthButtons } from "@/components/auth/social-auth-buttons";
 
-export default function SignInForm({ className, ...props }: React.ComponentProps<"div">) {
+// 1. Tạo component con chứa logic dùng useSearchParams
+function SignInFormContent({ className, ...props }: React.ComponentProps<"div">) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const redirectTo = searchParams.get("redirect") ?? undefined;
@@ -67,13 +68,10 @@ export default function SignInForm({ className, ...props }: React.ComponentProps
     },
   });
 
-  // NÂNG CẤP HÀM ONSUBMIT XỬ LÝ LỜI MỜI PENDING
   const onSubmit = async (data: SignInFormValues) => {
     try {
-      // 1. Đăng nhập
       await signInMutation.mutateAsync(data);
 
-      // 2. Lấy token mời từ LocalStorage
       const pendingToken = localStorage.getItem("pending_invite_token");
 
       if (pendingToken) {
@@ -82,18 +80,15 @@ export default function SignInForm({ className, ...props }: React.ComponentProps
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            credentials: "include", // Rất quan trọng để gửi kèm Cookie/Session vừa đăng nhập
+            credentials: "include",
           },
         );
 
         const result = await res.json();
-
-        // Xóa token tạm sau khi xử lý xong (dù thành công hay thất bại)
         localStorage.removeItem("pending_invite_token");
 
         if (res.ok && result.workspaceId) {
-          // Chuyển thẳng vào Workspace
-          router.push(`/workspaces/${result.workspaceId}`);
+          router.push(`/w/${result.workspaceId}`);
           return;
         }
       }
@@ -102,7 +97,6 @@ export default function SignInForm({ className, ...props }: React.ComponentProps
     }
   };
 
-  // Tạo đường dẫn Đăng ký duy trì Redirect Parameter
   const signUpLink = redirectTo
     ? `/auth/signup?redirect=${encodeURIComponent(redirectTo)}`
     : "/auth/signup";
@@ -206,5 +200,14 @@ export default function SignInForm({ className, ...props }: React.ComponentProps
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// 2. Component chính bọc bên trong Suspense để fix lỗi Next.js
+export default function SignInForm(props: React.ComponentProps<"div">) {
+  return (
+    <Suspense fallback={<div className="flex justify-center p-8">Đang tải...</div>}>
+      <SignInFormContent {...props} />
+    </Suspense>
   );
 }

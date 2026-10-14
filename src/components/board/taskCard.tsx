@@ -12,8 +12,10 @@ import UserAvatar from "../ui/UserAvatar";
 import { useBoardPermission } from "./useBoardPermission";
 import { useBoardStore } from "@/store/useBoardStore";
 import { LockedUser } from "@/hooks/useBoardSocket";
-import { TaskDetailModal } from "./TaskDetailModal"; // Import Modal
+import { TaskDetailModal } from "./TaskDetailModal";
+import { AssignTaskModal } from "./AssignTaskModal"; // Import modal mới tách
 import { useDeleteTask } from "@/hooks/useTask";
+import { useSafeUser } from "@/hooks/useSafeUser";
 
 interface Props {
   task: Task;
@@ -23,21 +25,25 @@ interface Props {
 }
 
 export function TaskCard({ task, isOverlay, lockedBy, onDeleteTask }: Props) {
-  const [isModalOpen, setIsModalOpen] = useState(false); // State điều khiển Modal chi tiết
-  const [isMenuOpen, setIsMenuOpen] = useState(false); // State menu 3 chấm
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false); // State modal xác nhận xóa
-
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  console.log("đây là t ask", task);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const boardId = useBoardStore((state) => state.activeBoardId) ?? "";
   const { isOwn } = useBoardPermission(boardId);
-  const user = useAuthStore((state) => state.user);
+  const user = useSafeUser();
+
   const { mutate: deleteTask } = useDeleteTask(boardId);
   const isLockedByOther = Boolean(lockedBy && lockedBy.id !== user?.id);
   const isAssignee = task.assignee?.id === user?.id || user?.role === "ADMIN" || isOwn;
   const canDrag = isAssignee && !isLockedByOther;
-
-  // Lắng nghe sự kiện bấm ra bên ngoài để tự động đóng Submenu
+  console.log(
+    "Đây user trong taskCard",
+    task.assigneeId === user?.id ? "bg-red-600" : "bg-yellow-400",
+  );
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -88,7 +94,7 @@ export function TaskCard({ task, isOverlay, lockedBy, onDeleteTask }: Props) {
         style={style}
         {...attributes}
         {...listeners}
-        onClick={() => setIsModalOpen(true)} // Mở modal khi bấm vào thẻ
+        onClick={() => setIsModalOpen(true)}
         className={`relative bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 p-3.5 rounded-xl shadow-md transition-all space-y-3 ${
           canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-not-allowed"
         } ${isDragging ? "opacity-30 border-dashed border-indigo-500" : ""} ${
@@ -186,23 +192,51 @@ export function TaskCard({ task, isOverlay, lockedBy, onDeleteTask }: Props) {
             )}
           </div>
 
-          {task.assignee && (
-            <UserAvatar
-              name={task.assignee.name}
-              type="chat"
-              fallbackClassName={`${
-                task.assignee.id === user?.id ? "bg-red-600" : "bg-yellow-400"
-              }`}
-            />
-          )}
+          {/* Biểu tượng tròn Assignee (ví dụ chữ K màu đỏ) bấm vào sẽ mở Modal Giao nhiệm vụ */}
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsAssignModalOpen(true);
+            }}
+            title="Giao nhiệm vụ"
+            className="cursor-pointer transition-transform hover:scale-105">
+            {task.assignee ? (
+              <UserAvatar
+                name={task.assignee.name}
+                type="chat"
+                fallbackClassName={`${
+                  task.assigneeId === user?.id ? "bg-red-600" : "bg-yellow-400"
+                }`}
+              />
+            ) : (
+              <div className="w-7 h-7 rounded-full bg-red-600 text-white font-bold flex items-center justify-center text-xs shadow-md">
+                K
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Render Modal Chi tiết Task */}
+      {/* Task Detail Modal */}
       <TaskDetailModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         task={task}
+      />
+
+      {/* Assign Task Modal */}
+      <AssignTaskModal
+        isOpen={isAssignModalOpen}
+        onClose={() => setIsAssignModalOpen(false)}
+        task={task}
+        onAssign={(userId) => {
+          // Xử lý logic gán user vào task tại đây
+          console.log("Assigned user ID:", userId);
+        }}
+        onInviteEmail={(email, role) => {
+          // Xử lý logic gửi email mời tại đây
+          alert(`Đã gửi lời mời qua email tới: ${email} với vai trò ${role}`);
+        }}
       />
 
       {/* Render Modal Xác nhận xóa toàn màn hình dùng React Portal */}

@@ -1,7 +1,8 @@
 import { authService } from "@/services/auth.services";
 import { workSpaceService } from "@/services/workspace.service";
 import { useAuthStore } from "@/store/useAuthStore";
-import { UserRole } from "@/types";
+import { User } from "@/types";
+
 import {
   ForgotPasswordDto,
   ResetPasswordDto,
@@ -39,7 +40,7 @@ export const useSignUp = (messages?: AuthToastMessages & { verifyEmail?: string 
       );
 
       // 2. Cập nhật dữ liệu vào Zustand Store
-      setUser(response.user);
+      setUser(response.user as User);
 
       if (response.token) {
         toast.success(messages?.success ?? "Account created successfully!");
@@ -118,9 +119,10 @@ export const useSignIn = (messages?: AuthToastMessages, redirectTo?: string) => 
           isAuthenticated: true,
         },
       );
+      const pendingToken = await localStorage.getItem("pending_invite_token");
 
       // 2. Cập nhật dữ liệu vào Zustand Store
-      setUser(response.user);
+      setUser(response.user as User);
       await queryClient.prefetchQuery({
         queryKey: ["workspace"],
         queryFn: () => workSpaceService.getWorkSpace(),
@@ -140,6 +142,48 @@ export const useSignIn = (messages?: AuthToastMessages, redirectTo?: string) => 
 
       toast.error(
         typeof message === "string" ? message : (messages?.error ?? "Sign in failed"),
+      );
+    },
+  });
+};
+
+export const useSignOut = (messages?: AuthToastMessages, redirectTo?: string) => {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const clearAuthUser = useAuthStore((state) => state.clearAuth); // Hoặc hàm clear state trong auth store của bạn
+
+  return useMutation({
+    mutationFn: () => authService.signOut(),
+
+    onSuccess: async () => {
+      // 1. Xóa hoặc reset TanStack Query Cache liên quan đến session và dữ liệu user
+      queryClient.setQueryData(["auth", "session"], null);
+      queryClient.clear(); // Xóa toàn bộ cache nếu muốn dọn sạch dữ liệu cũ khi đăng xuất
+
+      // 2. Clear state người dùng trong Zustand Store
+      if (clearAuthUser) {
+        clearAuthUser();
+      }
+
+      // 3. Dọn dẹp các storage riêng biệt (như board storage hoặc workspace storage nếu có)
+      localStorage.removeItem("active-board-storage");
+      // localStorage.removeItem("active-workspace-storage");
+
+      toast.success(messages?.success ?? "Signed out successfully");
+
+      // 4. Chuyển hướng về trang đăng nhập hoặc trang chỉ định
+      router.push(redirectTo ?? "/auth/signin");
+    },
+
+    onError: (error: unknown) => {
+      const message = (
+        error as {
+          response?: { data?: { message?: string } };
+        }
+      )?.response?.data?.message;
+
+      toast.error(
+        typeof message === "string" ? message : (messages?.error ?? "Sign out failed"),
       );
     },
   });
