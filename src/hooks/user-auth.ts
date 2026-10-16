@@ -120,7 +120,7 @@ export const useSignIn = (messages?: AuthToastMessages, redirectTo?: string) => 
         },
       );
       const pendingToken = await localStorage.getItem("pending_invite_token");
-
+      console.log("fasfdsf", response);
       // 2. Cập nhật dữ liệu vào Zustand Store
       setUser(response.user as User);
       await queryClient.prefetchQuery({

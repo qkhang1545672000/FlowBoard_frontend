@@ -179,7 +179,12 @@ const ContentMain = () => {
                       <div className="flex items-center gap-3.5 min-w-0">
                         <div className="relative shrink-0">
                           <UserAvatar name={member.user?.name} type="chat" />
-                          <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 bg-emerald-500" />
+                          <span
+                            className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 ${
+                              member.user.isOnline ? "bg-emerald-500" : "bg-zinc-800"
+                            }`}
+                            title={member.user.isOnline ? "Online" : "Offline"}
+                          />
                         </div>
                         <div className="truncate">
                           <h3 className="font-semibold text-white text-sm flex items-center gap-1.5 truncate">
@@ -197,8 +202,13 @@ const ContentMain = () => {
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0 ml-2">
-                        <span className="text-xs font-medium px-2.5 py-1 rounded-full border text-emerald-400 border-emerald-500/20 bg-emerald-500/10">
-                          • Online
+                        <span
+                          className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
+                            member.user.isOnline
+                              ? "text-emerald-400 border-emerald-500/20 bg-emerald-500/10"
+                              : "text-sky-400 border-sky-500/20 bg-sky-500/10"
+                          }`}>
+                          • {member.user.isOnline ? "Online" : "Offline"}
                         </span>
                         <button className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer">
                           <MoreVertical className="w-4 h-4" />

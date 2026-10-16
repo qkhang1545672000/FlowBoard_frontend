@@ -4,6 +4,7 @@ export interface User {
   name: string;
   image?: string;
   phone?: string | null;
+  isOnline: boolean;
   emailVerified?: boolean;
   role: string;
   isAnonymous?: boolean;

@@ -27,7 +27,6 @@ export function getAuthClient(): AuthClient {
       browserClient = createConfiguredClient(origin);
       browserOrigin = origin;
     }
-
     return browserClient;
   }
 
