@@ -1,4 +1,5 @@
 import axiosInstance from "@/lib/axios";
+import { TaskPriority } from "@/types";
 import { createTask, Task } from "@/types/column";
 export interface MoveTaskDto {
   columnId: string;
@@ -19,6 +20,7 @@ export const taskService = {
   moveTask: async (id: string, dto: MoveTaskDto): Promise<Task> => {
     try {
       const response = await axiosInstance.patch<Task>(`/api/v1/tasks/${id}/move`, dto);
+      console.log("updataPrr", response.data);
       return response.data;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
@@ -36,12 +38,48 @@ export const taskService = {
       throw error;
     }
   },
-  updateAssign: async (taskId: string, userId: string): Promise<Task> => {
+  updateTaskPriority: async (taskId: string, Priority: TaskPriority): Promise<Task> => {
     try {
       const response = await axiosInstance.patch<Task>(`/api/v1/tasks/${taskId}`, {
-        assigneeId: userId,
+        priority: Priority,
       });
-      console.log("sfsadsdfxxxx", response.data);
+
+      return response.data;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      console.error("Lỗi updateAssign (Server):", error?.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  updateTaskDueDate: async (taskId: string, dueDate: string): Promise<Task> => {
+    try {
+      const response = await axiosInstance.patch<Task>(`/api/v1/tasks/${taskId}`, {
+        dueDate,
+      });
+
+      return response.data;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      console.error(
+        "Lỗi updateTaskDueDate (Server):",
+        error?.response?.data || error.message,
+      );
+      throw error;
+    }
+  },
+
+  updateAssign: async (
+    taskId: string,
+    userIds: string[],
+    leaderId?: string | null,
+  ): Promise<Task> => {
+    try {
+      const response = await axiosInstance.patch<Task>(`/api/v1/tasks/${taskId}/assign`, {
+        userIds,
+        leaderId,
+      });
+
       return response.data;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {

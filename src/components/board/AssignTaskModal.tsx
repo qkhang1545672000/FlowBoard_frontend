@@ -2,21 +2,20 @@
 
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
-import { Search, X, Mail } from "lucide-react";
-import { Task } from "@/types/column";
+import { Search, X, Crown } from "lucide-react";
+import { Task, TaskMember } from "@/types/column";
 import CardMember from "./cardMember";
 import { useBoardStore } from "@/store/useBoardStore";
 import { useBoardDetail } from "@/hooks/useBoard";
-import { useWorkspaceDetail } from "@/hooks/useWorkSpace";
-import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { useUpdateAssignTask } from "@/hooks/useTask";
+import { User } from "@/types/api.types";
+import UserAvatar from "../ui/UserAvatar";
 
 interface AssignTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   task: Task;
-  onAssign?: (userId: string) => void;
-  onInviteEmail?: (email: string, role: string) => void;
+  onAssign?: (userIds: string[], leaderId?: string) => void;
 }
 
 export function AssignTaskModal({
@@ -24,224 +23,188 @@ export function AssignTaskModal({
   onClose,
   task,
   onAssign,
-  onInviteEmail,
 }: AssignTaskModalProps) {
-  const [activeMainTab, setActiveMainTab] = useState<"existing" | "invite">("existing");
-  const [activeSubTab, setActiveSubTab] = useState<"project" | "workspace">("project");
   const [searchQuery, setSearchQuery] = useState("");
-  const boardId = useBoardStore((state) => state.activeBoardId) ?? "";
-  const wordspaceId = useWorkspaceStore((state) => state.activeWorkspaceId) ?? "";
-  const { data: BoardDetail, isPending: isPendingBoardDetail } = useBoardDetail(boardId);
-  const { data: WorkspaceDetail, isPending: isPendingWorkspaceDetail } =
-    useWorkspaceDetail(wordspaceId);
-  const { mutate: updateAssignTask } = useUpdateAssignTask(boardId);
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(
-    task.assignee?.id || null,
-  );
 
-  // State cho phần Mời người lạ qua email
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState("Member");
-  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const boardId = useBoardStore((state) => state.activeBoardId) ?? "";
+  const { data: BoardDetail } = useBoardDetail(boardId);
+  const { mutate: updateAssignTask } = useUpdateAssignTask(boardId);
+
+  // Khởi tạo danh sách các User đã chọn từ task ban đầu
+  const [selectedUsers, setSelectedUsers] = useState<User[]>(() => {
+    if (task.members && Array.isArray(task.members)) {
+      return task.members.map((m: TaskMember) => m.user);
+    }
+    return [];
+  });
+
+  // Lưu ID của Leader Task (mặc định lấy người đầu tiên nếu có)
+  const [leaderId, setLeaderId] = useState<string | null>(() => {
+    if (task.members && task.members.length > 0) {
+      const foundLeader = task.members.find(
+        (m: any) => m.isLeader || m.role === "LEADER",
+      );
+      return foundLeader ? foundLeader.user.id : task.members[0]?.user?.id || null;
+    }
+    return null;
+  });
 
   if (!isOpen || typeof window === "undefined") return null;
-  const memberWorkspace = WorkspaceDetail?.members.filter((w) => w.role !== "OWNER");
-  const handleAssign = async () => {
-    if (!selectedUserId) return;
-    console.log(" task.id", task.id);
-    await updateAssignTask({ taskId: task.id, userId: selectedUserId });
+
+  const filterBySearch = (member: any) => {
+    const query = searchQuery.toLowerCase();
+    const name = member.user?.name?.toLowerCase() || "";
+    const email = member.user?.email?.toLowerCase() || "";
+    return name.includes(query) || email.includes(query);
   };
+
+  const filteredProjectMembers = BoardDetail?.members?.filter(filterBySearch) || [];
+
+  const handleToggleSelect = (user: User) => {
+    setSelectedUsers((prev) => {
+      const exists = prev.some((u) => u.id === user.id);
+      if (exists) {
+        if (leaderId === user.id) {
+          const remaining = prev.filter((u) => u.id !== user.id);
+          setLeaderId(remaining.length > 0 ? remaining[0].id : null);
+        }
+        return prev.filter((u) => u.id !== user.id);
+      } else {
+        const newList = [...prev, user];
+        if (!leaderId) {
+          setLeaderId(user.id);
+        }
+        return newList;
+      }
+    });
+  };
+
+  const handleAssign = async () => {
+    const userIds = selectedUsers.map((u) => u.id);
+    console.log("selectedUserIds:", userIds, "leaderId:", leaderId);
+    updateAssignTask({ taskId: task.id, userIds, leaderId });
+  };
+
   return createPortal(
     <div
-      onClick={(e) => e.stopPropagation()}
-      onMouseDown={(e) => e.stopPropagation()}
+      // Bấm vào background (lớp phủ ngoài) sẽ gọi onClose để tắt modal
+      onClick={onClose}
+      onMouseDown={onClose}
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-      <div className="bg-[#1b2230] border border-slate-700/80 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col text-slate-200">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-          <h3 className="text-base font-semibold text-slate-100">
-            Assign Task: {task.title}
-          </h3>
+      {/* Thẻ chứa nội dung: Dùng e.stopPropagation() để ngăn sự kiện click lan ra ngoài làm tắt nhầm modal khi bấm bên trong */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        className="bg-[#1b2230] border border-slate-700/85 rounded-2xl w-full max-w-md max-h-[85vh] shadow-2xl overflow-hidden flex flex-col text-slate-200">
+        {/* Header (Cố định) */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 shrink-0">
+          <div>
+            <h3 className="text-base font-semibold text-slate-100">
+              Phân công công việc
+            </h3>
+            <p className="text-xs text-slate-400 truncate max-w-[320px]">{task.title}</p>
+          </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-200 p-1 rounded-lg transition-colors">
+            className="text-slate-400 hover:text-slate-200 p-1.5 rounded-lg transition-colors hover:bg-slate-800">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Main Tabs ở trên */}
-        <div className="flex border-b border-slate-800 px-6 pt-3 gap-6 text-sm font-medium">
-          <button
-            onClick={() => setActiveMainTab("existing")}
-            className={`pb-3 relative transition-colors ${
-              activeMainTab === "existing"
-                ? "text-white"
-                : "text-slate-400 hover:text-slate-300"
-            }`}>
-            THÀNH VIÊN ĐÃ CÓ
-            {activeMainTab === "existing" && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white rounded-full" />
-            )}
-          </button>
-          <button
-            onClick={() => setActiveMainTab("invite")}
-            className={`pb-3 relative transition-colors ${
-              activeMainTab === "invite"
-                ? "text-white"
-                : "text-slate-400 hover:text-slate-300"
-            }`}>
-            MỜI NGƯỜI LẠ QUA EMAIL
-            {activeMainTab === "invite" && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white rounded-full" />
-            )}
-          </button>
-        </div>
-
-        {/* Nội dung theo Tab chính */}
-        <div className="p-6 space-y-4 flex-1">
-          {activeMainTab === "existing" ? (
-            <>
-              {/* Thanh tìm kiếm */}
-              <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Tìm hoặc nhập email người được gán..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-slate-900/80 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
-                />
+        {/* Nội dung chính cuộn độc lập */}
+        <div className="p-6 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+          {/* KHU VỰC HIỂN THỊ CHIPS CÁC THÀNH VIÊN ĐÃ CHỌN */}
+          {selectedUsers.length > 0 && (
+            <div className="bg-slate-900/70 border border-slate-800 rounded-xl p-3 space-y-2 shrink-0">
+              <div className="text-xs font-medium text-slate-400">
+                Đã chọn ({selectedUsers.length}):
               </div>
+              <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto custom-scrollbar pr-1">
+                {selectedUsers.map((user) => {
+                  const isLeader = leaderId === user.id;
+                  return (
+                    <div
+                      key={user.id}
+                      className={`group relative flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                        isLeader
+                          ? "bg-amber-950/60 border-amber-500/50 text-amber-200"
+                          : "bg-indigo-950/60 border-indigo-500/30 text-indigo-200 hover:border-amber-500/40"
+                      }`}>
+                      <UserAvatar type="min" avatarUrl={user.image} name={user.name} />
 
-              {/* Sub-tabs: Thành viên Project và Thành viên Workspace */}
-              <div className="flex gap-6 text-xs font-medium border-b border-slate-800/80 pb-2 pt-1 text-slate-400">
-                <button
-                  onClick={() => setActiveSubTab("project")}
-                  className={`transition-colors relative pb-1 ${
-                    activeSubTab === "project"
-                      ? "text-white font-semibold"
-                      : "hover:text-slate-300"
-                  }`}>
-                  Thành viên Project
-                  {activeSubTab === "project" && (
-                    <div className="absolute -bottom-2 left-0 right-0 h-0.5 bg-white" />
-                  )}
-                </button>
-                <button
-                  onClick={() => setActiveSubTab("workspace")}
-                  className={`transition-colors relative pb-1 ${
-                    activeSubTab === "workspace"
-                      ? "text-white font-semibold"
-                      : "hover:text-slate-300"
-                  }`}>
-                  Thành viên Workspace
-                  {activeSubTab === "workspace" && (
-                    <div className="absolute -bottom-2 left-0 right-0 h-0.5 bg-white" />
-                  )}
-                </button>
-              </div>
+                      {isLeader ? (
+                        <span className="flex items-center gap-0.5 text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-bold">
+                          <Crown className="w-3 h-3 text-amber-400" /> Leader
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setLeaderId(user.id)}
+                          className="hidden group-hover:flex items-center gap-1 text-[10px] bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded transition-all">
+                          <Crown className="w-3 h-3" /> Leader
+                        </button>
+                      )}
 
-              {/* Danh sách hiển thị theo sub-tab */}
-              <div className="max-h-60 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
-                {activeSubTab === "project" ? (
-                  <div>
-                    <div className="text-xs font-medium text-slate-400 mb-2">
-                      Danh sách Thành viên Project ({BoardDetail?.members.length})
+                      <button
+                        type="button"
+                        onClick={() => handleToggleSelect(user)}
+                        className="hover:text-white transition-colors ml-1">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                     </div>
-                    <div className="space-y-1">
-                      {BoardDetail?.members.map((member) => (
-                        <CardMember
-                          key={member.id}
-                          member={member}
-                          selectedUserId={selectedUserId}
-                          setSelectedUserId={setSelectedUserId}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="text-xs font-medium text-slate-400 mb-2">
-                      Danh sách Thành viên Workspace ({memberWorkspace?.length})
-                    </div>
-                    <div className="space-y-1">
-                      {memberWorkspace?.map((member) => (
-                        <CardMember
-                          key={member.id}
-                          member={member}
-                          selectedUserId={selectedUserId}
-                          setSelectedUserId={setSelectedUserId}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
+                  );
+                })}
               </div>
-            </>
-          ) : (
-            /* Tab Mời người lạ qua email */
-            <div className="space-y-4 py-2">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-300">
-                  Nhập địa chỉ email người lạ...
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    type="email"
-                    placeholder="name@example.com"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-                <p className="text-xs text-slate-400 italic pt-1">
-                  * Sẽ gửi email mời vào Project
-                </p>
-              </div>
-
-              <div className="space-y-1.5 relative">
-                <label className="text-xs font-medium text-slate-300">Vai trò</label>
-                <button
-                  type="button"
-                  onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-200 flex items-center justify-between focus:outline-none">
-                  <span>{inviteRole}</span>
-                  <span className="text-slate-400 text-xs">▼</span>
-                </button>
-
-                {isRoleDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-xl shadow-xl z-20 overflow-hidden text-sm">
-                    {["Member", "Editor", "Viewer"].map((role) => (
-                      <div
-                        key={role}
-                        onClick={() => {
-                          setInviteRole(role);
-                          setIsRoleDropdownOpen(false);
-                        }}
-                        className="px-4 py-2.5 hover:bg-slate-800 cursor-pointer text-slate-200">
-                        {role}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (onInviteEmail) onInviteEmail(inviteEmail, inviteRole);
-                  onClose();
-                }}
-                className="w-full mt-2 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-medium text-sm rounded-xl transition-colors">
-                Mời qua Email
-              </button>
             </div>
           )}
+
+          {/* Thanh tìm kiếm */}
+          <div className="relative shrink-0">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Tìm kiếm thành viên trong Board..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
+            />
+          </div>
+
+          {/* Danh sách thành viên trong Board */}
+          <div className="space-y-2">
+            <div className="text-xs font-medium text-slate-400 px-1">
+              Thành viên thuộc Board ({filteredProjectMembers.length})
+            </div>
+
+            <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+              {filteredProjectMembers.length > 0 ? (
+                filteredProjectMembers.map((member) => {
+                  const isSelected = selectedUsers.some((u) => u.id === member.user.id);
+                  const isLeader = leaderId === member.user.id;
+                  return (
+                    <div
+                      key={member.id}
+                      onClick={() => handleToggleSelect(member.user)}
+                      className="cursor-pointer">
+                      <CardMember
+                        member={member}
+                        isSelected={isSelected}
+                        isLeader={isLeader}
+                      />
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-6 text-xs text-slate-500">
+                  Không tìm thấy thành viên nào phù hợp
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Footer Buttons */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-800 bg-slate-900/40">
+        {/* Footer (Cố định) */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-800 bg-slate-900/40 shrink-0">
           <button
             onClick={onClose}
             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium rounded-xl transition-colors">
@@ -252,7 +215,7 @@ export function AssignTaskModal({
               handleAssign();
               onClose();
             }}
-            className="px-5 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold text-sm rounded-xl transition-colors shadow-lg shadow-cyan-500/20">
+            className="px-5 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold text-sm rounded-xl shadow-lg shadow-cyan-500/20 transition-all">
             Áp dụng
           </button>
         </div>

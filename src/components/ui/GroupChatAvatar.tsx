@@ -1,8 +1,9 @@
 import type { Participant } from "@/types";
 import UserAvatar from "./UserAvatar";
+import { User } from "@/types/api.types";
 
 interface GroupChatAvatarProps {
-  participants: Participant[];
+  participants: User[];
   type: "chat" | "sidebar" | "min";
   maxVisible?: number; // Cho phép tùy chỉnh số avatar tối đa hiển thị (mặc định là 3)
 }
@@ -23,10 +24,10 @@ const GroupChatAvatar = ({
     <div className="relative flex -space-x-2.5 items-center">
       {visibleParticipants.map((member, index) => (
         <UserAvatar
-          key={member._id || index}
+          key={member.id || index}
           type={"min"}
-          name={member.displayName}
-          avatarUrl={member.avatarUrl ?? undefined}
+          name={member.name}
+          avatarUrl={member.image ?? undefined}
           className="ring-2 ring-background transition-transform hover:z-20 hover:scale-105"
         />
       ))}

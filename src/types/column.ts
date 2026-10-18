@@ -1,5 +1,6 @@
 import { string } from "zod";
-import { TaskPriority, User } from ".";
+import { TaskPriority } from ".";
+import { User } from "./api.types";
 
 // enum cho kiểu khóa của cột
 export enum ColumnLockType {
@@ -18,11 +19,27 @@ export interface Task {
   position: number;
   labels: Label[];
   dueDate?: string; // Ngày hết hạn (nếu có)
-  assignee: User | null;
+  members: TaskMember[];
+  progress: number;
+  timeRemaining: string;
+  createdAt: string;
   // Thêm các thuộc tính khác của task nếu có (ví dụ: dueDate, labels, assignee...)
 }
-export interface createTask extends Omit<Task, "assignee" | "id" | "labels"> {
-  assigneeId?: string; // Dùng dấu ? để cho phép string | undefined
+
+export interface TaskMember {
+  createdAt: string;
+  id: string;
+  role: string;
+  taskId: string;
+  updatedAt: string;
+  user: User;
+  userId: string;
+}
+
+export interface createTask extends Omit<
+  Task,
+  "createdAt" | "timeRemaining" | "progress" | "position" | "members" | "id" | "labels"
+> {
   labelIds?: string[]; // Dùng dấu ? để cho phép string[] | undefined
 }
 

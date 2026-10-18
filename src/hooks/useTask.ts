@@ -1,7 +1,8 @@
 import { MoveTaskDto, taskService } from "@/services/task.service";
-import { createTask, Task } from "@/types/column";
+import { Column, createTask, Task } from "@/types/column";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSocket } from "./useSocket";
+import { TaskPriority } from "@/types";
 
 export const useCreateTask = (boardId: string) => {
   const queryClient = useQueryClient();
@@ -72,8 +73,59 @@ export const useUpdateAssignTask = (boardId: string) => {
   const queryClient = useQueryClient();
   // const socket = useSocket();
   return useMutation({
-    mutationFn: ({ taskId, userId }: { taskId: string; userId: string }) =>
-      taskService.updateAssign(taskId, userId),
+    mutationFn: ({
+      taskId,
+      userIds,
+      leaderId,
+    }: {
+      taskId: string;
+      userIds: string[];
+      leaderId: string | null;
+    }) => taskService.updateAssign(taskId, userIds, leaderId),
+    onSuccess: (newTask: Task) => {
+      // Tự động refetch lại API Workspace Detail để cập nhật danh sách Board mới
+      queryClient.invalidateQueries({
+        queryKey: ["board", boardId],
+      });
+      // if (socket && boardId) {
+      //   socket.emit("create-task", {
+      //     boardId,
+      //     columnId: newTask.columnId,
+      //     newTask: newTask,
+      //   });
+      // }
+    },
+  });
+};
+
+export const useUpdateTaskPriority = (boardId: string) => {
+  const queryClient = useQueryClient();
+  // const socket = useSocket();
+  return useMutation({
+    mutationFn: ({ taskId, priority }: { taskId: string; priority: TaskPriority }) =>
+      taskService.updateTaskPriority(taskId, priority),
+    onSuccess: (newTask: Task) => {
+      // Tự động refetch lại API Workspace Detail để cập nhật danh sách Board mới
+      queryClient.invalidateQueries({
+        queryKey: ["board", boardId],
+      });
+      // if (socket && boardId) {
+      //   socket.emit("create-task", {
+      //     boardId,
+      //     columnId: newTask.columnId,
+      //     newTask: newTask,
+      //   });
+      // }
+    },
+  });
+};
+
+export const useUpdateTaskDueDate = (boardId: string) => {
+  const queryClient = useQueryClient();
+  // const socket = useSocket();
+  return useMutation({
+    mutationFn: ({ taskId, dueDate }: { taskId: string; dueDate: string }) =>
+      taskService.updateTaskDueDate(taskId, dueDate),
     onSuccess: (newTask: Task) => {
       // Tự động refetch lại API Workspace Detail để cập nhật danh sách Board mới
       queryClient.invalidateQueries({

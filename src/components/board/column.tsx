@@ -50,6 +50,7 @@ export function ColumnComponent({ column, isOverlay }: Props) {
 
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0); // Đặt lại giờ, phút, giây, mili-giây về 0
   const tomorrowISO = tomorrow.toISOString();
 
   // State quản lý Menu More (3 chấm)
@@ -123,9 +124,8 @@ export function ColumnComponent({ column, isOverlay }: Props) {
       await createTask({
         title: newTaskTitle.trim(),
         columnId: column.id,
-        assigneeId: userCurrent?.id,
         dueDate: tomorrowISO,
-        position: 100.0,
+
         priority: TaskPriority.MEDIUM,
         description: "",
       });

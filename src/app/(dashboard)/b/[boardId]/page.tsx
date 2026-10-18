@@ -43,13 +43,14 @@ import { useBoardSocket } from "@/hooks/useBoardSocket"; // Hook lắng nghe ng�
 // Lấy các định nghĩa kiểu dữ liệu (Types)
 import { Column, Task, ColumnLockType } from "@/types/column";
 import { useBoardPermission } from "@/components/board/useBoardPermission";
+import { useTaskPermission } from "@/components/board/useTaskPermission";
 
 export default function BoardDetailPage() {
   // --------------------------------------------------------------------------
   // 1. LẤY DỮ LIỆU TỪ KHO CHUNG (ZUSTAND & AUTH)
   // --------------------------------------------------------------------------
   // Lấy ID của bảng hiện tại (VD: "board-123")
-  const activeBoardId = useBoardStore((state) => state.activeBoardId);
+  const activeBoardId = useBoardStore((state) => state.activeBoardId) ?? "";
 
   // Lấy thông tin người dùng đang đăng nhập (VD: { id: "user-1", name: "Nam" })
   const user = useAuthStore((state) => state.user);
@@ -155,6 +156,10 @@ export default function BoardDetailPage() {
       // --- TRƯỜNG HỢP 1: KÉO THẺ (TASK) ---
       if (current?.type === "TASK") {
         const task = current.task as Task;
+        const isLeaderTask = task.members.some(
+          (t) => t.role == "TASK_LEADER" && t.user.id == user?.id,
+        );
+
         // Tìm Cột chứa Thẻ này
         const sourceColumn = columns.find((c) => c.tasks?.some((t) => t.id === task.id));
 
@@ -177,7 +182,7 @@ export default function BoardDetailPage() {
         }
 
         // CHẶN 2: Thẻ này được phân công cho người khác (và người kéo không phải Admin/Leader)
-        if (task.assignee?.id !== user?.id && !isOwn) {
+        if (!isLeaderTask && !isOwn) {
           toast.error("Bạn không có quyền di chuyển công việc này!");
           setActiveTask(null);
           setSourceColumnId(null);

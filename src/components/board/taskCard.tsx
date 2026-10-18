@@ -5,45 +5,73 @@ import { createPortal } from "react-dom";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Task } from "@/types/column";
-import { Clock, Lock, MoreVertical, Edit3, Trash2, AlertTriangle } from "lucide-react";
+import {
+  Clock,
+  Lock,
+  MoreVertical,
+  Edit3,
+  Trash2,
+  AlertTriangle,
+  Calendar as CalendarIcon,
+} from "lucide-react";
 import { TaskPriority } from "@/types";
-import { useAuthStore } from "@/store/useAuthStore";
-import UserAvatar from "../ui/UserAvatar";
 import { useBoardPermission } from "./useBoardPermission";
 import { useBoardStore } from "@/store/useBoardStore";
 import { LockedUser } from "@/hooks/useBoardSocket";
 import { TaskDetailModal } from "./TaskDetailModal";
-import { AssignTaskModal } from "./AssignTaskModal"; // Import modal mới tách
-import { useDeleteTask } from "@/hooks/useTask";
+import { AssignTaskModal } from "./AssignTaskModal";
+import { useDeleteTask, useUpdateTaskDueDate } from "@/hooks/useTask";
 import { useSafeUser } from "@/hooks/useSafeUser";
+import GroupChatAvatar from "../ui/GroupChatAvatar";
+import { useTaskPermission } from "./useTaskPermission";
+import { TaskPriorityDropdown } from "./TaskPriorityDropdown";
+
+// Import các thành phần Calendar & Popover
+import { format } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { getRemainingTime } from "@/lib/took";
 
 interface Props {
   task: Task;
   isOverlay?: boolean;
   lockedBy?: LockedUser;
   onDeleteTask?: (taskId: string) => void;
+  onUpdatePriority?: (taskId: string, priority: TaskPriority) => void;
+  onUpdateDueDate?: (taskId: string, date: string) => void;
 }
 
-export function TaskCard({ task, isOverlay, lockedBy, onDeleteTask }: Props) {
+export function TaskCard({
+  task,
+  isOverlay,
+  lockedBy,
+  onDeleteTask,
+  onUpdatePriority,
+  onUpdateDueDate,
+}: Props) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-  console.log("đây là t ask", task);
+
+  // State quản lý Popover chọn ngày
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const selectedDate = task.dueDate ? new Date(task.dueDate) : undefined;
+
   const menuRef = useRef<HTMLDivElement>(null);
 
   const boardId = useBoardStore((state) => state.activeBoardId) ?? "";
   const { isOwn } = useBoardPermission(boardId);
   const user = useSafeUser();
-
+  const { isTaskLeader } = useTaskPermission(boardId, task.id);
   const { mutate: deleteTask } = useDeleteTask(boardId);
+  const { mutate: upTaskDueDate } = useUpdateTaskDueDate(boardId);
   const isLockedByOther = Boolean(lockedBy && lockedBy.id !== user?.id);
-  const isAssignee = task.assignee?.id === user?.id || user?.role === "ADMIN" || isOwn;
+  const isAssignee = isTaskLeader || user?.role === "ADMIN" || isOwn;
   const canDrag = isAssignee && !isLockedByOther;
-  console.log(
-    "Đây user trong taskCard",
-    task.assigneeId === user?.id ? "bg-red-600" : "bg-yellow-400",
-  );
+
+  const memberTask = task.members.map((t) => t.user);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -73,19 +101,8 @@ export function TaskCard({ task, isOverlay, lockedBy, onDeleteTask }: Props) {
     transform: CSS.Translate.toString(transform),
   };
 
-  const getPriorityColor = (priority: TaskPriority) => {
-    switch (priority) {
-      case TaskPriority.URGENT:
-        return "bg-red-500/20 text-red-400 border-red-500/30";
-      case TaskPriority.HIGH:
-        return "bg-orange-500/20 text-orange-400 border-orange-500/30";
-      case TaskPriority.MEDIUM:
-        return "bg-amber-500/20 text-amber-400 border-amber-500/30";
-      case TaskPriority.LOW:
-      default:
-        return "bg-slate-700/50 text-slate-300 border-slate-600/30";
-    }
-  };
+  // Lấy trực tiếp giá trị progress đã được backend cập nhật sẵn qua CronJob
+  const progressValue = Math.round(task.progress ?? 0);
 
   return (
     <>
@@ -95,7 +112,7 @@ export function TaskCard({ task, isOverlay, lockedBy, onDeleteTask }: Props) {
         {...attributes}
         {...listeners}
         onClick={() => setIsModalOpen(true)}
-        className={`relative bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 p-3.5 rounded-xl shadow-md transition-all space-y-3 ${
+        className={`group relative bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 p-3 rounded-xl shadow-md transition-all space-y-2 ${
           canDrag ? "cursor-grab active:cursor-grabbing" : "cursor-not-allowed"
         } ${isDragging ? "opacity-30 border-dashed border-indigo-500" : ""} ${
           isOverlay ? "ring-2 ring-indigo-500 shadow-2xl scale-105 bg-slate-800" : ""
@@ -113,7 +130,7 @@ export function TaskCard({ task, isOverlay, lockedBy, onDeleteTask }: Props) {
         )}
 
         {/* Nút 3 chấm & Submenu */}
-        <div ref={menuRef} className="absolute top-2.5 right-2.5 z-20">
+        <div ref={menuRef} className="absolute top-2 right-2 z-20">
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -121,21 +138,21 @@ export function TaskCard({ task, isOverlay, lockedBy, onDeleteTask }: Props) {
             }}
             onMouseDown={(e) => e.stopPropagation()}
             className="p-1 hover:bg-slate-700/80 text-slate-400 hover:text-slate-200 rounded-lg transition-colors">
-            <MoreVertical className="w-4 h-4" />
+            <MoreVertical className="w-3.5 h-3.5" />
           </button>
 
           {isMenuOpen && (
             <div
               onMouseDown={(e) => e.stopPropagation()}
-              className="absolute right-0 mt-1 w-36 bg-slate-900 border border-slate-700 rounded-xl shadow-xl py-1 z-30 text-xs">
+              className="absolute right-0 mt-1 w-32 bg-slate-900 border border-slate-700 rounded-xl shadow-xl py-1 z-30 text-xs">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsMenuOpen(false);
                   setIsModalOpen(true);
                 }}
-                className="w-full text-left px-3 py-2 text-slate-200 hover:bg-slate-800 flex items-center gap-2">
-                <Edit3 className="w-3.5 h-3.5 text-indigo-400" />
+                className="w-full text-left px-3 py-1.5 text-slate-200 hover:bg-slate-800 flex items-center gap-2">
+                <Edit3 className="w-3 h-3 text-indigo-400" />
                 <span>Cập nhật</span>
               </button>
               <button
@@ -144,8 +161,8 @@ export function TaskCard({ task, isOverlay, lockedBy, onDeleteTask }: Props) {
                   setIsMenuOpen(false);
                   setIsDeleteConfirmOpen(true);
                 }}
-                className="w-full text-left px-3 py-2 text-red-400 hover:bg-red-500/10 flex items-center gap-2">
-                <Trash2 className="w-3.5 h-3.5" />
+                className="w-full text-left px-3 py-1.5 text-red-400 hover:bg-red-500/10 flex items-center gap-2">
+                <Trash2 className="w-3 h-3" />
                 <span>Xóa task</span>
               </button>
             </div>
@@ -158,7 +175,7 @@ export function TaskCard({ task, isOverlay, lockedBy, onDeleteTask }: Props) {
             {task.labels.map((label) => (
               <span
                 key={label.id}
-                className="h-2 w-8 rounded-full block"
+                className="h-1.5 w-6 rounded-full block"
                 style={{ backgroundColor: label.color || "#8b5cf6" }}
                 title={label.name}
               />
@@ -167,22 +184,71 @@ export function TaskCard({ task, isOverlay, lockedBy, onDeleteTask }: Props) {
         )}
 
         {/* Title */}
-        <h4 className="text-sm font-medium text-slate-100 line-clamp-2 pr-6">
+        <h4 className="text-xs font-medium text-slate-100 line-clamp-2 pr-6">
           {task.title}
         </h4>
 
+        {/* Thanh tiến độ */}
+        <div className="space-y-1 pt-1">
+          <div className="flex justify-between items-center text-[10px] text-slate-400">
+            <span>Tiến độ ({task.timeRemaining})</span>
+            <div className="flex items-center gap-1.5">
+              <span>{progressValue}%</span>
+
+              {/* Nút biểu tượng lịch hẹn: Ẩn gọn khi bình thường, trượt ra mượt mà khi hover */}
+              <div
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                className="w-0 opacity-0 overflow-hidden group-hover:w-auto group-hover:opacity-100 transition-all duration-200 ease-in-out">
+                <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                  <PopoverTrigger className="p-1 bg-slate-700/60 hover:bg-slate-700 text-sky-400 rounded transition-all cursor-pointer inline-flex items-center justify-center">
+                    <CalendarIcon className="w-3 h-3" />
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="w-auto p-0 bg-slate-900 border border-slate-700 text-slate-100 shadow-2xl z-[9999]"
+                    align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => {
+                        if (date) {
+                          upTaskDueDate({ taskId: task.id, dueDate: date.toISOString() });
+                        }
+                        setIsCalendarOpen(false);
+                      }}
+                      defaultMonth={selectedDate}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+          </div>
+
+          <div className="w-full bg-slate-700/50 h-1 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-300 ${
+                progressValue >= 100 ? "bg-emerald-500" : "bg-sky-500"
+              }`}
+              style={{ width: `${progressValue}%` }}
+            />
+          </div>
+        </div>
+
         {/* Footer */}
-        <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-700/50">
-          <div className="flex items-center gap-2">
-            <span
-              className={`px-2 py-0.5 text-[10px] font-semibold rounded border ${getPriorityColor(
-                task.priority,
-              )}`}>
-              {task.priority}
-            </span>
+        <div className="flex items-center justify-between text-xs pt-1.5 border-t border-slate-700/40">
+          <div className="flex items-center gap-2 relative">
+            <TaskPriorityDropdown
+              priority={task.priority}
+              taskId={task.id}
+              onUpdatePriority={(newPriority) => {
+                if (onUpdatePriority) {
+                  onUpdatePriority(task.id, newPriority);
+                }
+              }}
+            />
 
             {task.dueDate && (
-              <span className="flex items-center gap-1 text-slate-400 text-[11px]">
+              <span className="flex items-center gap-1 text-slate-400 text-[10px]">
                 <Clock className="w-3 h-3 text-amber-400" />
                 {new Date(task.dueDate).toLocaleDateString("en-US", {
                   month: "short",
@@ -192,7 +258,7 @@ export function TaskCard({ task, isOverlay, lockedBy, onDeleteTask }: Props) {
             )}
           </div>
 
-          {/* Biểu tượng tròn Assignee (ví dụ chữ K màu đỏ) bấm vào sẽ mở Modal Giao nhiệm vụ */}
+          {/* Biểu tượng tròn Assignee */}
           <div
             onClick={(e) => {
               e.stopPropagation();
@@ -200,16 +266,10 @@ export function TaskCard({ task, isOverlay, lockedBy, onDeleteTask }: Props) {
             }}
             title="Giao nhiệm vụ"
             className="cursor-pointer transition-transform hover:scale-105">
-            {task.assignee ? (
-              <UserAvatar
-                name={task.assignee.name}
-                type="chat"
-                fallbackClassName={`${
-                  task.assigneeId === user?.id ? "bg-red-600" : "bg-yellow-400"
-                }`}
-              />
+            {task.members.length > 0 ? (
+              <GroupChatAvatar participants={memberTask} type="chat" maxVisible={3} />
             ) : (
-              <div className="w-7 h-7 rounded-full bg-red-600 text-white font-bold flex items-center justify-center text-xs shadow-md">
+              <div className="w-6 h-6 rounded-full bg-red-600 text-white font-bold flex items-center justify-center text-[10px] shadow-md">
                 K
               </div>
             )}
@@ -230,16 +290,11 @@ export function TaskCard({ task, isOverlay, lockedBy, onDeleteTask }: Props) {
         onClose={() => setIsAssignModalOpen(false)}
         task={task}
         onAssign={(userId) => {
-          // Xử lý logic gán user vào task tại đây
           console.log("Assigned user ID:", userId);
-        }}
-        onInviteEmail={(email, role) => {
-          // Xử lý logic gửi email mời tại đây
-          alert(`Đã gửi lời mời qua email tới: ${email} với vai trò ${role}`);
         }}
       />
 
-      {/* Render Modal Xác nhận xóa toàn màn hình dùng React Portal */}
+      {/* Render Modal Xác nhận xóa */}
       {isDeleteConfirmOpen &&
         typeof window !== "undefined" &&
         createPortal(
@@ -247,20 +302,20 @@ export function TaskCard({ task, isOverlay, lockedBy, onDeleteTask }: Props) {
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4 text-center">
-              <div className="w-12 h-12 bg-red-500/10 border border-red-500/20 text-red-400 rounded-full flex items-center justify-center mx-auto">
-                <AlertTriangle className="w-6 h-6" />
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4 text-center">
+              <div className="w-10 h-10 bg-red-500/10 border border-red-500/20 text-red-400 rounded-full flex items-center justify-center mx-auto">
+                <AlertTriangle className="w-5 h-5" />
               </div>
 
               <div className="space-y-1">
-                <h3 className="text-lg font-semibold text-slate-100">Xác nhận xóa</h3>
-                <p className="text-sm text-slate-400">Bạn thực sự muốn xóa task này?</p>
+                <h3 className="text-base font-semibold text-slate-100">Xác nhận xóa</h3>
+                <p className="text-xs text-slate-400">Bạn thực sự muốn xóa task này?</p>
               </div>
 
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-2.5 pt-1">
                 <button
                   onClick={() => setIsDeleteConfirmOpen(false)}
-                  className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium rounded-xl transition-colors">
+                  className="flex-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-xl transition-colors">
                   Hủy
                 </button>
                 <button
@@ -268,7 +323,7 @@ export function TaskCard({ task, isOverlay, lockedBy, onDeleteTask }: Props) {
                     deleteTask(task.id);
                     setIsDeleteConfirmOpen(false);
                   }}
-                  className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-sm font-medium rounded-xl transition-colors shadow-lg shadow-red-600/20">
+                  className="flex-1 px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white text-xs font-medium rounded-xl transition-colors shadow-lg shadow-red-600/20">
                   Xóa ngay
                 </button>
               </div>
