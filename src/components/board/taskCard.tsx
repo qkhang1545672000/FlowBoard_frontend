@@ -5,15 +5,7 @@ import { createPortal } from "react-dom";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Task } from "@/types/column";
-import {
-  Clock,
-  Lock,
-  MoreVertical,
-  Edit3,
-  Trash2,
-  AlertTriangle,
-  Calendar as CalendarIcon,
-} from "lucide-react";
+import { Clock, Lock, MoreVertical, Edit3, Trash2, AlertTriangle } from "lucide-react";
 import { TaskPriority } from "@/types";
 import { useBoardPermission } from "./useBoardPermission";
 import { useBoardStore } from "@/store/useBoardStore";
@@ -25,12 +17,7 @@ import { useSafeUser } from "@/hooks/useSafeUser";
 import GroupChatAvatar from "../ui/GroupChatAvatar";
 import { useTaskPermission } from "./useTaskPermission";
 import { TaskPriorityDropdown } from "./TaskPriorityDropdown";
-
-// Import các thành phần Calendar & Popover
-import { format } from "date-fns";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { getRemainingTime } from "@/lib/took";
+import { TaskDueDatePopover } from "./datePicker";
 
 interface Props {
   task: Task;
@@ -53,10 +40,6 @@ export function TaskCard({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-
-  // State quản lý Popover chọn ngày
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const selectedDate = task.dueDate ? new Date(task.dueDate) : undefined;
 
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -101,7 +84,6 @@ export function TaskCard({
     transform: CSS.Translate.toString(transform),
   };
 
-  // Lấy trực tiếp giá trị progress đã được backend cập nhật sẵn qua CronJob
   const progressValue = Math.round(task.progress ?? 0);
 
   return (
@@ -195,39 +177,32 @@ export function TaskCard({
             <div className="flex items-center gap-1.5">
               <span>{progressValue}%</span>
 
-              {/* Nút biểu tượng lịch hẹn: Ẩn gọn khi bình thường, trượt ra mượt mà khi hover */}
+              {/* Nút chọn lịch luôn hiển thị ổn định */}
               <div
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="w-0 opacity-0 overflow-hidden group-hover:w-auto group-hover:opacity-100 transition-all duration-200 ease-in-out">
-                <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                  <PopoverTrigger className="p-1 bg-slate-700/60 hover:bg-slate-700 text-sky-400 rounded transition-all cursor-pointer inline-flex items-center justify-center">
-                    <CalendarIcon className="w-3 h-3" />
-                  </PopoverTrigger>
-                  <PopoverContent
-                    className="w-auto p-0 bg-slate-900 border border-slate-700 text-slate-100 shadow-2xl z-[9999]"
-                    align="start">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={(date) => {
-                        if (date) {
-                          upTaskDueDate({ taskId: task.id, dueDate: date.toISOString() });
-                        }
-                        setIsCalendarOpen(false);
-                      }}
-                      defaultMonth={selectedDate}
-                    />
-                  </PopoverContent>
-                </Popover>
+                className="flex items-center">
+                <TaskDueDatePopover
+                  dueDate={task.dueDate}
+                  onUpdateDueDate={(newIsoDate) => {
+                    upTaskDueDate({ taskId: task.id, dueDate: newIsoDate });
+                  }}
+                />
               </div>
             </div>
           </div>
 
+          {/* Thanh tiến độ thay đổi màu theo mốc phần trăm */}
           <div className="w-full bg-slate-700/50 h-1 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-300 ${
-                progressValue >= 100 ? "bg-emerald-500" : "bg-sky-500"
+                progressValue >= 70
+                  ? "bg-red-600 shadow-sm shadow-red-500/50"
+                  : progressValue >= 50
+                    ? "bg-amber-500"
+                    : progressValue >= 30
+                      ? "bg-emerald-500"
+                      : "bg-sky-500"
               }`}
               style={{ width: `${progressValue}%` }}
             />

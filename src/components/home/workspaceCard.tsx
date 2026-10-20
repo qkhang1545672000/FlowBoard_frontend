@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { Folder, MoreHorizontal, Pencil, Trash2, X, Loader2 } from "lucide-react";
+import { Folder, MoreHorizontal, Pencil, Trash2, X, Loader2, Bell } from "lucide-react";
 import GroupChatAvatar from "../ui/GroupChatAvatar";
 import { WorkspaceResponse } from "@/types/workSpace";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { createPortal } from "react-dom";
 import { useDeleteWorkspace, useInviteMemberW } from "@/hooks/useWorkSpace";
-import InviteMemberModal from "./InviteMemberModal"; // 👈 Import Modal mới
+import InviteMemberModal from "./InviteMemberModal";
+import WorkspaceNotificationPopover from "./WorkspaceNotificationPopover";
 
 interface Props {
   ws: WorkspaceResponse;
@@ -19,25 +20,25 @@ interface Props {
 
 const WorkspaceCard = ({ ws, onDelete, onRename, onInviteMember }: Props) => {
   const setActiveWorkspace = useWorkspaceStore((state) => state.setActiveWorkspace);
-  const { mutateAsync: InviteMemberMutation, isPending: isInviteMemberAPI } =
-    useInviteMemberW();
-
+  const { mutateAsync: InviteMemberMutation } = useInviteMemberW();
   const { mutateAsync: deleteWorkspaceMutation, isPending: isDeleteAPI } =
     useDeleteWorkspace();
 
-  // States quản lý UI Popover & Modals
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showInviteModal, setShowInviteModal] = useState(false); // 👈 State mở Modal Invite
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+
+  // 👉 Sử dụng useRef thay cho useState để cập nhật tọa độ đồng bộ, tránh lỗi lệch vị trí
+  const popoverCoordsRef = useRef({ top: 0, right: 0, isAbove: false });
+
   const [isDeleting, setIsDeleting] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // Tránh lỗi Mismatch Hydration trong Next.js khi dùng Portal
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Xử lý nút xóa
   const handleDeleteConfirm = async () => {
     try {
       setIsDeleting(true);
@@ -50,7 +51,6 @@ const WorkspaceCard = ({ ws, onDelete, onRename, onInviteMember }: Props) => {
     }
   };
 
-  // Xử lý gửi email mời
   const handleInviteConfirm = async (email: string) => {
     await InviteMemberMutation({ workspaceId: ws.id, email });
   };
@@ -75,24 +75,49 @@ const WorkspaceCard = ({ ws, onDelete, onRename, onInviteMember }: Props) => {
               </div>
             </div>
 
-            {/* Nút bấm "..." */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault(); // Tránh kích hoạt Link
-                e.stopPropagation();
-                setShowMenu((prev) => !prev);
-              }}
-              className="text-slate-500 hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-slate-800">
-              <MoreHorizontal className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const popoverHeight = 340;
+                    const spaceBelow = window.innerHeight - rect.bottom;
+                    const isAbove = spaceBelow < popoverHeight;
+
+                    // Lưu trực tiếp vào ref ngay thời điểm click
+                    popoverCoordsRef.current = {
+                      top: isAbove ? rect.top : rect.bottom + 8,
+                      right: window.innerWidth - rect.right,
+                      isAbove,
+                    };
+                    setShowNotificationModal((prev) => !prev);
+                  }}
+                  className="relative p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer">
+                  <Bell className="w-4 h-4" />
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full animate-pulse" />
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowMenu((prev) => !prev);
+                }}
+                className="text-slate-500 hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-slate-800">
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-800/60 pt-3">
-            {/* 🟢 Click vào icon avatar để mở Modal mời thành viên */}
             <div
               onClick={(e) => {
-                e.preventDefault(); // Chặn Link chuyển trang
+                e.preventDefault();
                 e.stopPropagation();
                 setShowInviteModal(true);
               }}
@@ -104,7 +129,6 @@ const WorkspaceCard = ({ ws, onDelete, onRename, onInviteMember }: Props) => {
           </div>
         </Link>
 
-        {/* Dropdown Menu (Xóa & Đổi tên) */}
         {showMenu && (
           <>
             <div className="fixed inset-0 z-20" onClick={() => setShowMenu(false)} />
@@ -136,7 +160,15 @@ const WorkspaceCard = ({ ws, onDelete, onRename, onInviteMember }: Props) => {
         )}
       </div>
 
-      {/* Modal Mời Thành Viên */}
+      {mounted && (
+        <WorkspaceNotificationPopover
+          isOpen={showNotificationModal}
+          onClose={() => setShowNotificationModal(false)}
+          coords={popoverCoordsRef.current}
+          workspaceName={ws.name}
+        />
+      )}
+
       {mounted && (
         <InviteMemberModal
           isOpen={showInviteModal}
@@ -146,7 +178,6 @@ const WorkspaceCard = ({ ws, onDelete, onRename, onInviteMember }: Props) => {
         />
       )}
 
-      {/* Modal xác nhận Xóa */}
       {showDeleteModal &&
         mounted &&
         createPortal(
