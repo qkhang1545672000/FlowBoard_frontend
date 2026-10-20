@@ -4,7 +4,7 @@ import {
   WorkspaceFilterType,
   workSpaceService,
 } from "@/services/workspace.service";
-import { WorkspaceDetailResponse } from "@/types/workSpace";
+import { Workspace, WorkspaceDetailResponse } from "@/types/workSpace";
 import { CreateWorkspaceDto } from "@/types/apiWorkspace.type";
 
 import { useInfiniteQuery } from "@tanstack/react-query";
@@ -165,6 +165,46 @@ export const useAcceptMemberW = () => {
       setTimeout(() => {
         router.push(`/auth/signin?redirect=/invitations/accept?token=${token}`);
       }, 1500);
+    },
+  });
+};
+
+export const useUpdateRoleForWorkspaceMember = (workspaceId: string) => {
+  const queryClient = useQueryClient();
+  // const socket = useSocket();
+  return useMutation({
+    mutationFn: ({
+      workspaceId,
+      userId,
+      role,
+    }: {
+      workspaceId: string;
+      userId: string;
+      role: string;
+    }) => workSpaceService.updateRoleForWorspaceMember(workspaceId, userId, role),
+    onSuccess: (newTask: Workspace) => {
+      // Tự động refetch lại API Workspace Detail để cập nhật danh sách Board mới
+      queryClient.invalidateQueries({
+        queryKey: ["workspace", workspaceId],
+      });
+      // if (socket && boardId) {
+      //   socket.emit("create-task", {
+      //     boardId,
+      //     columnId: newTask.columnId,
+      //     newTask: newTask,
+      //   });
+      // }
+    },
+    onError: (error: unknown) => {
+      const message = (
+        error as {
+          response?: { data?: { message?: string } };
+        }
+      )?.response?.data?.message;
+
+      toast.error(
+        typeof message === "string" ? message : (message?.error ?? "Sign in failed"),
+      );
     },
   });
 };

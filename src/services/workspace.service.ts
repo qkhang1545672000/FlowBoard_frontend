@@ -127,4 +127,29 @@ export const workSpaceService = {
       throw error;
     }
   },
+  updateRoleForWorspaceMember: async (
+    workspaceId: string,
+    userId: string,
+    role: string | null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ): Promise<any> => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await axiosInstance.patch<any>(
+        `/api/v1/workspaces/${workspaceId}/members/${userId}`,
+        {
+          role,
+        },
+      );
+
+      return response.data;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      console.error(
+        "Lỗi  updateRoleForWorspaceMember (Server):",
+        error?.response?.data || error.message,
+      );
+      throw error;
+    }
+  },
 };

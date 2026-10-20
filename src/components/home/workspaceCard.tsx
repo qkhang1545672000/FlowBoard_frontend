@@ -164,6 +164,7 @@ const WorkspaceCard = ({ ws, onDelete, onRename, onInviteMember }: Props) => {
         <WorkspaceNotificationPopover
           isOpen={showNotificationModal}
           onClose={() => setShowNotificationModal(false)}
+          // eslint-disable-next-line react-hooks/refs
           coords={popoverCoordsRef.current}
           workspaceName={ws.name}
         />
