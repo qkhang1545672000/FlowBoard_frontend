@@ -90,6 +90,29 @@ export const useDeleteWorkspace = () => {
   });
 };
 
+export const useRemoveMemberWorkspace = (workspaceId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    // Hàm thực thi API tạo mới
+    mutationFn: ({ workspaceId, userId }: { workspaceId: string; userId: string }) =>
+      workSpaceService.deleteMemberWorkspace(workspaceId, userId),
+
+    // Chạy khi API thành công
+    onSuccess: () => {
+      // Làm mới (refetch) lại danh sách workspaces để cập nhật giao diện ngay lập tức
+      // Thay "workspaces" bằng queryKey mà bạn đang dùng trong hook fetch danh sách
+      queryClient.invalidateQueries({ queryKey: ["workspace", workspaceId] });
+    },
+
+    // Chạy khi API thất bại
+    onError: (error) => {
+      console.error("Lỗi khi xóa delete workspace:", error);
+      // Bạn có thể thêm Toast notification thông báo lỗi ở đây
+    },
+  });
+};
+
 export const useInviteMemberW = () => {
   const queryClient = useQueryClient();
 

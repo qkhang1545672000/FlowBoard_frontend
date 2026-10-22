@@ -44,6 +44,8 @@ import { useBoardSocket } from "@/hooks/useBoardSocket"; // Hook lắng nghe ng�
 import { Column, Task, ColumnLockType } from "@/types/column";
 import { useBoardPermission } from "@/components/board/useBoardPermission";
 import { useTaskPermission } from "@/components/board/useTaskPermission";
+import { useWorkspacePermission } from "@/components/workspace/useWorkspacePermission";
+import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 
 export default function BoardDetailPage() {
   // --------------------------------------------------------------------------
@@ -51,6 +53,7 @@ export default function BoardDetailPage() {
   // --------------------------------------------------------------------------
   // Lấy ID của bảng hiện tại (VD: "board-123")
   const activeBoardId = useBoardStore((state) => state.activeBoardId) ?? "";
+  const workspaceId = useWorkspaceStore((state) => state.activeWorkspaceId) ?? "";
 
   // Lấy thông tin người dùng đang đăng nhập (VD: { id: "user-1", name: "Nam" })
   const user = useAuthStore((state) => state.user);
@@ -97,6 +100,7 @@ export default function BoardDetailPage() {
   // --------------------------------------------------------------------------
   // Check xem tài khoản hiện tại có phải là ADMIN hoặc LEADER của Bảng này không
   const { isOwn } = useBoardPermission(activeBoardId ?? "");
+  const { isOwn: isOwnWorkspace } = useWorkspacePermission(workspaceId);
 
   // Tạo mảng danh sách ID của các cột (VD: ["col-1", "col-2", "col-3"]) để đưa vào SortableContext
   const columnsId = useMemo(() => columns?.map((col) => col.id), [columns]);
@@ -169,7 +173,7 @@ export default function BoardDetailPage() {
             sourceColumn.lock_type === ColumnLockType.FULLY_LOCKED ||
             sourceColumn.lock_type === ColumnLockType.ONE_WAY_LOCKED;
 
-          if (isSourceLocked && !isOwn) {
+          if (isSourceLocked && !isOwn && !isOwnWorkspace) {
             toast.error(
               "Thẻ nằm trong cột bị khóa. Bạn không thể di chuyển thẻ ra ngoài!",
             );
@@ -182,7 +186,7 @@ export default function BoardDetailPage() {
         }
 
         // CHẶN 2: Thẻ này được phân công cho người khác (và người kéo không phải Admin/Leader)
-        if (!isLeaderTask && !isOwn) {
+        if (!isLeaderTask && !isOwn && !isOwnWorkspace) {
           toast.error("Bạn không có quyền di chuyển công việc này!");
           setActiveTask(null);
           setSourceColumnId(null);

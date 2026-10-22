@@ -152,4 +152,26 @@ export const workSpaceService = {
       throw error;
     }
   },
+
+  deleteMemberWorkspace: async (
+    workspaceId: string,
+    userId: string,
+  ): Promise<WorkspaceDetailResponse> => {
+    try {
+      // Lấy toàn bộ headers/cookies từ Request gửi đến Next.js Server
+
+      const response = await axiosInstance.delete(
+        `/api/v1/workspaces/${workspaceId}/members/${userId}`,
+      );
+
+      return response.data;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      console.error(
+        "Lỗi  deleteMemberWorkspace (Server):",
+        error?.response?.data || error.message,
+      );
+      throw error;
+    }
+  },
 };

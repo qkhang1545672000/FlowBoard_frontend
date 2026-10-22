@@ -2,17 +2,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  Plus,
-  Search,
-  Mail,
-  Send,
-  Hash,
-  Smile,
-  Paperclip,
-  ChevronRight,
-  ChevronLeft,
-} from "lucide-react";
+import { Plus, Search, Mail, ChevronRight, ChevronLeft } from "lucide-react";
 import { BoardCard } from "./board-card";
 import { useWorkspaceDetail } from "@/hooks/useWorkSpace";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
@@ -23,6 +13,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { BoardOverview } from "@/types/board";
 import MemberWorkspaceCard from "./memberWorkspaceCard";
 import { WorkspaceRole } from "@/types";
+import { WorkspaceChat } from "./workspace-chat"; // Import component chat vừa tách
 
 interface ContentMainProps {
   activeMainTab: "boards" | "chat";
@@ -35,14 +26,11 @@ const ContentMain = ({
   isMemberSidebarOpen,
   setIsMemberSidebarOpen,
 }: ContentMainProps) => {
-  const activeWorkspaceId = useWorkspaceStore((state) => state.activeWorkspaceId);
+  const activeWorkspaceId = useWorkspaceStore((state) => state.activeWorkspaceId) ?? "";
   const userCurrent = useAuthStore((state) => state.user);
 
-  const { data: workspaceDetail, isLoading } = useWorkspaceDetail(
-    activeWorkspaceId ?? "",
-  );
+  const { data: workspaceDetail, isLoading } = useWorkspaceDetail(activeWorkspaceId);
 
-  // Xóa bỏ useMemo thủ công để React Compiler tự xử lý tối ưu mà không bị cảnh báo
   const userId = userCurrent?.id;
   const members = workspaceDetail?.members;
   const isOwn = Boolean(
@@ -58,7 +46,6 @@ const ContentMain = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [chatMessage, setChatMessage] = useState("");
 
   const membersList = useMemo(
     () => workspaceDetail?.members ?? [],
@@ -153,64 +140,13 @@ const ContentMain = ({
           </div>
         )}
 
-        {/* VIEW 2: CHAT */}
+        {/* VIEW 2: CHAT (Sử dụng component WorkspaceChat vừa tách) */}
         {activeMainTab === "chat" && (
-          <div className="flex-1 flex flex-col bg-slate-900/40 border border-slate-800 rounded-2xl overflow-hidden min-h-[500px]">
-            <div className="px-5 py-3 border-b border-slate-800 bg-slate-900/80 flex items-center gap-2">
-              <Hash className="w-5 h-5 text-indigo-400" />
-              <span className="font-semibold text-white">thông-báo</span>
-              <span className="text-xs text-slate-500 border-l border-slate-700 pl-2 ml-1">
-                Kênh trò chuyện chung của toàn bộ thành viên
-              </span>
-            </div>
-
-            <div className="flex-1 p-5 space-y-4 overflow-y-auto">
-              <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl space-y-1">
-                <h3 className="text-indigo-300 font-semibold text-base flex items-center gap-2">
-                  <Hash className="w-5 h-5" /> Chào mừng bạn đến với #thông-báo!
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Đây là sự khởi đầu của kênh thông báo chính thức toàn nhóm.
-                </p>
-              </div>
-
-              <div className="space-y-4 pt-2">
-                <div className="flex items-start gap-3">
-                  <UserAvatar name="Mtikcode" type="chat" />
-                  <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm text-white">Mtikcode</span>
-                      <span className="text-[10px] text-slate-500">12:30 PM</span>
-                    </div>
-                    <p className="text-sm text-slate-300 bg-slate-800/60 p-3 rounded-2xl rounded-tl-none border border-slate-700/50 inline-block">
-                      Tối nay mình sẽ deploy nâng cấp hệ thống nhé cả nhà! 🚀
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 border-t border-slate-800 bg-slate-900/60">
-              <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 focus-within:border-indigo-500 transition-all">
-                <button className="text-slate-400 hover:text-slate-200 cursor-pointer">
-                  <Paperclip className="w-4 h-4" />
-                </button>
-                <input
-                  type="text"
-                  placeholder="Gửi tin nhắn tới #thông-báo..."
-                  value={chatMessage}
-                  onChange={(e) => setChatMessage(e.target.value)}
-                  className="flex-1 bg-transparent text-sm text-white placeholder-slate-500 outline-none"
-                />
-                <button className="text-slate-400 hover:text-slate-200 cursor-pointer">
-                  <Smile className="w-4 h-4" />
-                </button>
-                <button className="bg-indigo-600 hover:bg-indigo-500 text-white p-1.5 rounded-lg transition-all cursor-pointer">
-                  <Send className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
+          <WorkspaceChat
+            workspaceId={activeWorkspaceId}
+            userId={userId}
+            workspaceMembers={members}
+          />
         )}
 
         <CreateBoardModal
@@ -286,7 +222,9 @@ const ContentMain = ({
                   onChange={(e) => setInviteEmail(e.target.value)}
                   className="flex-1 bg-slate-900 border border-slate-800 text-xs text-white rounded-lg px-2.5 py-1.5 outline-none focus:border-indigo-500 placeholder:text-slate-600 min-w-0"
                 />
-                <button className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg transition-all shrink-0 cursor-pointer">
+                <button
+                  type="button"
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg transition-all shrink-0 cursor-pointer">
                   Mời
                 </button>
               </div>
@@ -299,7 +237,7 @@ const ContentMain = ({
                 <UserAvatar name={member.user?.name} type="chat" />
                 <span
                   className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-slate-900 ${
-                    member.user.isOnline ? "bg-emerald-500" : "bg-slate-600"
+                    member.user?.isOnline ? "bg-emerald-500" : "bg-slate-600"
                   }`}
                 />
               </div>

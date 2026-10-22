@@ -55,6 +55,7 @@ export function TaskCard({
   const { mutate: upTaskDueDate } = useUpdateTaskDueDate(boardId);
   const isLockedByOther = Boolean(lockedBy && lockedBy.id !== user?.id);
   const isAssignee = isTaskLeader || user?.role === "ADMIN" || isOwn || isOwnWorkspace;
+  console.log("isOwnWorkspace", isOwnWorkspace);
   const canDrag = isAssignee && !isLockedByOther;
 
   const memberTask = task.members.map((t) => t.user);

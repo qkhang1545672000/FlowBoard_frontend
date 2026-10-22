@@ -19,6 +19,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { useCreateBoard } from "@/hooks/useBoard";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { formatWorkspaceSlug } from "@/lib/took";
+import { WorkspaceRole } from "@/types";
 
 interface SelectedMemberData {
   member: WorkspaceMember;
@@ -58,20 +59,26 @@ export const CreateBoardModal = ({
   const workspaceId = useWorkspaceStore((state) => state.activeWorkspaceId) ?? "";
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Tìm WorkspaceMember tương ứng với người dùng hiện tại (Owner)
+  // Tìm WorkspaceMember tương ứng với Workspace Owner hoặc người dùng hiện tại
   const currentWorkspaceMember = workspaceMembers.find(
     (m) => (user?.id && m.user.id === user.id) || m.id === currentUserId,
   );
 
-  // Khởi tạo mặc định: Thêm người tạo vào danh sách nhưng không gán isLeader
+  // Xác định rõ ai là Owner chính thức của Workspace này từ danh sách thành viên
+  const workspaceOwner =
+    workspaceMembers.find((m) => m.role === WorkspaceRole.OWNER) ||
+    currentWorkspaceMember;
+
+  // Khởi tạo mặc định khi mở modal: Đưa Workspace Owner (hoặc user hiện tại) vào danh sách tham gia
   useEffect(() => {
-    if (isOpen && currentWorkspaceMember) {
+    if (isOpen && workspaceOwner) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedMembersMap(
-        new Map([[currentWorkspaceMember.user.id, { isLeader: false }]]),
+        // Mặc định Owner vừa vào nhóm, đồng thời có thể gán sẵn isLeader = true nếu muốn họ làm chủ board luôn từ đầu
+        new Map([[workspaceOwner.user.id, { isLeader: true }]]),
       );
     }
-  }, [isOpen, currentWorkspaceMember?.id]);
+  }, [isOpen, workspaceOwner?.user?.id]);
 
   // Đóng modal khi click ra ngoài
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -93,9 +100,9 @@ export const CreateBoardModal = ({
 
   if (!isOpen) return null;
 
-  // Toggle chọn / bỏ chọn thành viên (Không áp dụng cho Người tạo)
+  // Toggle chọn / bỏ chọn thành viên (Owner Workspace không thể bị xóa khỏi board chính của họ)
   const toggleMember = (id: string) => {
-    if (id === currentWorkspaceMember?.user?.id) return; // Người tạo không thể bị xóa
+    if (workspaceOwner && id === workspaceOwner.user?.id) return;
 
     setSelectedMembersMap((prev) => {
       const newMap = new Map(prev);
@@ -108,7 +115,7 @@ export const CreateBoardModal = ({
     });
   };
 
-  // Toggle vai trò Leader (Chỉ 1 người làm leader)
+  // Toggle vai trò Leader (Chỉ 1 người làm leader quản lý board)
   const toggleLeaderRole = (id: string) => {
     setSelectedMembersMap((prev) => {
       const newMap = new Map(prev);
@@ -149,8 +156,9 @@ export const CreateBoardModal = ({
     e.preventDefault();
     if (!title.trim()) return;
     const memberIds = Array.from(selectedMembersMap.keys());
-    const slug = formatWorkspaceSlug(title); // Tạo slug từ tên board
-    const leaderId = currentLeaderId || null;
+    const slug = formatWorkspaceSlug(title);
+    const leaderId = currentLeaderId || workspaceOwner?.user?.id || null;
+
     createBoard({ title, description, slug, memberIds, leaderId, workspaceId });
 
     // Reset Form
@@ -159,7 +167,7 @@ export const CreateBoardModal = ({
     setSelectedMembersMap(new Map());
     onClose();
   };
-  console.log("dfasfsaf", selectedMembersMap);
+
   return (
     <div
       onClick={handleBackdropClick}
@@ -191,7 +199,7 @@ export const CreateBoardModal = ({
         <div className="flex-1 grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-800 overflow-hidden">
           {/* Cột trái: Form & Thành viên đã chọn */}
           <div className="col-span-2 flex flex-col h-full overflow-hidden">
-            <div className="p-1 border-b border-slate-800 space-y-4 shrink-0 bg-slate-900/20">
+            <div className="p-4 border-b border-slate-800 space-y-4 shrink-0 bg-slate-900/20">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
                   Tên Board <span className="text-rose-500">*</span>
@@ -236,7 +244,8 @@ export const CreateBoardModal = ({
                 {selectedMembersList.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {selectedMembersList.map(({ member, isLeader }) => {
-                      const isOwner = member.id === currentWorkspaceMember?.id;
+                      const isWorkspaceOwner =
+                        member.user.id === workspaceOwner?.user?.id;
 
                       return (
                         <div
@@ -244,8 +253,8 @@ export const CreateBoardModal = ({
                           className={`relative flex items-center justify-between p-2.5 rounded-xl border transition-all ${
                             isLeader
                               ? "bg-amber-500/10 border-amber-500/40 shadow-sm"
-                              : isOwner
-                                ? "bg-indigo-950/30 border-indigo-500/30 shadow-sm" // Khung viền riêng biệt cho Owner
+                              : isWorkspaceOwner
+                                ? "bg-indigo-950/30 border-indigo-500/30 shadow-sm"
                                 : "bg-slate-900/70 border-slate-800/80"
                           }`}>
                           <div className="flex items-center gap-3 min-w-0">
@@ -261,8 +270,8 @@ export const CreateBoardModal = ({
                                   {member.user.name}
                                 </p>
 
-                                {/* Badge Chủ sở hữu */}
-                                {isOwner && (
+                                {/* Badge Chủ sở hữu Workspace */}
+                                {isWorkspaceOwner && (
                                   <span className="text-[10px] font-medium px-1.5 py-0.2 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded shrink-0 flex items-center gap-0.5">
                                     <ShieldCheck className="w-2.5 h-2.5" /> Owner
                                   </span>
@@ -328,11 +337,11 @@ export const CreateBoardModal = ({
                               )}
                             </div>
 
-                            {/* Người tạo board bị khóa không thể bị xóa */}
-                            {isOwner ? (
+                            {/* Workspace Owner bị khóa cố định không thể bị xóa khỏi danh sách tham gia board */}
+                            {isWorkspaceOwner ? (
                               <span
                                 className="p-1 text-slate-500"
-                                title="Người tạo board (Cố định)">
+                                title="Chủ sở hữu Workspace (Cố định)">
                                 <Lock className="w-3.5 h-3.5" />
                               </span>
                             ) : (
@@ -381,15 +390,15 @@ export const CreateBoardModal = ({
               {filteredWorkspaceMembers.length > 0 ? (
                 filteredWorkspaceMembers.map((member) => {
                   const isSelected = selectedMembersMap.has(member.user.id);
-                  const isOwner = member.user.id === currentWorkspaceMember?.user?.id;
+                  const isWorkspaceOwner = member.user.id === workspaceOwner?.user?.id;
 
                   return (
                     <div
                       key={member.id}
-                      onClick={() => !isOwner && toggleMember(member.user.id)}
+                      onClick={() => !isWorkspaceOwner && toggleMember(member.user.id)}
                       className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
-                        isOwner
-                          ? "bg-indigo-950/20 border-indigo-500/30 opacity-75 cursor-not-allowed" // Khung nhã nhặn cho Owner ở cột phải
+                        isWorkspaceOwner
+                          ? "bg-indigo-950/20 border-indigo-500/30 opacity-75 cursor-not-allowed"
                           : isSelected
                             ? "bg-indigo-600/15 border-indigo-500/50 text-white cursor-pointer"
                             : "bg-slate-900/60 border-slate-800/80 text-slate-300 hover:border-slate-700 hover:bg-slate-900 cursor-pointer"
@@ -399,9 +408,9 @@ export const CreateBoardModal = ({
                         <div className="truncate">
                           <p className="text-xs font-semibold truncate flex items-center gap-1">
                             {member.user.name}
-                            {isOwner && (
+                            {isWorkspaceOwner && (
                               <span className="text-[10px] text-indigo-400 font-normal">
-                                (Bạn)
+                                (Owner)
                               </span>
                             )}
                           </p>

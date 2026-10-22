@@ -16,7 +16,9 @@ export const useWorkspacePermission = (workspaceId: string) => {
   const isOwn = useMemo(() => {
     if (!workspaceDetail?.members || !user?.id) return false;
     return workspaceDetail.members.some(
-      (m) => m.user?.id === user.id && m.role === WorkspaceRole.OWNER,
+      (m) =>
+        m.user?.id === user.id &&
+        (m.role === WorkspaceRole.OWNER || m.role === WorkspaceRole.LEADER_WORKSPACE),
     );
   }, [workspaceDetail, user]);
 

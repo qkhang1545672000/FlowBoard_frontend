@@ -7,7 +7,6 @@ import { useWorkSpace } from "@/hooks/useWorkSpace";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { WorkspaceSlugSync } from "@/components/workspace/WorkspaceSlugSync";
 import { BoardSlugSync } from "@/components/board/BoardSlugSync"; // <-- Import component mới tạo
-import { usePathname } from "next/navigation";
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const activeWorkspaceSlug = useWorkspaceStore((state) => state.activeWorkspaceSlug);
