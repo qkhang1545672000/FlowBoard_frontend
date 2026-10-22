@@ -44,6 +44,9 @@ export const useCreateWorkspace = () => {
       // Làm mới (refetch) lại danh sách workspaces để cập nhật giao diện ngay lập tức
       // Thay "workspaces" bằng queryKey mà bạn đang dùng trong hook fetch danh sách
       queryClient.invalidateQueries({ queryKey: ["workspace"] });
+      queryClient.invalidateQueries({
+        queryKey: ["workspace-counts"],
+      });
     },
 
     // Chạy khi API thất bại
@@ -74,6 +77,9 @@ export const useDeleteWorkspace = () => {
       // Làm mới (refetch) lại danh sách workspaces để cập nhật giao diện ngay lập tức
       // Thay "workspaces" bằng queryKey mà bạn đang dùng trong hook fetch danh sách
       queryClient.invalidateQueries({ queryKey: ["workspace"] });
+      queryClient.invalidateQueries({
+        queryKey: ["workspace-counts"],
+      });
     },
 
     // Chạy khi API thất bại
@@ -143,13 +149,12 @@ export const useAcceptMemberW = () => {
         localStorage.removeItem("pending_invite_token");
 
         // Invalidate cache workspace để cập nhật danh sách workspace mới nhất
-        queryClient.invalidateQueries({ queryKey: ["workspace"] });
 
         // Cập nhật workspace đang active
         setWorkspace({ id: data.workspaceId, slug: data.slug });
 
         toast.success("Tham gia Workspace thành công! Đang chuyển hướng...");
-
+        queryClient.invalidateQueries({ queryKey: ["workspace"] });
         setTimeout(() => {
           router.push(`/w/${data.slug}`);
         }, 1500);

@@ -7,14 +7,24 @@ import { TaskPriority } from "@/types";
 export const useCreateTask = (boardId: string) => {
   const queryClient = useQueryClient();
   const socket = useSocket();
+
   return useMutation({
     mutationFn: (data: createTask) => taskService.createTask(data),
     onSuccess: (newTask: Task) => {
       console.log("newTask:", newTask);
-      // Tự động refetch lại API Workspace Detail để cập nhật danh sách Board mới
+
+      // 1. Refetch lại dữ liệu Board hiện tại
       queryClient.invalidateQueries({
         queryKey: ["board", boardId],
       });
+
+      // 2. Tự động invalidate lại danh sách Activity Logs của board này
+      // Giúp component hiển thị lịch sử tự động cập nhật ngay dòng log "CREATED_TASK" vừa phát sinh
+      queryClient.invalidateQueries({
+        queryKey: ["activity-logs", { boardId }],
+      });
+
+      // 3. Phát socket realtime nếu có
       if (socket && boardId) {
         socket.emit("create-task", {
           boardId,

@@ -18,6 +18,8 @@ import GroupChatAvatar from "../ui/GroupChatAvatar";
 import { useTaskPermission } from "./useTaskPermission";
 import { TaskPriorityDropdown } from "./TaskPriorityDropdown";
 import { TaskDueDatePopover } from "./datePicker";
+import { useWorkspaceStore } from "@/store/useWorkspaceStore";
+import { useWorkspacePermission } from "../workspace/useWorkspacePermission";
 
 interface Props {
   task: Task;
@@ -44,13 +46,15 @@ export function TaskCard({
   const menuRef = useRef<HTMLDivElement>(null);
 
   const boardId = useBoardStore((state) => state.activeBoardId) ?? "";
+  const workspapceId = useWorkspaceStore((state) => state.activeWorkspaceId) ?? "";
   const { isOwn } = useBoardPermission(boardId);
+  const { isOwn: isOwnWorkspace } = useWorkspacePermission(workspapceId);
   const user = useSafeUser();
   const { isTaskLeader } = useTaskPermission(boardId, task.id);
   const { mutate: deleteTask } = useDeleteTask(boardId);
   const { mutate: upTaskDueDate } = useUpdateTaskDueDate(boardId);
   const isLockedByOther = Boolean(lockedBy && lockedBy.id !== user?.id);
-  const isAssignee = isTaskLeader || user?.role === "ADMIN" || isOwn;
+  const isAssignee = isTaskLeader || user?.role === "ADMIN" || isOwn || isOwnWorkspace;
   const canDrag = isAssignee && !isLockedByOther;
 
   const memberTask = task.members.map((t) => t.user);

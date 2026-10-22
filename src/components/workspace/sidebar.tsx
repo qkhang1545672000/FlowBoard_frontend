@@ -2,11 +2,19 @@
 
 import React from "react";
 import Link from "next/link";
-import { Plus, Briefcase, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Plus,
+  FolderKanban, // Icon cho Workspace
+  Kanban, // Icon cho Board
+  ChevronLeft,
+  ChevronRight,
+  ArrowLeft,
+} from "lucide-react";
 import { WorkspaceResponse } from "@/types/workSpace";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { useBoardStore } from "@/store/useBoardStore";
 import { useWorkspaceDetail } from "@/hooks/useWorkSpace";
+import { useRouter } from "next/navigation";
 
 interface SidebarProps {
   workspaces: WorkspaceResponse[];
@@ -22,10 +30,31 @@ export function Sidebar({
   setIsCollapsed,
 }: SidebarProps) {
   const setActiveWorkspace = useWorkspaceStore((state) => state.setActiveWorkspace);
+  const currentBoardSlug = useBoardStore((state) => state.activeBoardSlug);
   const activeBoardId = useBoardStore((state) => state.activeBoardId);
   const setBoardId = useBoardStore((state) => state.setActiveBoard);
+  const clearActiveBoard = useBoardStore((state) => state.clearActiveBoard);
+
   const activeWorkspaceId = useWorkspaceStore((state) => state.activeWorkspaceId) ?? "";
-  const { data: workSpaceDetail, isPending } = useWorkspaceDetail(activeWorkspaceId);
+  const { data: workSpaceDetail } = useWorkspaceDetail(activeWorkspaceId);
+  const router = useRouter();
+
+  // Xử lý nút quay lại thông minh
+  const handleBackAction = () => {
+    if (activeBoardId) {
+      // Nếu đang trong board, khi bấm quay lại sẽ clear board để hiện lại danh sách workspace
+      clearActiveBoard();
+      localStorage.removeItem("active-board-storage");
+      if (currentWorkspaceSlug) {
+        router.push(`/w/${currentWorkspaceSlug}`);
+      } else {
+        router.back();
+      }
+    } else {
+      // Nếu đang ở workspace, quay lại bình thường
+      router.back();
+    }
+  };
 
   return (
     <aside
@@ -72,7 +101,7 @@ export function Sidebar({
           )}
         </div>
 
-        {/* Workspaces List */}
+        {/* Workspaces & Boards List */}
         <div>
           <div className="space-y-1">
             {!activeBoardId ? (
@@ -96,7 +125,8 @@ export function Sidebar({
                           ? "bg-indigo-600/20 text-indigo-400 font-medium border border-indigo-500/30"
                           : "hover:bg-slate-800/80 text-slate-400 hover:text-slate-200"
                       }`}>
-                      <Briefcase className="w-4 h-4 shrink-0" />
+                      {/* Dùng icon FolderKanban biểu trưng cho Workspace */}
+                      <FolderKanban className="w-4 h-4 shrink-0 text-indigo-400" />
                       {!isCollapsed && (
                         <span className="truncate whitespace-nowrap">{ws.name}</span>
                       )}
@@ -105,7 +135,7 @@ export function Sidebar({
                 })}
               </>
             ) : (
-              // Nhánh 2: Khi đã chọn Board (Hiển thị danh sách Board)
+              // Nhánh 2: Khi đã chọn Board (Hiển thị danh sách Board trong Workspace đó)
               <>
                 {!isCollapsed && (
                   <div className="text-[11px] font-semibold uppercase text-slate-500 px-2 mb-2 tracking-wider whitespace-nowrap">
@@ -113,7 +143,7 @@ export function Sidebar({
                   </div>
                 )}
                 {workSpaceDetail?.boards?.map((ws) => {
-                  const isActive = currentWorkspaceSlug === ws.slug;
+                  const isActive = currentBoardSlug === ws.slug;
                   return (
                     <Link
                       key={ws.id}
@@ -125,7 +155,8 @@ export function Sidebar({
                           ? "bg-indigo-600/20 text-indigo-400 font-medium border border-indigo-500/30"
                           : "hover:bg-slate-800/80 text-slate-400 hover:text-slate-200"
                       }`}>
-                      <Briefcase className="w-4 h-4 shrink-0" />
+                      {/* Dùng icon Kanban biểu trưng cho Board công việc */}
+                      <Kanban className="w-4 h-4 shrink-0 text-emerald-400" />
                       {!isCollapsed && (
                         <span className="truncate whitespace-nowrap">{ws.title}</span>
                       )}
@@ -138,15 +169,18 @@ export function Sidebar({
         </div>
       </div>
 
-      {/* Footer Button: Create Workspace */}
+      {/* Footer Button: Quay lại */}
       <div className="p-3 border-t border-slate-800">
         <button
-          className={`w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-600/20 ${
+          onClick={handleBackAction}
+          className={`group w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium py-2.5 rounded-xl transition-all duration-200 shadow-lg shadow-indigo-600/30 border border-indigo-500/40 ${
             isCollapsed ? "px-2" : "px-4"
           }`}
-          title="Create Workspace">
-          <Plus className="w-4 h-4 shrink-0" />
-          {!isCollapsed && <span className="whitespace-nowrap">Create Workspace</span>}
+          title="Quay lại">
+          <ArrowLeft className="w-4 h-4 shrink-0 text-white group-hover:-translate-x-0.5 transition-transform" />
+          {!isCollapsed && (
+            <span className="whitespace-nowrap font-semibold">Quay lại</span>
+          )}
         </button>
       </div>
     </aside>

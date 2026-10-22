@@ -16,7 +16,7 @@ export interface WorkspaceResponse {
   slug: string;
   updatedAt: string;
   boardsCount: number;
-  members: Participant[];
+  members: User[];
 }
 export interface Board {
   id: string;

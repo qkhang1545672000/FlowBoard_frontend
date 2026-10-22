@@ -1,29 +1,13 @@
 "use client";
 
-import React, { useState, Suspense, useEffect } from "react";
+import React, { useState, Suspense } from "react";
 import { Sidebar } from "@/components/workspace/sidebar";
 import { SidebarSkeleton } from "@/components/workspace/SidebarSkeleton";
 import { useWorkSpace } from "@/hooks/useWorkSpace";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { WorkspaceSlugSync } from "@/components/workspace/WorkspaceSlugSync";
+import { BoardSlugSync } from "@/components/board/BoardSlugSync"; // <-- Import component mới tạo
 import { usePathname } from "next/navigation";
-import { useBoardStore } from "@/store/useBoardStore";
-
-// Component con xử lý pathname và useEffect để tránh lỗi blocking prerender
-function BoardCleanupWatcher() {
-  const pathname = usePathname();
-  const clearActiveBoard = useBoardStore((state) => state.clearActiveBoard);
-
-  useEffect(() => {
-    // Nếu đường dẫn hiện tại không chứa chữ "/b/" (thoát khỏi khu vực board)
-    if (pathname && !pathname.startsWith("/b/")) {
-      clearActiveBoard();
-      localStorage.removeItem("active-board-storage");
-    }
-  }, [pathname, clearActiveBoard]);
-
-  return null;
-}
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const activeWorkspaceSlug = useWorkspaceStore((state) => state.activeWorkspaceSlug);
@@ -34,10 +18,10 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-950">
-      {/* 1. Các component sử dụng dữ liệu URL được bọc trong Suspense */}
+      {/* 1. Các component xử lý đồng bộ URL ngầm (Workspace và Board Slug -> ID) */}
       <Suspense fallback={null}>
         <WorkspaceSlugSync />
-        <BoardCleanupWatcher />
+        <BoardSlugSync />
       </Suspense>
 
       {/* 2. Sidebar */}

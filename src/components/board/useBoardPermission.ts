@@ -15,6 +15,6 @@ export const useBoardPermission = (boardId: string) => {
         (m.role === BoardMemberRole.OWNER || m.role === BoardMemberRole.BOARD_LEADER),
     );
   }, [boardDetail, user]);
-  console.log("borrrr", boardDetail);
+
   return { isOwn, boardDetail };
 };

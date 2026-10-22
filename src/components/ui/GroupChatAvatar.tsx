@@ -1,4 +1,3 @@
-import type { Participant } from "@/types";
 import UserAvatar from "./UserAvatar";
 import { User } from "@/types/api.types";
 
