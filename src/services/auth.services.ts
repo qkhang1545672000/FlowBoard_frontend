@@ -17,6 +17,7 @@ function mapAuthUser(u: {
   name: string;
   image?: string | null;
   emailVerified: boolean;
+  isOnline: boolean;
   role?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -28,6 +29,7 @@ function mapAuthUser(u: {
     image: u.image ?? undefined,
     role: u.role || "customer",
     emailVerified: u.emailVerified,
+    isOnline: true,
     createdAt:
       u.createdAt instanceof Date ? u.createdAt.toISOString() : String(u.createdAt),
     updatedAt:

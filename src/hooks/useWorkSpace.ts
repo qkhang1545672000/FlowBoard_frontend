@@ -12,16 +12,21 @@ import { toast } from "sonner";
 import { WorkspaceRole } from "@/types";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export const useWorkSpace = (limit: number = 10, type: WorkspaceFilterType = "all") => {
+  const user = useAuthStore((state) => state.user);
+
   return useInfiniteQuery<PaginatedWorkspaceResponse>({
-    queryKey: ["workspace", type], // Query key phụ thuộc vào `type`
+    queryKey: ["workspace", type],
     queryFn: ({ pageParam = 1 }) =>
       workSpaceService.getWorkSpace(pageParam as number, limit, type),
     initialPageParam: 1,
     getNextPageParam: (lastPage) => {
       return lastPage.hasMore ? lastPage.page + 1 : undefined;
     },
+    // 🛡️ Đảm bảo dòng này bắt buộc phải có để chặn hoàn toàn request khi chưa đăng nhập hoặc vừa đăng xuất
+    enabled: !!user?.id,
   });
 };
 export const useWorkspaceDetail = (workspaceId: string) => {

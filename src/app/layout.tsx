@@ -3,6 +3,7 @@ import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import QueryProvider from "@/providers/query-provider";
 import { Toaster } from "sonner";
+import { PresenceProvider } from "@/components/home/PresenceProvider"; // 👉 Import component vừa tạo
 
 const inter = Inter({
   variable: "--font-inter",
@@ -22,14 +23,18 @@ export const metadata: Metadata = {
   description: "Mua sắm trực tuyến nhanh chóng và an toàn",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="vi"
       className={`${inter.variable} ${spaceGrotesk.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <QueryProvider>
+          {/* 👉 Đặt PresenceProvider ở đây để chạy ngầm toàn hệ thống */}
+          <PresenceProvider />
+
           {children}
+
           <Toaster position="bottom-right" richColors />
         </QueryProvider>
       </body>

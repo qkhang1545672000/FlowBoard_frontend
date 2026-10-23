@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
@@ -107,6 +108,7 @@ const MemberWorkspaceCard = ({ member }: Props) => {
       <div className="flex items-center gap-3 min-w-0 flex-1 pr-1">
         <div className="relative shrink-0">
           <UserAvatar name={member.user?.name} type="chat" />
+          {/* Chấm trạng thái online/offline cập nhật trực tiếp realtime qua cache */}
           <span
             className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-slate-900 ${
               member.user?.isOnline ? "bg-emerald-500" : "bg-slate-600"
@@ -140,13 +142,13 @@ const MemberWorkspaceCard = ({ member }: Props) => {
         </div>
       </div>
 
-      {/* Nhóm thông tin bên phải (Được bọc chung trong ref để quản lý click outside chuẩn xác) */}
+      {/* Nhóm thông tin bên phải */}
       <div className="flex items-center gap-1 shrink-0 relative" ref={menuRef}>
         {member.role === WorkspaceRole.OWNER && (
           <span className="text-[10px] text-amber-400 font-semibold px-1">Owner</span>
         )}
 
-        {/* NÚT LEADER (VƯƠNG MIỆN): Chỉ xuất hiện khi hover (hoặc khi đang là leader), giống cách hoạt động của nút 3 chấm */}
+        {/* NÚT LEADER (VƯƠNG MIỆN) */}
         {isOwn && member.role !== WorkspaceRole.OWNER && (
           <button
             type="button"
@@ -166,12 +168,12 @@ const MemberWorkspaceCard = ({ member }: Props) => {
           </button>
         )}
 
-        {/* --- NÚT 3 CHẤM ẨN/HIỆN KHI HOVER --- */}
+        {/* --- NÚT 3 CHẤM --- */}
         {member.user.id !== user?.id && (
           <div
             className={`transition-all duration-200 overflow-hidden flex items-center justify-center ${
               isMenuOpen
-                ? "w-7 opacity-100" // Nếu menu đang mở thì bắt buộc phải hiện nút 3 chấm cố định
+                ? "w-7 opacity-100"
                 : "w-0 opacity-0 group-hover:w-7 group-hover:opacity-100"
             }`}>
             <button
@@ -187,7 +189,7 @@ const MemberWorkspaceCard = ({ member }: Props) => {
           </div>
         )}
 
-        {/* Submenu Dropdown đặt độc lập bên ngoài khung co giãn width để không bị cắt */}
+        {/* Submenu Dropdown */}
         {isMenuOpen && (
           <div className="absolute right-0 top-9 w-36 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl py-1.5 z-50 text-xs text-slate-300 backdrop-blur-md animate-in fade-in zoom-in-95 duration-100">
             <button

@@ -20,10 +20,19 @@ import WorkspaceSkeleton from "./WorkspaceSkeleton";
 import { WorkspaceResponse } from "@/types/workSpace";
 import { formatWorkspaceSlug } from "@/lib/took";
 import { WorkspaceFilterType } from "@/services/workspace.service";
+import { useAuthStore } from "@/store/useAuthStore";
+import { useSocket } from "@/hooks/useSocket";
+import { useAuthSocket } from "@/hooks/useAuthSocket";
 
 const WorkspaceHome = () => {
   const [activeTab, setActiveTab] = useState<WorkspaceFilterType>("owned");
+  // const user = useAuthStore((state) => state.user);
+  const userCurrent = useAuthStore((state) => state.user);
 
+  const userId = userCurrent?.id;
+
+  // const socket = useSocket("/auth");
+  // useAuthSocket({ socket, userId });
   // Lấy dữ liệu phân trang cho Tab hiện tại
   const { data, isPending, isError, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useWorkSpace(10, activeTab);

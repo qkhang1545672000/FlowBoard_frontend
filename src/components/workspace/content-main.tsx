@@ -13,7 +13,9 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { BoardOverview } from "@/types/board";
 import MemberWorkspaceCard from "./memberWorkspaceCard";
 import { WorkspaceRole } from "@/types";
-import { WorkspaceChat } from "./workspace-chat"; // Import component chat vừa tách
+import { WorkspaceChat } from "./workspace-chat";
+import { useAuthSocket } from "@/hooks/useAuthSocket"; // 👉 Import hook socket realtime
+import { useSocket } from "@/hooks/useSocket";
 
 interface ContentMainProps {
   activeMainTab: "boards" | "chat";
@@ -29,9 +31,10 @@ const ContentMain = ({
   const activeWorkspaceId = useWorkspaceStore((state) => state.activeWorkspaceId) ?? "";
   const userCurrent = useAuthStore((state) => state.user);
 
+  const userId = userCurrent?.id;
+
   const { data: workspaceDetail, isLoading } = useWorkspaceDetail(activeWorkspaceId);
 
-  const userId = userCurrent?.id;
   const members = workspaceDetail?.members;
   const isOwn = Boolean(
     members &&
@@ -140,7 +143,7 @@ const ContentMain = ({
           </div>
         )}
 
-        {/* VIEW 2: CHAT (Sử dụng component WorkspaceChat vừa tách) */}
+        {/* VIEW 2: CHAT */}
         {activeMainTab === "chat" && (
           <WorkspaceChat
             workspaceId={activeWorkspaceId}

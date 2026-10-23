@@ -1,4 +1,5 @@
 import axiosInstance from "@/lib/axios";
+import { useAuthStore } from "@/store/useAuthStore";
 import { WorkspaceRole } from "@/types";
 import { CreateWorkspaceDto } from "@/types/apiWorkspace.type";
 import { WorkspaceDetailResponse, WorkspaceResponse } from "@/types/workSpace";
@@ -18,6 +19,17 @@ export const workSpaceService = {
     type: WorkspaceFilterType = "all",
   ): Promise<PaginatedWorkspaceResponse> => {
     try {
+      // 🛡️ CHỐT CHẶN AN TOÀN: Nếu không có user (đã đăng xuất), chặn đứng việc gọi API
+      const currentUser = useAuthStore.getState().user;
+      if (!currentUser) {
+        return {
+          data: [],
+          hasMore: false,
+          page: 1,
+          total: 0,
+        } as unknown as PaginatedWorkspaceResponse; // Trả về cấu trúc rỗng khớp với PaginatedWorkspaceResponse của bạn
+      }
+
       const response = await axiosInstance.get<PaginatedWorkspaceResponse>(
         "/api/v1/workspaces/",
         {
@@ -28,6 +40,14 @@ export const workSpaceService = {
       return response.data;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
+      if (
+        error?.message === "NEXT_REDIRECT" ||
+        error?.digest?.includes("NEXT_REDIRECT")
+      ) {
+        throw error;
+      }
+
+      // Các lỗi thông thường khác thì mới log ra console
       console.error("Lỗi getWorkSpace:", error?.response?.data || error.message);
       throw error;
     }

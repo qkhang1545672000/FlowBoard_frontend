@@ -41,7 +41,7 @@ export function ColumnComponent({ column, isOverlay }: Props) {
   const userCurrent = useAuthStore((state) => state.user);
 
   const boardId = useBoardStore((state) => state.activeBoardId) ?? "";
-  console.log("bbbbboard", boardId);
+
   const workspaceId = useWorkspaceStore((state) => state.activeWorkspaceId) ?? "";
   const { mutate: createTask } = useCreateTask(boardId);
   const { mutate: updateColumnClock } = useUpdateColumnClock(boardId);

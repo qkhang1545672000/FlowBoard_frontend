@@ -1,19 +1,21 @@
 import { authService } from "@/services/auth.services";
 import { workSpaceService } from "@/services/workspace.service";
 import { useAuthStore } from "@/store/useAuthStore";
-import { User } from "@/types";
 
 import {
   ForgotPasswordDto,
   ResetPasswordDto,
   SignInDto,
   SignUpDto,
+  User,
 } from "@/types/api.types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+// 👉 Import socket.io-client để emit sự kiện logout realtime
+import { useSocket } from "./useSocket";
 
 type AuthToastMessages = {
   success?: string;
@@ -106,11 +108,12 @@ export const useSignIn = (messages?: AuthToastMessages, redirectTo?: string) => 
   const queryClient = useQueryClient();
   const setUser = useAuthStore((state) => state.setUser); // Lấy setter của Zustand
 
+  const socket = useSocket("/auth");
   return useMutation({
     mutationFn: (data: SignInDto & { rememberMe?: boolean }) => authService.signIn(data),
 
     onSuccess: async (response) => {
-      // 1. Cập nhật TanStack Query Cache
+      // 1. Cập nhật TanStack Query Cache cho session
       queryClient.setQueriesData(
         { queryKey: ["auth", "session"] },
         {
@@ -119,17 +122,31 @@ export const useSignIn = (messages?: AuthToastMessages, redirectTo?: string) => 
           isAuthenticated: true,
         },
       );
-      const pendingToken = await localStorage.getItem("pending_invite_token");
-      console.log("fasfdsf", response);
+
+      // Xử lý token mời (nếu có)
+      localStorage.getItem("pending_invite_token");
+
       // 2. Cập nhật dữ liệu vào Zustand Store
       setUser(response.user as User);
-      await queryClient.prefetchQuery({
-        queryKey: ["workspace"],
-        queryFn: () => workSpaceService.getWorkSpace(),
-      });
+
+      if (response.user && socket) {
+        if (socket.connected) {
+          // Nếu socket đang kết nối sẵn, emit và ngắt luôn
+          socket.emit("user-online", response.user.id);
+        } else {
+          // Nếu chưa kết nối, đợi khi nào kết nối xong thì emit
+          socket.once("connect", () => {
+            socket.emit("user-online", response.user.id);
+          });
+        }
+      }
+      // 3. Xóa cache workspace cũ (nếu có từ tài khoản trước) để đảm bảo fetch data sạch
+      queryClient.removeQueries({ queryKey: ["workspace"] });
 
       toast.success(messages?.success ?? "Sign in successful");
 
+      // 4. Chuyển hướng về trang chủ / workspace.
+      // Ngay khi sang trang mới, Layout chung chứa useAuthSocket sẽ tự động kết nối và báo online chuẩn xác!
       router.push(redirectTo ?? "/");
     },
 
@@ -146,32 +163,54 @@ export const useSignIn = (messages?: AuthToastMessages, redirectTo?: string) => 
     },
   });
 };
-
 export const useSignOut = (messages?: AuthToastMessages, redirectTo?: string) => {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const clearAuthUser = useAuthStore((state) => state.clearAuth); // Hoặc hàm clear state trong auth store của bạn
+  const clearAuthUser = useAuthStore((state) => state.clearAuth);
+  const currentUser = useAuthStore((state) => state.user);
+  const socket = useSocket("/auth");
 
   return useMutation({
     mutationFn: () => authService.signOut(),
 
     onSuccess: async () => {
-      // 1. Xóa hoặc reset TanStack Query Cache liên quan đến session và dữ liệu user
-      queryClient.setQueryData(["auth", "session"], null);
-      queryClient.clear(); // Xóa toàn bộ cache nếu muốn dọn sạch dữ liệu cũ khi đăng xuất
+      // ⚡ 1. Chủ động bắn socket báo offline ngay khi bấm đăng xuất
+      try {
+        const userId = currentUser?.id;
+        if (userId && socket) {
+          if (socket.connected) {
+            // Nếu socket đang kết nối sẵn, emit và ngắt luôn
+            socket.emit("user-offline", userId);
+            setTimeout(() => socket.disconnect(), 300);
+          } else {
+            // Nếu chưa kết nối, đợi khi nào kết nối xong thì emit
+            socket.once("connect", () => {
+              socket.emit("user-offline", userId);
+              setTimeout(() => socket.disconnect(), 300);
+            });
+          }
+        }
+      } catch (e) {
+        console.error("Lỗi emit socket logout:", e);
+      }
 
-      // 2. Clear state người dùng trong Zustand Store
+      // 2. Xóa TanStack Query Cache
+      queryClient.cancelQueries();
+      queryClient.setQueryData(["auth", "session"], null);
+
+      queryClient.clear();
+
+      // 3. Clear state người dùng trong Zustand Store
       if (clearAuthUser) {
         clearAuthUser();
       }
 
-      // 3. Dọn dẹp các storage riêng biệt (như board storage hoặc workspace storage nếu có)
+      // 4. Dọn dẹp storage
       localStorage.removeItem("active-board-storage");
-      // localStorage.removeItem("active-workspace-storage");
 
       toast.success(messages?.success ?? "Signed out successfully");
 
-      // 4. Chuyển hướng về trang đăng nhập hoặc trang chỉ định
+      // 5. Chuyển hướng về trang đăng nhập
       router.push(redirectTo ?? "/auth/signin");
     },
 
