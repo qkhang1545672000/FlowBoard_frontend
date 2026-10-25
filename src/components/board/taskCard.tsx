@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
@@ -12,12 +13,12 @@ import { useBoardStore } from "@/store/useBoardStore";
 import { LockedUser } from "@/hooks/useBoardSocket";
 import { TaskDetailModal } from "./TaskDetailModal";
 import { AssignTaskModal } from "./AssignTaskModal";
-import { useDeleteTask, useUpdateTaskDueDate } from "@/hooks/useTask";
+import { useDeleteTask, useUpdateTaskDates } from "@/hooks/useTask"; // 👈 Dùng hook cập nhật khoảng ngày/giờ mới
 import { useSafeUser } from "@/hooks/useSafeUser";
 import GroupChatAvatar from "../ui/GroupChatAvatar";
 import { useTaskPermission } from "./useTaskPermission";
 import { TaskPriorityDropdown } from "./TaskPriorityDropdown";
-import { TaskDueDatePopover } from "./datePicker";
+import { TaskDateRangePopover } from "./TaskDateRangePopover"; // 👈 Sử dụng component chọn khoảng ngày/giờ mới
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { useWorkspacePermission } from "../workspace/useWorkspacePermission";
 
@@ -36,7 +37,6 @@ export function TaskCard({
   lockedBy,
   onDeleteTask,
   onUpdatePriority,
-  onUpdateDueDate,
 }: Props) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -52,10 +52,10 @@ export function TaskCard({
   const user = useSafeUser();
   const { isTaskLeader } = useTaskPermission(boardId, task.id);
   const { mutate: deleteTask } = useDeleteTask(boardId);
-  const { mutate: upTaskDueDate } = useUpdateTaskDueDate(boardId);
+  const { mutate: updateTaskDates } = useUpdateTaskDates(boardId); // 👈 Khởi tạo mutation cập nhật start/due date
   const isLockedByOther = Boolean(lockedBy && lockedBy.id !== user?.id);
   const isAssignee = isTaskLeader || user?.role === "ADMIN" || isOwn || isOwnWorkspace;
-  console.log("isOwnWorkspace", isOwnWorkspace);
+  console.log("isOwnWorkspace", task);
   const canDrag = isAssignee && !isLockedByOther;
 
   const memberTask = task.members.map((t) => t.user);
@@ -119,6 +119,7 @@ export function TaskCard({
         {/* Nút 3 chấm & Submenu */}
         <div ref={menuRef} className="absolute top-2 right-2 z-20">
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               setIsMenuOpen((prev) => !prev);
@@ -133,6 +134,7 @@ export function TaskCard({
               onMouseDown={(e) => e.stopPropagation()}
               className="absolute right-0 mt-1 w-32 bg-slate-900 border border-slate-700 rounded-xl shadow-xl py-1 z-30 text-xs">
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsMenuOpen(false);
@@ -143,6 +145,7 @@ export function TaskCard({
                 <span>Cập nhật</span>
               </button>
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsMenuOpen(false);
@@ -180,25 +183,31 @@ export function TaskCard({
           <div className="flex justify-between items-center text-[10px] text-slate-400">
             <span>Tiến độ ({task.timeRemaining})</span>
             <div className="flex items-center gap-1.5">
-              <span>{progressValue}%</span>
+              <span className="font-semibold text-slate-300">{progressValue}%</span>
 
-              {/* Nút chọn lịch luôn hiển thị ổn định */}
+              {/* Nút chọn khoảng thời gian & giờ mới */}
               <div
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="flex items-center">
-                <TaskDueDatePopover
+                onPointerDown={(e) => e.stopPropagation()}
+                className="flex items-center  ">
+                <TaskDateRangePopover
+                  startDate={task.startDate}
                   dueDate={task.dueDate}
-                  onUpdateDueDate={(newIsoDate) => {
-                    upTaskDueDate({ taskId: task.id, dueDate: newIsoDate });
+                  onUpdateDates={(newStart, newDue) => {
+                    updateTaskDates({
+                      taskId: task.id,
+                      startDate: newStart,
+                      dueDate: newDue,
+                    });
                   }}
                 />
               </div>
             </div>
           </div>
 
-          {/* Thanh tiến độ thay đổi màu theo mốc phần trăm */}
-          <div className="w-full bg-slate-700/50 h-1 rounded-full overflow-hidden">
+          {/* Thanh tiến độ hiển thị đầy đủ màu sắc và không bị lỗi */}
+          <div className="w-full bg-slate-700/50 h-1.5 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-300 ${
                 progressValue >= 70
@@ -209,7 +218,7 @@ export function TaskCard({
                       ? "bg-emerald-500"
                       : "bg-sky-500"
               }`}
-              style={{ width: `${progressValue}%` }}
+              style={{ width: `${Math.max(progressValue, 4)}%` }}
             />
           </div>
         </div>
@@ -244,6 +253,8 @@ export function TaskCard({
               e.stopPropagation();
               setIsAssignModalOpen(true);
             }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
             title="Giao nhiệm vụ"
             className="cursor-pointer transition-transform hover:scale-105">
             {task.members.length > 0 ? (
@@ -294,11 +305,13 @@ export function TaskCard({
 
               <div className="flex gap-2.5 pt-1">
                 <button
+                  type="button"
                   onClick={() => setIsDeleteConfirmOpen(false)}
                   className="flex-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-xl transition-colors">
                   Hủy
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     deleteTask(task.id);
                     setIsDeleteConfirmOpen(false);

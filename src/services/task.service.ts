@@ -52,17 +52,16 @@ export const taskService = {
     }
   },
 
-  updateTaskDueDate: async (taskId: string, dueDate: string): Promise<Task> => {
+  updateTaskDates: async (
+    taskId: string,
+    dates: { startDate?: string | null; dueDate?: string | null },
+  ): Promise<Task> => {
     try {
-      const response = await axiosInstance.patch<Task>(`/api/v1/tasks/${taskId}`, {
-        dueDate,
-      });
-
+      const response = await axiosInstance.patch<Task>(`/api/v1/tasks/${taskId}`, dates);
       return response.data;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error(
-        "Lỗi updateTaskDueDate (Server):",
+        "Lỗi updateTaskDates (Server):",
         error?.response?.data || error.message,
       );
       throw error;

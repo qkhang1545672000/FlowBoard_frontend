@@ -130,24 +130,22 @@ export const useUpdateTaskPriority = (boardId: string) => {
   });
 };
 
-export const useUpdateTaskDueDate = (boardId: string) => {
+export const useUpdateTaskDates = (boardId: string) => {
   const queryClient = useQueryClient();
-  // const socket = useSocket();
   return useMutation({
-    mutationFn: ({ taskId, dueDate }: { taskId: string; dueDate: string }) =>
-      taskService.updateTaskDueDate(taskId, dueDate),
-    onSuccess: (newTask: Task) => {
-      // Tự động refetch lại API Workspace Detail để cập nhật danh sách Board mới
+    mutationFn: ({
+      taskId,
+      startDate,
+      dueDate,
+    }: {
+      taskId: string;
+      startDate?: string | null;
+      dueDate?: string | null;
+    }) => taskService.updateTaskDates(taskId, { startDate, dueDate }),
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["board", boardId],
       });
-      // if (socket && boardId) {
-      //   socket.emit("create-task", {
-      //     boardId,
-      //     columnId: newTask.columnId,
-      //     newTask: newTask,
-      //   });
-      // }
     },
   });
 };
