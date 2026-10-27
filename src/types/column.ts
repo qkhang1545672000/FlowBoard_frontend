@@ -19,6 +19,7 @@ export interface Task {
   position: number;
   labels: Label[];
   dueDate?: string; // Ngày hết hạn (nếu có)
+  startDate: string;
   members: TaskMember[];
   progress: number;
   timeRemaining: string;

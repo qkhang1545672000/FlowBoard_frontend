@@ -35,7 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
           {children}
 
-          <Toaster position="bottom-right" richColors />
+          <Toaster position="top-right" richColors />
         </QueryProvider>
       </body>
     </html>

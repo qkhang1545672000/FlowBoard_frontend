@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   X,
   Check,
@@ -16,10 +17,11 @@ import {
 import { WorkspaceMember } from "@/types/workSpace";
 import UserAvatar from "../ui/UserAvatar";
 import { useAuthStore } from "@/store/useAuthStore";
-import { useCreateBoard } from "@/hooks/useBoard";
+import { useBoardDetail, useCreateBoard, useUpdateBoard } from "@/hooks/useBoard";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { formatWorkspaceSlug } from "@/lib/took";
-import { WorkspaceRole } from "@/types";
+import { WorkspaceRole, BoardMemberRole } from "@/types";
+import { BoardOverview } from "@/types/board";
 
 interface SelectedMemberData {
   member: WorkspaceMember;
@@ -31,12 +33,7 @@ interface CreateBoardModalProps {
   onClose: () => void;
   workspaceMembers: WorkspaceMember[];
   currentUserId?: string;
-  onCreateBoard?: (data: {
-    title: string;
-    description: string;
-    memberIds: string[];
-    leaderId: string | null;
-  }) => void;
+  boardToEdit?: BoardOverview | null;
 }
 
 export const CreateBoardModal = ({
@@ -44,41 +41,103 @@ export const CreateBoardModal = ({
   onClose,
   workspaceMembers,
   currentUserId,
-  onCreateBoard,
+  boardToEdit,
 }: CreateBoardModalProps) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [selectedMembersMap, setSelectedMembersMap] = useState<
     Map<string, { isLeader: boolean }>
   >(new Map());
+
   const [searchMember, setSearchMember] = useState("");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const { mutate: createBoard, isPending } = useCreateBoard();
+  const workspaceId = useWorkspaceStore((state) => state.activeWorkspaceId) ?? "";
+  const { mutate: createBoard, isPending: isCreating } = useCreateBoard();
+  const { mutate: updateBoard, isPending: isUpdating } = useUpdateBoard(
+    workspaceId,
+    boardToEdit?.id,
+  );
+  const { data: boardDetail } = useBoardDetail(boardToEdit?.id ?? "");
   const user = useAuthStore((state) => state.user);
 
-  const workspaceId = useWorkspaceStore((state) => state.activeWorkspaceId) ?? "";
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Tìm WorkspaceMember tương ứng với Workspace Owner hoặc người dùng hiện tại
-  const currentWorkspaceMember = workspaceMembers.find(
+  const isEditing = Boolean(boardToEdit);
+
+  // Kết hợp thông tin từ workspaceMembers và boardDetail.members để không bị thiếu dữ liệu
+  const allAvailableMembers = useMemo(() => {
+    const map = new Map<string, WorkspaceMember>();
+
+    // Thêm từ workspaceMembers trước
+    workspaceMembers.forEach((m) => {
+      if (m.user?.id) map.set(m.user.id, m);
+    });
+
+    // Fallback: Thêm từ boardDetail.members nếu component cha chưa truyền đủ workspaceMembers
+    if (boardDetail?.members) {
+      boardDetail.members.forEach((bm: any) => {
+        const userId = bm.user?.id || bm.userId;
+        if (userId && !map.has(userId) && bm.user) {
+          map.set(userId, {
+            id: bm.id,
+            role: bm.role,
+            user: bm.user,
+            workspaceId: workspaceId,
+            createdAt: bm.createdAt,
+            updatedAt: bm.updatedAt,
+          } as unknown as WorkspaceMember);
+        }
+      });
+    }
+
+    return Array.from(map.values());
+  }, [workspaceMembers, boardDetail, workspaceId]);
+
+  // Tìm WorkspaceOwner tương ứng
+  const currentWorkspaceMember = allAvailableMembers.find(
     (m) => (user?.id && m.user.id === user.id) || m.id === currentUserId,
   );
 
-  // Xác định rõ ai là Owner chính thức của Workspace này từ danh sách thành viên
   const workspaceOwner =
-    workspaceMembers.find((m) => m.role === WorkspaceRole.OWNER) ||
+    allAvailableMembers.find((m) => m.role === WorkspaceRole.OWNER) ||
     currentWorkspaceMember;
 
-  // Khởi tạo mặc định khi mở modal: Đưa Workspace Owner (hoặc user hiện tại) vào danh sách tham gia
+  // Khởi tạo dữ liệu khi mở modal (Tạo mới hoặc Chỉnh sửa)
   useEffect(() => {
-    if (isOpen && workspaceOwner) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSelectedMembersMap(
-        // Mặc định Owner vừa vào nhóm, đồng thời có thể gán sẵn isLeader = true nếu muốn họ làm chủ board luôn từ đầu
-        new Map([[workspaceOwner.user.id, { isLeader: true }]]),
-      );
+    if (isOpen) {
+      if (isEditing && boardToEdit) {
+        setTitle(boardDetail?.title || boardToEdit.title || "");
+        setDescription(boardDetail?.description || boardToEdit.description || "");
+
+        const initialMap = new Map<string, { isLeader: boolean }>();
+
+        if (boardDetail?.members && boardDetail.members.length > 0) {
+          boardDetail.members.forEach((m: any) => {
+            const userId = m.user?.id || m.userId;
+            const isLeader =
+              m.role === BoardMemberRole.OWNER ||
+              m.role === BoardMemberRole.BOARD_LEADER ||
+              m.role === "LEADER" ||
+              m.role === "OWNER";
+
+            if (userId) {
+              initialMap.set(userId, { isLeader });
+            }
+          });
+        }
+
+        if (workspaceOwner && !initialMap.has(workspaceOwner.user.id)) {
+          initialMap.set(workspaceOwner.user.id, { isLeader: false });
+        }
+
+        setSelectedMembersMap(initialMap);
+      } else if (workspaceOwner) {
+        setTitle("");
+        setDescription("");
+        setSelectedMembersMap(new Map([[workspaceOwner.user.id, { isLeader: true }]]));
+      }
     }
-  }, [isOpen, workspaceOwner?.user?.id]);
+  }, [isOpen, boardToEdit, boardDetail, workspaceOwner, isEditing]);
 
   // Đóng modal khi click ra ngoài
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -100,7 +159,6 @@ export const CreateBoardModal = ({
 
   if (!isOpen) return null;
 
-  // Toggle chọn / bỏ chọn thành viên (Owner Workspace không thể bị xóa khỏi board chính của họ)
   const toggleMember = (id: string) => {
     if (workspaceOwner && id === workspaceOwner.user?.id) return;
 
@@ -115,7 +173,6 @@ export const CreateBoardModal = ({
     });
   };
 
-  // Toggle vai trò Leader (Chỉ 1 người làm leader quản lý board)
   const toggleLeaderRole = (id: string) => {
     setSelectedMembersMap((prev) => {
       const newMap = new Map(prev);
@@ -126,7 +183,7 @@ export const CreateBoardModal = ({
       if (current.isLeader) {
         newMap.set(id, { isLeader: false });
       } else {
-        newMap.forEach((val, key) => {
+        newMap.forEach((_, key) => {
           newMap.set(key, { isLeader: key === id });
         });
       }
@@ -138,15 +195,15 @@ export const CreateBoardModal = ({
     ([_, val]) => val.isLeader,
   )?.[0];
 
-  const filteredWorkspaceMembers = workspaceMembers.filter(
+  const filteredWorkspaceMembers = allAvailableMembers.filter(
     (m) =>
-      m.user.name?.toLowerCase().includes(searchMember.toLowerCase()) ||
-      m.user.email?.toLowerCase().includes(searchMember.toLowerCase()),
+      m.user?.name?.toLowerCase().includes(searchMember.toLowerCase()) ||
+      m.user?.email?.toLowerCase().includes(searchMember.toLowerCase()),
   );
 
   const selectedMembersList: SelectedMemberData[] = Array.from(selectedMembersMap.keys())
     .map((id) => {
-      const member = workspaceMembers.find((m) => m.user.id === id);
+      const member = allAvailableMembers.find((m) => m.user.id === id);
       const isLeader = selectedMembersMap.get(id)?.isLeader || false;
       return member ? { member, isLeader } : null;
     })
@@ -159,13 +216,28 @@ export const CreateBoardModal = ({
     const slug = formatWorkspaceSlug(title);
     const leaderId = currentLeaderId || workspaceOwner?.user?.id || null;
 
-    createBoard({ title, description, slug, memberIds, leaderId, workspaceId });
-
-    // Reset Form
-    setTitle("");
-    setDescription("");
-    setSelectedMembersMap(new Map());
-    onClose();
+    if (isEditing && boardToEdit) {
+      updateBoard(
+        {
+          id: boardToEdit.id,
+          dto: { title, description, slug, memberIds, leaderId, workspaceId },
+        },
+        {
+          onSuccess: () => {
+            onClose();
+          },
+        },
+      );
+    } else {
+      createBoard(
+        { title, description, slug, memberIds, leaderId, workspaceId },
+        {
+          onSuccess: () => {
+            onClose();
+          },
+        },
+      );
+    }
   };
 
   return (
@@ -182,9 +254,13 @@ export const CreateBoardModal = ({
               <Layout className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">Tạo Board Mới</h2>
+              <h2 className="text-lg font-bold text-white">
+                {isEditing ? "Chỉnh sửa Board" : "Tạo Board Mới"}
+              </h2>
               <p className="text-xs text-slate-400">
-                Nhập thông tin board và phân công vai trò đội trưởng
+                {isEditing
+                  ? "Cập nhật thông tin và phân quyền cho board"
+                  : "Nhập thông tin board và phân công vai trò đội trưởng"}
               </p>
             </div>
           </div>
@@ -233,7 +309,7 @@ export const CreateBoardModal = ({
               <div className="flex items-center justify-between mb-3 shrink-0">
                 <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
                   <UserCheck className="w-4 h-4 text-emerald-400" />
-                  Thành viên sẽ tham gia Board
+                  Thành viên tham gia Board
                 </h3>
                 <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
                   {selectedMembersList.length} thành viên
@@ -269,15 +345,11 @@ export const CreateBoardModal = ({
                                 <p className="text-xs font-semibold text-white truncate">
                                   {member.user.name}
                                 </p>
-
-                                {/* Badge Chủ sở hữu Workspace */}
                                 {isWorkspaceOwner && (
                                   <span className="text-[10px] font-medium px-1.5 py-0.2 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded shrink-0 flex items-center gap-0.5">
                                     <ShieldCheck className="w-2.5 h-2.5" /> Owner
                                   </span>
                                 )}
-
-                                {/* Badge Đội trưởng */}
                                 {isLeader && (
                                   <span className="text-[10px] font-bold px-1.5 py-0.2 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded shrink-0">
                                     Leader
@@ -290,7 +362,6 @@ export const CreateBoardModal = ({
                             </div>
                           </div>
 
-                          {/* Menu / Nút thao tác */}
                           <div className="flex items-center gap-1 shrink-0 ml-2">
                             <div className="relative">
                               <button
@@ -337,7 +408,6 @@ export const CreateBoardModal = ({
                               )}
                             </div>
 
-                            {/* Workspace Owner bị khóa cố định không thể bị xóa khỏi danh sách tham gia board */}
                             {isWorkspaceOwner ? (
                               <span
                                 className="p-1 text-slate-500"
@@ -451,9 +521,9 @@ export const CreateBoardModal = ({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={!title.trim()}
+            disabled={!title.trim() || isCreating || isUpdating}
             className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-600/20">
-            Tạo Board
+            {isEditing ? "Lưu thay đổi" : "Tạo Board"}
           </button>
         </div>
       </div>

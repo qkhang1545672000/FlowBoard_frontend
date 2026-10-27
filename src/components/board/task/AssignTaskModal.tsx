@@ -4,12 +4,12 @@ import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { Search, X, Crown } from "lucide-react";
 import { Task, TaskMember } from "@/types/column";
-import CardMember from "./cardMember";
+import CardMember from "../cardMember";
 import { useBoardStore } from "@/store/useBoardStore";
 import { useBoardDetail } from "@/hooks/useBoard";
 import { useUpdateAssignTask } from "@/hooks/useTask";
 import { User } from "@/types/api.types";
-import UserAvatar from "../ui/UserAvatar";
+import UserAvatar from "@/components/ui/UserAvatar";
 
 interface AssignTaskModalProps {
   isOpen: boolean;

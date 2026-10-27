@@ -10,6 +10,7 @@ import { createPortal } from "react-dom";
 import { useDeleteWorkspace, useInviteMemberW } from "@/hooks/useWorkSpace";
 import InviteMemberModal from "./InviteMemberModal";
 import WorkspaceNotificationPopover from "./WorkspaceNotificationPopover";
+import { useRouter } from "next/navigation";
 
 interface Props {
   ws: WorkspaceResponse;
@@ -23,7 +24,7 @@ const WorkspaceCard = ({ ws, onDelete, onRename, onInviteMember }: Props) => {
   const { mutateAsync: InviteMemberMutation } = useInviteMemberW();
   const { mutateAsync: deleteWorkspaceMutation, isPending: isDeleteAPI } =
     useDeleteWorkspace();
-
+  const clearWorkspace = useWorkspaceStore((state) => state.clearActiveWorkspace);
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -34,7 +35,7 @@ const WorkspaceCard = ({ ws, onDelete, onRename, onInviteMember }: Props) => {
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [mounted, setMounted] = useState(false);
-
+  const router = useRouter();
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -42,7 +43,10 @@ const WorkspaceCard = ({ ws, onDelete, onRename, onInviteMember }: Props) => {
   const handleDeleteConfirm = async () => {
     try {
       setIsDeleting(true);
+      clearWorkspace();
       await deleteWorkspaceMutation(ws.id);
+
+      localStorage.removeItem("active-workspace-storage");
       setShowDeleteModal(false);
     } catch (error) {
       console.error("Lỗi khi xóa workspace:", error);

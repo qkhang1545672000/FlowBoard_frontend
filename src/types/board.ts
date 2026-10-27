@@ -47,3 +47,12 @@ export interface BoardDetail extends Board {
   columns: Column[];
   members: MemberBoard[];
 }
+
+export interface UpdateBoardDto {
+  title?: string;
+  slug?: string;
+  description?: string;
+  workspaceId?: string;
+  memberIds?: string[];
+  leaderId?: string | null;
+}

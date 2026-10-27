@@ -2,25 +2,26 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Task } from "@/types/column";
-import { Clock, Lock, MoreVertical, Edit3, Trash2, AlertTriangle } from "lucide-react";
+import { Clock, Lock, MoreVertical, Edit3, Trash2 } from "lucide-react";
 import { TaskPriority } from "@/types";
-import { useBoardPermission } from "./useBoardPermission";
+import { useBoardPermission } from "../useBoardPermission";
 import { useBoardStore } from "@/store/useBoardStore";
 import { LockedUser } from "@/hooks/useBoardSocket";
 import { TaskDetailModal } from "./TaskDetailModal";
 import { AssignTaskModal } from "./AssignTaskModal";
-import { useDeleteTask, useUpdateTaskDates } from "@/hooks/useTask"; // 👈 Dùng hook cập nhật khoảng ngày/giờ mới
+import { useDeleteTask, useUpdateTaskDates } from "@/hooks/useTask";
 import { useSafeUser } from "@/hooks/useSafeUser";
-import GroupChatAvatar from "../ui/GroupChatAvatar";
+import GroupChatAvatar from "../../ui/GroupChatAvatar";
 import { useTaskPermission } from "./useTaskPermission";
 import { TaskPriorityDropdown } from "./TaskPriorityDropdown";
-import { TaskDateRangePopover } from "./TaskDateRangePopover"; // 👈 Sử dụng component chọn khoảng ngày/giờ mới
+import { TaskDateRangePopover } from "./TaskDateRangePopover";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
-import { useWorkspacePermission } from "../workspace/useWorkspacePermission";
+import { useWorkspacePermission } from "../../workspace/useWorkspacePermission";
+import { formatDateRangeDisplay } from "@/lib/took";
+import { DeleteConfirmModal } from "../../ui/DeleteConfirmModal"; // 👈 Import modal xóa riêng biệt
 
 interface Props {
   task: Task;
@@ -31,13 +32,7 @@ interface Props {
   onUpdateDueDate?: (taskId: string, date: string) => void;
 }
 
-export function TaskCard({
-  task,
-  isOverlay,
-  lockedBy,
-  onDeleteTask,
-  onUpdatePriority,
-}: Props) {
+export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -52,10 +47,9 @@ export function TaskCard({
   const user = useSafeUser();
   const { isTaskLeader } = useTaskPermission(boardId, task.id);
   const { mutate: deleteTask } = useDeleteTask(boardId);
-  const { mutate: updateTaskDates } = useUpdateTaskDates(boardId); // 👈 Khởi tạo mutation cập nhật start/due date
+  const { mutate: updateTaskDates } = useUpdateTaskDates(boardId);
   const isLockedByOther = Boolean(lockedBy && lockedBy.id !== user?.id);
   const isAssignee = isTaskLeader || user?.role === "ADMIN" || isOwn || isOwnWorkspace;
-  console.log("isOwnWorkspace", task);
   const canDrag = isAssignee && !isLockedByOther;
 
   const memberTask = task.members.map((t) => t.user);
@@ -116,7 +110,7 @@ export function TaskCard({
           </div>
         )}
 
-        {/* Nút 3 chấm & Submenu */}
+        {/* Nút 3 chấm & Submenu có thanh cuộn, không đè task dưới */}
         <div ref={menuRef} className="absolute top-2 right-2 z-20">
           <button
             type="button"
@@ -132,7 +126,7 @@ export function TaskCard({
           {isMenuOpen && (
             <div
               onMouseDown={(e) => e.stopPropagation()}
-              className="absolute right-0 mt-1 w-32 bg-slate-900 border border-slate-700 rounded-xl shadow-xl py-1 z-30 text-xs">
+              className="absolute right-0 mt-1 w-32 bg-slate-900 border border-slate-700 rounded-xl shadow-xl py-1 z-30 text-xs max-h-48 overflow-y-auto">
               <button
                 type="button"
                 onClick={(e) => {
@@ -178,19 +172,18 @@ export function TaskCard({
           {task.title}
         </h4>
 
-        {/* Thanh tiến độ */}
+        {/* Thanh tiến độ & Ngày tháng */}
         <div className="space-y-1 pt-1">
           <div className="flex justify-between items-center text-[10px] text-slate-400">
             <span>Tiến độ ({task.timeRemaining})</span>
             <div className="flex items-center gap-1.5">
               <span className="font-semibold text-slate-300">{progressValue}%</span>
 
-              {/* Nút chọn khoảng thời gian & giờ mới */}
               <div
                 onClick={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
                 onPointerDown={(e) => e.stopPropagation()}
-                className="flex items-center  ">
+                className="flex items-center">
                 <TaskDateRangePopover
                   startDate={task.startDate}
                   dueDate={task.dueDate}
@@ -206,7 +199,6 @@ export function TaskCard({
             </div>
           </div>
 
-          {/* Thanh tiến độ hiển thị đầy đủ màu sắc và không bị lỗi */}
           <div className="w-full bg-slate-700/50 h-1.5 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-300 ${
@@ -236,13 +228,10 @@ export function TaskCard({
               }}
             />
 
-            {task.dueDate && (
+            {task.dueDate && task.startDate && (
               <span className="flex items-center gap-1 text-slate-400 text-[10px]">
                 <Clock className="w-3 h-3 text-amber-400" />
-                {new Date(task.dueDate).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                })}
+                {formatDateRangeDisplay(task.startDate, task.dueDate)}
               </span>
             )}
           </div>
@@ -285,45 +274,16 @@ export function TaskCard({
         }}
       />
 
-      {/* Render Modal Xác nhận xóa */}
-      {isDeleteConfirmOpen &&
-        typeof window !== "undefined" &&
-        createPortal(
-          <div
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4 text-center">
-              <div className="w-10 h-10 bg-red-500/10 border border-red-500/20 text-red-400 rounded-full flex items-center justify-center mx-auto">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-
-              <div className="space-y-1">
-                <h3 className="text-base font-semibold text-slate-100">Xác nhận xóa</h3>
-                <p className="text-xs text-slate-400">Bạn thực sự muốn xóa task này?</p>
-              </div>
-
-              <div className="flex gap-2.5 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setIsDeleteConfirmOpen(false)}
-                  className="flex-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-xl transition-colors">
-                  Hủy
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    deleteTask(task.id);
-                    setIsDeleteConfirmOpen(false);
-                  }}
-                  className="flex-1 px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white text-xs font-medium rounded-xl transition-colors shadow-lg shadow-red-600/20">
-                  Xóa ngay
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
+      {/* Tái sử dụng DeleteConfirmModal đã tách file */}
+      <DeleteConfirmModal
+        isOpen={isDeleteConfirmOpen}
+        onClose={() => setIsDeleteConfirmOpen(false)}
+        onConfirm={() => {
+          deleteTask(task.id);
+        }}
+        title="Xác nhận xóa"
+        message="Bạn thực sự muốn xóa task này?"
+      />
     </>
   );
 }

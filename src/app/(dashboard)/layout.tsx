@@ -7,16 +7,13 @@ import { SidebarSkeleton } from "@/components/workspace/SidebarSkeleton";
 import { useWorkSpace } from "@/hooks/useWorkSpace";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { WorkspaceSlugSync } from "@/components/workspace/WorkspaceSlugSync";
-import { BoardSlugSync } from "@/components/board/BoardSlugSync";
-import { useSocket } from "@/hooks/useSocket";
-import { useAuthSocket } from "@/hooks/useAuthSocket";
+
 import { useAuthStore } from "@/store/useAuthStore";
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const activeWorkspaceSlug = useWorkspaceStore((state) => state.activeWorkspaceSlug);
 
   // 👉 Lấy ID của user hiện tại để quản lý trạng thái online
-  const userCurrent = useAuthStore((state) => state.user);
 
   // 👉 Kết nối socket và kích hoạt presence cho toàn bộ layout workspace
 
@@ -29,7 +26,6 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
       {/* 1. Các component xử lý đồng bộ URL ngầm (Workspace và Board Slug -> ID) */}
       <Suspense fallback={null}>
         <WorkspaceSlugSync />
-        <BoardSlugSync />
       </Suspense>
 
       {/* 2. Sidebar */}

@@ -6,7 +6,7 @@ import WorkspaceHome from "@/components/home/workspaceHome";
 
 export default function Home() {
   // Dữ liệu mẫu danh sách Workspaces
-
+  console.log("helll22");
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100 font-sans">
       {/* KHU VỰC NỘI DUNG CHÍNH (Glassmorphism Main Dashboard) */}

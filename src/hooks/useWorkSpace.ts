@@ -33,7 +33,8 @@ export const useWorkspaceDetail = (workspaceId: string) => {
   return useQuery<WorkspaceDetailResponse>({
     queryKey: ["workspace", workspaceId], // Query key bao gồm workspaceId để tự động refetch khi ID thay đổi
     queryFn: () => workSpaceService.getWorkspaceDetail(workspaceId),
-    enabled: !!workspaceId, // Chỉ chạy query khi workspaceId có giá trị (tránh gọi API khi ID bị undefined/null)
+    enabled: !!workspaceId && workspaceId !== "undefined", // Chỉ chạy query khi workspaceId có giá trị (tránh gọi API khi ID bị undefined/null)
+    retry: false,
   });
 };
 export const useCreateWorkspace = () => {
@@ -71,26 +72,26 @@ export const useCreateWorkspace = () => {
 
 export const useDeleteWorkspace = () => {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const clearWorkspace = useWorkspaceStore((state) => state.clearActiveWorkspace);
 
   return useMutation({
-    // Hàm thực thi API tạo mới
-    mutationFn: (newWorkspaceId: string) =>
-      workSpaceService.deleteWorkspace(newWorkspaceId),
+    mutationFn: (workspaceId: string) => workSpaceService.deleteWorkspace(workspaceId),
 
-    // Chạy khi API thành công
-    onSuccess: () => {
-      // Làm mới (refetch) lại danh sách workspaces để cập nhật giao diện ngay lập tức
-      // Thay "workspaces" bằng queryKey mà bạn đang dùng trong hook fetch danh sách
+    onSuccess: (_, deletedWorkspaceId) => {
+      // 1. Dọn sạch Zustand store & LocalStorage ngay lập tức
+      clearWorkspace();
+      localStorage.removeItem("active-workspace-storage");
+
+      // 🟢 2. QUAN TRỌNG: Xóa vĩnh viễn query cache của workspace vừa bị xóa khỏi RAM
+      queryClient.removeQueries({ queryKey: ["workspace", deletedWorkspaceId] });
+
+      // 3. Làm mới lại danh sách workspace chung
       queryClient.invalidateQueries({ queryKey: ["workspace"] });
-      queryClient.invalidateQueries({
-        queryKey: ["workspace-counts"],
-      });
-    },
 
-    // Chạy khi API thất bại
-    onError: (error) => {
-      console.error("Lỗi khi xóa delete workspace:", error);
-      // Bạn có thể thêm Toast notification thông báo lỗi ở đây
+      // 4. Điều hướng mượt mà về trang chủ mà không cần chớp màn hình reload
+      router.push("/");
+      router.refresh();
     },
   });
 };
@@ -99,21 +100,26 @@ export const useRemoveMemberWorkspace = (workspaceId: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    // Hàm thực thi API tạo mới
     mutationFn: ({ workspaceId, userId }: { workspaceId: string; userId: string }) =>
       workSpaceService.deleteMemberWorkspace(workspaceId, userId),
 
-    // Chạy khi API thành công
     onSuccess: () => {
-      // Làm mới (refetch) lại danh sách workspaces để cập nhật giao diện ngay lập tức
-      // Thay "workspaces" bằng queryKey mà bạn đang dùng trong hook fetch danh sách
+      // Làm mới lại dữ liệu workspace / danh sách thành viên
       queryClient.invalidateQueries({ queryKey: ["workspace", workspaceId] });
+      toast.success("Đã xóa thành viên khỏi workspace thành công!");
     },
 
-    // Chạy khi API thất bại
-    onError: (error) => {
-      console.error("Lỗi khi xóa delete workspace:", error);
-      // Bạn có thể thêm Toast notification thông báo lỗi ở đây
+    onError: (error: any) => {
+      console.error("Lỗi khi xóa thành viên:", error);
+
+      // Lấy thông báo lỗi từ Backend trả về (nếu có) hoặc dùng thông báo mặc định
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Không thể xóa thành viên này. Vui lòng kiểm tra lại!";
+
+      // Hiển thị thông báo lỗi ra giao diện cho người dùng thấy
+      toast.error(errorMessage);
     },
   });
 };

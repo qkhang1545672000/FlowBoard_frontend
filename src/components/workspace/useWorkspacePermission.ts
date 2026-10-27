@@ -11,6 +11,7 @@ export const useWorkspacePermission = (workspaceId: string) => {
   const { data: workspaceDetail, isLoading } = useWorkspaceDetail(
     activeWorkspaceId ?? "",
   );
+
   const user = useAuthStore((state) => state.user);
 
   const isOwn = useMemo(() => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Header } from "@/components/workspace/header";
 import ContentMain from "@/components/workspace/content-main";
 import { useWorkspaceDetail } from "@/hooks/useWorkSpace";
@@ -8,7 +8,10 @@ import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 
 export default function WorkspaceDashboard({ params }: { params: { slug: string } }) {
   const activeWorkspaceId = useWorkspaceStore((state) => state.activeWorkspaceId);
+
   const { data: workspaceDetail } = useWorkspaceDetail(activeWorkspaceId ?? "");
+
+  // Clear workspace khi người dùng thoát khỏi trang này (unmount)
 
   // Quản lý trạng thái Tab Nằm Ngoài Vùng Thân Main
   const [activeMainTab, setActiveMainTab] = useState<"boards" | "chat">("boards");

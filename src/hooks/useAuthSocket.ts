@@ -21,7 +21,6 @@ export const useAuthSocket = ({ socket, userId }: UseAuthSocketProps) => {
     // TH1: User ĐÃ ĐĂNG NHẬP (có userId)
     if (userId) {
       const handleConnect = () => {
-        console.log("[AuthSocket] Connected & emitting user-online:", userId);
         socket.emit("user-online", userId);
       };
 
@@ -52,8 +51,6 @@ export const useAuthSocket = ({ socket, userId }: UseAuthSocketProps) => {
     if (!socket) return;
 
     const handleStatusChanged = (data: { userId: string; isOnline: boolean }) => {
-      console.log("[AuthSocket] Status changed:", data);
-
       queryClient.setQueriesData({ queryKey: ["workspace"] }, (oldData: any) => {
         if (!oldData) return oldData;
 

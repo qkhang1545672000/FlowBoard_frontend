@@ -47,3 +47,59 @@ export function getRemainingTime(dueDate?: string): string {
   if (hours > 0) return `Còn ${hours} giờ`;
   return "Sắp đến hạn";
 }
+
+export const formatDateRangeDisplay = (
+  startDate?: string | null,
+  dueDate?: string | null,
+) => {
+  if (!dueDate) return "";
+
+  const now = new Date();
+  const end = new Date(dueDate);
+
+  // Kiểm tra nếu chỉ có dueDate (hoặc startDate không có / bằng dueDate) và trùng ngày hôm nay
+  const isToday =
+    end.getDate() === now.getDate() &&
+    end.getMonth() === now.getMonth() &&
+    end.getFullYear() === now.getFullYear();
+
+  // Nếu có cả startDate và dueDate
+  if (startDate) {
+    const start = new Date(startDate);
+
+    // Kiểm tra nếu startDate và dueDate cùng nằm trong ngày hôm nay
+    const isStartToday =
+      start.getDate() === now.getDate() &&
+      start.getMonth() === now.getMonth() &&
+      start.getFullYear() === now.getFullYear();
+
+    const isEndToday = isToday;
+
+    if (isStartToday && isEndToday) {
+      return "Hôm nay";
+    }
+
+    // Nếu khác ngày, hiển thị dạng: "Th 10 19 - Th 10 21" (hoặc format tùy ý bạn)
+    const formattedStart = start.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+    const formattedEnd = end.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+
+    // Nếu cùng 1 ngày thì chỉ hiện 1 ngày, ngược lại hiện khoảng từ - đến
+    if (formattedStart === formattedEnd) {
+      return formattedStart;
+    }
+    return `${formattedStart} - ${formattedEnd}`;
+  }
+
+  // Nếu chỉ có dueDate
+  if (isToday) {
+    return "Hôm nay";
+  }
+
+  return end.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+};

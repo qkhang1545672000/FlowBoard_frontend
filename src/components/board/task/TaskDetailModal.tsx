@@ -22,7 +22,7 @@ import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { useGetMessages, useSendMessage } from "@/hooks/useChat";
 import { useChatSocket } from "@/hooks/useChatSocket";
 import { ChatScope } from "@/services/chat.service";
-import UserAvatar from "../ui/UserAvatar";
+import UserAvatar from "../../ui/UserAvatar";
 
 interface TaskDetailModalProps {
   isOpen: boolean;

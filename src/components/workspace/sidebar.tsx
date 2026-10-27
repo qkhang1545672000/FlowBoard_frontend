@@ -14,7 +14,7 @@ import { WorkspaceResponse } from "@/types/workSpace";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { useBoardStore } from "@/store/useBoardStore";
 import { useWorkspaceDetail } from "@/hooks/useWorkSpace";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 interface SidebarProps {
   workspaces: WorkspaceResponse[];
@@ -35,7 +35,22 @@ export function Sidebar({
   const setBoardId = useBoardStore((state) => state.setActiveBoard);
   const clearActiveBoard = useBoardStore((state) => state.clearActiveBoard);
 
-  const activeWorkspaceId = useWorkspaceStore((state) => state.activeWorkspaceId) ?? "";
+  // Khai báo kiểm tra thanh địa chỉ (URL)
+  const pathname = usePathname();
+  const isInBoard = pathname ? pathname.includes("/b/") : false;
+  const isInWorkspace = pathname ? pathname.includes("/w/") : false;
+
+  // 🟢 TỰ ĐỘNG SUY DIỄN ID DỰA TRÊN URL (Chống lưu vết ID cũ gây lỗi 404)
+  const parts = pathname ? pathname.split("/") : [];
+  const wIndex = parts.indexOf("w");
+  const workspaceSlugFromUrl = wIndex !== -1 ? parts[wIndex + 1] : null;
+
+  // Tìm workspace đang khớp với URL hoặc prop hiện tại
+  const activeWorkspace = workspaces.find(
+    (ws) => ws.slug === workspaceSlugFromUrl || ws.slug === currentWorkspaceSlug,
+  );
+  const activeWorkspaceId = activeWorkspace ? activeWorkspace.id : "";
+
   const { data: workSpaceDetail } = useWorkspaceDetail(activeWorkspaceId);
   const router = useRouter();
 
@@ -104,8 +119,8 @@ export function Sidebar({
         {/* Workspaces & Boards List */}
         <div>
           <div className="space-y-1">
-            {!activeBoardId ? (
-              // Nhánh 1: Khi chưa chọn Board (Hiển thị danh sách Workspace)
+            {isInWorkspace && (
+              // Nhánh 1: Nếu thanh địa chỉ có "/w/" -> Hiển thị danh sách Workspace
               <>
                 {!isCollapsed && (
                   <div className="text-[11px] font-semibold uppercase text-slate-500 px-2 mb-2 tracking-wider whitespace-nowrap">
@@ -113,7 +128,8 @@ export function Sidebar({
                   </div>
                 )}
                 {workspaces?.map((ws) => {
-                  const isActive = currentWorkspaceSlug === ws.slug;
+                  const isActive =
+                    currentWorkspaceSlug === ws.slug || workspaceSlugFromUrl === ws.slug;
                   return (
                     <Link
                       key={ws.id}
@@ -134,8 +150,10 @@ export function Sidebar({
                   );
                 })}
               </>
-            ) : (
-              // Nhánh 2: Khi đã chọn Board (Hiển thị danh sách Board trong Workspace đó)
+            )}
+
+            {isInBoard && (
+              // Nhánh 2: Nếu thanh địa chỉ có "/b/" -> Hiển thị danh sách Board trong Workspace đó
               <>
                 {!isCollapsed && (
                   <div className="text-[11px] font-semibold uppercase text-slate-500 px-2 mb-2 tracking-wider whitespace-nowrap">

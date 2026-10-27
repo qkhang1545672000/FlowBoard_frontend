@@ -1,47 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import {
-  ChevronDown,
-  ChevronUp,
-  Loader2,
-  MoreHorizontal,
-  Plus,
-  Briefcase,
-  Users,
-} from "lucide-react";
+import { MoreHorizontal, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 
 import WorkspaceCard from "./workspaceCard";
-import CreateWorkspaceCard from "./CreateWorkspaceCard";
-import { useCreateWorkspace, useWorkSpace } from "@/hooks/useWorkSpace";
-import { useWorkspaceCounts } from "@/hooks/useWorkSpace";
-
 import WorkspaceSkeleton from "./WorkspaceSkeleton";
+import { WorkspaceTabs } from "./WorkspaceTabs";
+import { CreateWorkspaceTrigger } from "./CreateWorkspaceTrigger";
+
+import {
+  useCreateWorkspace,
+  useWorkSpace,
+  useWorkspaceCounts,
+} from "@/hooks/useWorkSpace";
 import { WorkspaceResponse } from "@/types/workSpace";
-import { formatWorkspaceSlug } from "@/lib/took";
 import { WorkspaceFilterType } from "@/services/workspace.service";
-import { useAuthStore } from "@/store/useAuthStore";
-import { useSocket } from "@/hooks/useSocket";
-import { useAuthSocket } from "@/hooks/useAuthSocket";
 
 const WorkspaceHome = () => {
   const [activeTab, setActiveTab] = useState<WorkspaceFilterType>("owned");
-  // const user = useAuthStore((state) => state.user);
-  const userCurrent = useAuthStore((state) => state.user);
 
-  const userId = userCurrent?.id;
-
-  // const socket = useSocket("/auth");
-  // useAuthSocket({ socket, userId });
   // Lấy dữ liệu phân trang cho Tab hiện tại
   const { data, isPending, isError, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useWorkSpace(10, activeTab);
 
   // Lấy tổng số lượng của cả 2 tab
   const { data: counts } = useWorkspaceCounts();
-
-  const { mutateAsync: createWorkspaceMutation } = useCreateWorkspace();
-  const [isCreating, setIsCreating] = useState(false);
 
   const workspaces = data?.pages.flatMap((page) => page.data) ?? [];
   const isExpanded = (data?.pages.length ?? 0) > 1;
@@ -55,53 +38,16 @@ const WorkspaceHome = () => {
     return <div className="p-6 text-red-400">Có lỗi xảy ra khi tải dữ liệu.</div>;
   }
 
-  const handleCreateWorkspace = async (name: string) => {
-    try {
-      const slug = formatWorkspaceSlug(name);
-      await createWorkspaceMutation({ name, slug });
-      setIsCreating(false);
-    } catch (error) {
-      // Xử lý lỗi UI nếu cần
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
   return (
     <section className="bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6 backdrop-blur-md shadow-xl space-y-6">
       {/* HEADER TABS SWITCHER */}
       <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
-        <div className="flex items-center gap-2">
-          {/* Tab 1: MY WORKSPACES */}
-          <button
-            onClick={() => setActiveTab("owned")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-              activeTab === "owned"
-                ? "bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 shadow-lg shadow-indigo-500/10"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
-            }`}>
-            <Briefcase className="w-4 h-4" />
-            <span>MY WORKSPACES</span>
-            <span className="px-2 py-0.5 rounded-full bg-slate-800 text-[10px] text-slate-300">
-              {counts?.ownedCount ?? 0}
-            </span>
-          </button>
-
-          {/* Tab 2: JOINED WORKSPACES */}
-          <button
-            onClick={() => setActiveTab("joined")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-              activeTab === "joined"
-                ? "bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
-            }`}>
-            <Users className="w-4 h-4" />
-            <span>JOINED WORKSPACES</span>
-            <span className="px-2 py-0.5 rounded-full bg-slate-800 text-[10px] text-slate-300">
-              {counts?.joinedCount ?? 0}
-            </span>
-          </button>
-        </div>
+        <WorkspaceTabs
+          activeTab={activeTab}
+          onChangeTab={setActiveTab}
+          ownedCount={counts?.ownedCount ?? 0}
+          joinedCount={counts?.joinedCount ?? 0}
+        />
 
         <button className="text-slate-400 hover:text-white p-1">
           <MoreHorizontal className="w-4 h-4" />
@@ -111,24 +57,7 @@ const WorkspaceHome = () => {
       {/* GRID CONTAINER */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Nút Tạo Mới chỉ xuất hiện ở Tab "owned" */}
-        {activeTab === "owned" && (
-          <>
-            <button
-              onClick={() => setIsCreating(true)}
-              className="bg-slate-900/30 hover:bg-slate-800/50 border border-dashed border-slate-800 hover:border-indigo-500/50 rounded-2xl p-4 flex items-center justify-center transition-all group min-h-[110px] cursor-pointer">
-              <div className="p-3 bg-slate-800/50 rounded-xl group-hover:scale-110 transition-transform">
-                <Plus className="w-5 h-5 text-slate-400 group-hover:text-indigo-400" />
-              </div>
-            </button>
-
-            {isCreating && (
-              <CreateWorkspaceCard
-                onCancel={() => setIsCreating(false)}
-                onSubmit={handleCreateWorkspace}
-              />
-            )}
-          </>
-        )}
+        {activeTab === "owned" && <CreateWorkspaceTrigger />}
 
         {/* Danh sách Workspace */}
         {workspaces.length > 0 ? (
@@ -139,7 +68,7 @@ const WorkspaceHome = () => {
           </div>
         ) : null}
 
-        {/* Nút Xem thêm / Về đầu trang (Thu lại mượt mà) */}
+        {/* Nút Xem thêm / Về đầu trang */}
         {hasNextPage ? (
           <button
             onClick={() => fetchNextPage()}
@@ -164,7 +93,6 @@ const WorkspaceHome = () => {
         ) : isExpanded ? (
           <button
             onClick={() => {
-              // Thay vì reload lại toàn bộ trang gây giật, cuộn mượt về đầu danh sách
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
             className="bg-slate-900/30 hover:bg-slate-800/60 border border-slate-800 hover:border-amber-500/50 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group min-h-[110px]">

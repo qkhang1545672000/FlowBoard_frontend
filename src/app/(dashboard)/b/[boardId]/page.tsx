@@ -28,9 +28,9 @@ import { toast } from "sonner"; // Thư viện hiển thị thông báo bong bó
 // Lấy các thành phần giao diện (UI)
 import { Header } from "@/components/workspace/header";
 import { BoardBar } from "@/components/board/board-bar";
-import { ColumnComponent } from "@/components/board/column";
-import { TaskCard } from "@/components/board/taskCard";
-import { EmptyColumnComponent } from "@/components/board/EmptyColumnComponent";
+import { ColumnComponent } from "@/components/board/column/column";
+import { TaskCard } from "@/components/board/task/taskCard";
+import { EmptyColumnComponent } from "@/components/board/column/EmptyColumnComponent";
 
 // Lấy các móc (Hooks) và kho dữ liệu chung (Stores)
 import { useBoardDetail } from "@/hooks/useBoard"; // Hook lấy chi tiết Bảng từ Server
@@ -43,7 +43,7 @@ import { useBoardSocket } from "@/hooks/useBoardSocket"; // Hook lắng nghe ng�
 // Lấy các định nghĩa kiểu dữ liệu (Types)
 import { Column, Task, ColumnLockType } from "@/types/column";
 import { useBoardPermission } from "@/components/board/useBoardPermission";
-import { useTaskPermission } from "@/components/board/useTaskPermission";
+import { useTaskPermission } from "@/components/board/task/useTaskPermission";
 import { useWorkspacePermission } from "@/components/workspace/useWorkspacePermission";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 
