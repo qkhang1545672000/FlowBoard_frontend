@@ -7,7 +7,7 @@ import { Calendar as CalendarIcon, RotateCcw } from "lucide-react";
 import { type DateRange } from "react-day-picker";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { TimePickerDropdown } from "../TimePickerDropdown";
+import { TimePickerDropdown } from "./TimePickerDropdown";
 
 interface TaskDateRangePopoverProps {
   startDate?: string | null;

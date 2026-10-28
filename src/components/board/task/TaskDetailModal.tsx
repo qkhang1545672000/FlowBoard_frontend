@@ -23,6 +23,7 @@ import { useGetMessages, useSendMessage } from "@/hooks/useChat";
 import { useChatSocket } from "@/hooks/useChatSocket";
 import { ChatScope } from "@/services/chat.service";
 import UserAvatar from "../../ui/UserAvatar";
+import { TaskChecklistTab } from "./TaskChecklistTab"; // 👈 Import component mới tách
 
 interface TaskDetailModalProps {
   isOpen: boolean;
@@ -47,6 +48,9 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
   const [inputText, setInputText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
+  // State quản lý Tab đang active ("discussion" hoặc "checklist")
+  const [activeTab, setActiveTab] = useState<"discussion" | "checklist">("discussion");
+
   // 1. Tránh SSR Mismatch khi render React Portal
   useEffect(() => {
     setMounted(true);
@@ -55,7 +59,7 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
   // 2. Kết nối Socket Realtime theo scope TASK
   const { emitSendMessage } = useChatSocket(ChatScope.TASK, task?.id || "");
 
-  // 3. Tích hợp React Query
+  // 3. Tích hợp React Query cho chat
   const { data: messagesData, isLoading: isLoadingMessages } = useGetMessages(
     ChatScope.TASK,
     task?.id || "",
@@ -84,10 +88,10 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
   };
 
   useEffect(() => {
-    if (isOpen && messages.length > 0) {
+    if (isOpen && messages.length > 0 && activeTab === "discussion") {
       scrollToBottom();
     }
-  }, [messages, isOpen]);
+  }, [messages, isOpen, activeTab]);
 
   if (!isOpen || !mounted || !task) return null;
 
@@ -162,142 +166,169 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
 
         {/* Body grid */}
         <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-          {/* CỘT TRÁI: Messenger Chat UI */}
+          {/* CỘT TRÁI: Tabs (Thảo luận / Việc cần làm) */}
           <div className="flex-1 flex flex-col border-b md:border-b-0 md:border-r border-slate-800 bg-slate-900/30 min-w-0">
-            <div className="px-4 py-2 border-b border-slate-800/80 flex items-center justify-between bg-slate-900/40 shrink-0">
-              <span className="text-xs font-medium text-slate-300">Thảo luận</span>
-              <span className="text-[11px] text-slate-500">
-                {messages.length} tin nhắn
-              </span>
-            </div>
-
-            {/* Khung tin nhắn */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
-              {isLoadingMessages ? (
-                <div className="flex h-full items-center justify-center text-slate-400 gap-2">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span className="text-xs">Đang tải tin nhắn...</span>
-                </div>
-              ) : messages.length === 0 ? (
-                <div className="flex h-full flex-col items-center justify-center text-slate-500 text-xs">
-                  Chưa có tin nhắn nào trong công việc này.
-                </div>
-              ) : (
-                messages.map((msg) => {
-                  // Lấy ID người gửi từ backend (hỗ trợ cả object sender lẫn string senderId / sender._id)
-                  const senderId = String(
-                    msg.sender?.id || msg.sender?._id || (msg as any).senderId || "",
-                  );
-
-                  // Kiểm tra tin nhắn có phải của chính mình gửi hay không
-                  const isMe = Boolean(currentUserId && senderId === currentUserId);
-
-                  const senderName = msg.sender?.name || "Người dùng";
-
-                  return (
-                    <div
-                      key={msg.id}
-                      className={`flex items-end gap-2 ${
-                        isMe ? "flex-row-reverse" : "flex-row"
-                      }`}>
-                      {/* Avatar người gửi (chỉ hiển thị nếu là tin nhắn của người khác) */}
-                      {!isMe && (
-                        <UserAvatar
-                          name={senderName}
-                          image={msg.sender?.image}
-                          type="chat"
-                          fallbackClassName="bg-indigo-600 text-xs shrink-0"
-                        />
-                      )}
-
-                      <div
-                        className={`flex flex-col max-w-[80%] ${
-                          isMe ? "items-end" : "items-start"
-                        }`}>
-                        {!isMe && (
-                          <span className="text-[10px] text-slate-400 mb-1 ml-1">
-                            {senderName}
-                          </span>
-                        )}
-
-                        <div
-                          className={`px-3.5 py-2 rounded-2xl text-xs sm:text-sm leading-relaxed break-words max-w-full ${
-                            isMe
-                              ? "bg-blue-600 text-white rounded-br-xs shadow-md"
-                              : "bg-slate-800 text-slate-100 rounded-bl-xs border border-slate-700/60"
-                          }`}>
-                          {msg.content}
-
-                          {msg.attachments && msg.attachments.length > 0 && (
-                            <div className="mt-2 space-y-1.5">
-                              {msg.attachments.map((att, idx) => (
-                                <div
-                                  key={idx}
-                                  className={`flex items-center gap-2 p-2 rounded-lg text-xs ${
-                                    isMe
-                                      ? "bg-blue-700/60 text-white"
-                                      : "bg-slate-900/80 text-slate-200"
-                                  }`}>
-                                  <FileText className="w-4 h-4 shrink-0 text-amber-400" />
-                                  <span className="truncate font-medium">
-                                    {att.name || "Tập tin đính kèm"}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        <span className="text-[9px] text-slate-500 mt-1 px-1">
-                          {new Date(msg.createdAt).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Form Soạn Tin nhắn */}
-            <form
-              onSubmit={handleSendMessage}
-              className="p-3 border-t border-slate-800 bg-slate-900/80 shrink-0">
-              <div className="flex items-center gap-1.5 bg-slate-800/80 border border-slate-700/70 rounded-full px-3 py-1 focus-within:border-blue-500 transition-colors">
-                <label className="cursor-pointer p-1.5 text-slate-400 hover:text-blue-400 transition-colors">
-                  <Paperclip className="w-4 h-4" />
-                  <input type="file" className="hidden" onChange={handleFileUpload} />
-                </label>
-
+            {/* Header Tabs */}
+            <div className="px-4 py-2.5 border-b border-slate-800/80 flex items-center justify-between bg-slate-900/40 shrink-0">
+              <div className="flex items-center gap-6">
                 <button
-                  type="button"
-                  className="p-1.5 text-slate-400 hover:text-blue-400 transition-colors">
-                  <ImageIcon className="w-4 h-4" />
+                  onClick={() => setActiveTab("discussion")}
+                  className={`text-xs font-medium pb-0.5 transition-colors relative ${
+                    activeTab === "discussion"
+                      ? "text-indigo-400 font-semibold"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}>
+                  Thảo luận ({messages.length} tin nhắn)
+                  {activeTab === "discussion" && (
+                    <span className="absolute -bottom-2.5 left-0 right-0 h-0.5 bg-indigo-500 rounded-full" />
+                  )}
                 </button>
 
-                <input
-                  type="text"
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  placeholder="Viết tin nhắn..."
-                  className="flex-1 bg-transparent text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none px-2 min-w-0"
-                />
-
                 <button
-                  type="submit"
-                  disabled={!inputText.trim() || sendMessageMutation.isPending}
-                  className="p-1.5 sm:p-2 rounded-full bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white transition-all shrink-0">
-                  {sendMessageMutation.isPending ? (
-                    <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  onClick={() => setActiveTab("checklist")}
+                  className={`text-xs font-medium pb-0.5 transition-colors relative ${
+                    activeTab === "checklist"
+                      ? "text-indigo-400 font-semibold"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}>
+                  Việc cần làm
+                  {activeTab === "checklist" && (
+                    <span className="absolute -bottom-2.5 left-0 right-0 h-0.5 bg-indigo-500 rounded-full" />
                   )}
                 </button>
               </div>
-            </form>
+            </div>
+
+            {/* CONTENT TAB 1: THẢO LUẬN */}
+            {activeTab === "discussion" && (
+              <>
+                {/* Khung tin nhắn */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
+                  {isLoadingMessages ? (
+                    <div className="flex h-full items-center justify-center text-slate-400 gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span className="text-xs">Đang tải tin nhắn...</span>
+                    </div>
+                  ) : messages.length === 0 ? (
+                    <div className="flex h-full flex-col items-center justify-center text-slate-500 text-xs">
+                      Chưa có tin nhắn nào trong công việc này.
+                    </div>
+                  ) : (
+                    messages.map((msg) => {
+                      const senderId = String(
+                        msg.sender?.id || msg.sender?._id || (msg as any).senderId || "",
+                      );
+                      const isMe = Boolean(currentUserId && senderId === currentUserId);
+                      const senderName = msg.sender?.name || "Người dùng";
+
+                      return (
+                        <div
+                          key={msg.id}
+                          className={`flex items-end gap-2 ${
+                            isMe ? "flex-row-reverse" : "flex-row"
+                          }`}>
+                          {!isMe && (
+                            <UserAvatar
+                              name={senderName}
+                              image={msg.sender?.image}
+                              type="chat"
+                              fallbackClassName="bg-indigo-600 text-xs shrink-0"
+                            />
+                          )}
+
+                          <div
+                            className={`flex flex-col max-w-[80%] ${
+                              isMe ? "items-end" : "items-start"
+                            }`}>
+                            {!isMe && (
+                              <span className="text-[10px] text-slate-400 mb-1 ml-1">
+                                {senderName}
+                              </span>
+                            )}
+
+                            <div
+                              className={`px-3.5 py-2 rounded-2xl text-xs sm:text-sm leading-relaxed break-words max-w-full ${
+                                isMe
+                                  ? "bg-blue-600 text-white rounded-br-xs shadow-md"
+                                  : "bg-slate-800 text-slate-100 rounded-bl-xs border border-slate-700/60"
+                              }`}>
+                              {msg.content}
+
+                              {msg.attachments && msg.attachments.length > 0 && (
+                                <div className="mt-2 space-y-1.5">
+                                  {msg.attachments.map((att, idx) => (
+                                    <div
+                                      key={idx}
+                                      className={`flex items-center gap-2 p-2 rounded-lg text-xs ${
+                                        isMe
+                                          ? "bg-blue-700/60 text-white"
+                                          : "bg-slate-900/80 text-slate-200"
+                                      }`}>
+                                      <FileText className="w-4 h-4 shrink-0 text-amber-400" />
+                                      <span className="truncate font-medium">
+                                        {att.name || "Tập tin đính kèm"}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            <span className="text-[9px] text-slate-500 mt-1 px-1">
+                              {new Date(msg.createdAt).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                {/* Form Soạn Tin nhắn */}
+                <form
+                  onSubmit={handleSendMessage}
+                  className="p-3 border-t border-slate-800 bg-slate-900/80 shrink-0">
+                  <div className="flex items-center gap-1.5 bg-slate-800/80 border border-slate-700/70 rounded-full px-3 py-1 focus-within:border-blue-500 transition-colors">
+                    <label className="cursor-pointer p-1.5 text-slate-400 hover:text-blue-400 transition-colors">
+                      <Paperclip className="w-4 h-4" />
+                      <input type="file" className="hidden" onChange={handleFileUpload} />
+                    </label>
+
+                    <button
+                      type="button"
+                      className="p-1.5 text-slate-400 hover:text-blue-400 transition-colors">
+                      <ImageIcon className="w-4 h-4" />
+                    </button>
+
+                    <input
+                      type="text"
+                      value={inputText}
+                      onChange={(e) => setInputText(e.target.value)}
+                      placeholder="Viết tin nhắn..."
+                      className="flex-1 bg-transparent text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none px-2 min-w-0"
+                    />
+
+                    <button
+                      type="submit"
+                      disabled={!inputText.trim() || sendMessageMutation.isPending}
+                      className="p-1.5 sm:p-2 rounded-full bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white transition-all shrink-0">
+                      {sendMessageMutation.isPending ? (
+                        <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                      ) : (
+                        <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+
+            {/* CONTENT TAB 2: VIỆC CẦN LÀM (Gọi từ file riêng) */}
+            {activeTab === "checklist" && <TaskChecklistTab />}
           </div>
 
           {/* CỘT PHẢI: Info Task & Files */}
