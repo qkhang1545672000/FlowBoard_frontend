@@ -13,14 +13,23 @@ interface TaskDateRangePopoverProps {
   startDate?: string | null;
   dueDate?: string | null;
   onUpdateDates: (startDate: string | null, dueDate: string | null) => void;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function TaskDateRangePopover({
   startDate,
   dueDate,
   onUpdateDates,
+  isOpen: propIsOpen,
+  onOpenChange: propOnOpenChange,
 }: TaskDateRangePopoverProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [stateIsOpen, setStateIsOpen] = useState(false);
+  const isOpen = propIsOpen !== undefined ? propIsOpen : stateIsOpen;
+  const setIsOpen = (val: boolean) => {
+    setStateIsOpen(val);
+    propOnOpenChange?.(val);
+  };
 
   const [showAdvancedTime, setShowAdvancedTime] = useState<boolean>(() => {
     if (!startDate && !dueDate) return false;
@@ -160,10 +169,11 @@ export function TaskDateRangePopover({
       </PopoverTrigger>
 
       <PopoverContent
-        className={`absolute top-[-200px] left-[49px] p-3 bg-slate-900 border border-slate-700 text-slate-100 shadow-xl rounded-xl z-[99999] transition-all duration-200 ${
+        className={`p-3 bg-slate-900 border border-slate-700 text-slate-100 shadow-xl rounded-xl z-[99999] transition-all duration-200 ${
           showAdvancedTime ? "w-[430px]" : "w-[300px]"
         }`}
         align="start"
+        sideOffset={8}
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}>
         {/* Bố cục chính */}

@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useRef } from "react";
 import { createPortal } from "react-dom";
 import { Flame, Zap, ChevronDown } from "lucide-react";
 import { TaskPriority } from "@/types";
@@ -11,14 +12,24 @@ interface TaskPriorityDropdownProps {
   priority: TaskPriority;
   taskId: string;
   onUpdatePriority?: (priority: TaskPriority) => void;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function TaskPriorityDropdown({
   priority,
   taskId,
   onUpdatePriority,
+  isOpen: propIsOpen,
+  onOpenChange: propOnOpenChange,
 }: TaskPriorityDropdownProps) {
-  const [isOpen, setIsOpen] = React.useState(false);
+  const [stateIsOpen, setStateIsOpen] = React.useState(false);
+  const isOpen = propIsOpen !== undefined ? propIsOpen : stateIsOpen;
+  const setIsOpen = (val: boolean) => {
+    setStateIsOpen(val);
+    propOnOpenChange?.(val);
+  };
+
   const [menuPosition, setMenuPosition] = React.useState<{
     top: number;
     left: number;
@@ -119,7 +130,7 @@ export function TaskPriorityDropdown({
 
       setMenuPosition({ top, left, placement });
     }
-    setIsOpen((prev) => !prev);
+    setIsOpen(!isOpen);
   };
 
   return (
@@ -167,7 +178,13 @@ export function TaskPriorityDropdown({
                   onClick={(e) => {
                     e.stopPropagation();
                     updateTaskPriority({ taskId, priority: opt.value });
-                    setIsOpen(false);
+                    if (onUpdatePriority) {
+                      onUpdatePriority(opt.value);
+                    }
+                    // 🟢 Dùng setTimeout nhỏ để nhường luồng render cho TaskCard cập nhật lại trạng thái chuột
+                    setTimeout(() => {
+                      setIsOpen(false);
+                    }, 50);
                   }}
                   className={`w-full text-left px-3 py-1.5 flex items-center gap-2 font-medium transition-colors ${opt.color} ${
                     priority === opt.value ? "bg-slate-800/80 font-bold" : ""

@@ -129,7 +129,7 @@ export function ColumnComponent({ column, isOverlay }: Props) {
       <div
         ref={setCombinedRef}
         style={style}
-        className={`group w-80 bg-slate-900/70 border border-slate-800 rounded-2xl p-3.5 flex flex-col max-h-full backdrop-blur-md shrink-0 relative ${
+        className={`group w-80  bg-slate-900/70 border border-slate-800 rounded-2xl p-2 flex flex-col max-h-[80vh] backdrop-blur-md shrink-0 relative ${
           isDragging ? "opacity-30 border-dashed border-indigo-500" : ""
         } ${isOverlay ? "ring-2 ring-indigo-500 shadow-2xl scale-105" : ""}`}>
         {/* Header Cột */}
@@ -182,11 +182,16 @@ export function ColumnComponent({ column, isOverlay }: Props) {
 
         {/* Nút thêm Card */}
         {!isCreatingTask && (
-          <button
-            onClick={() => setIsCreatingTask(true)}
-            className="mb-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2 w-full py-2 bg-slate-800/40 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl text-xs font-medium border border-dashed border-slate-700">
-            <Plus className="w-3.5 h-3.5" /> Add Card
-          </button>
+          <div className="grid grid-rows-[0fr] group-hover:grid-rows-[1fr] transition-all duration-200 overflow-hidden">
+            <div className="min-h-0">
+              <button
+                type="button"
+                onClick={() => setIsCreatingTask(true)}
+                className="mb-3 flex items-center justify-center gap-2 w-full py-2 bg-slate-800/40 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl text-xs font-medium border border-dashed border-slate-700 transition-colors">
+                <Plus className="w-3.5 h-3.5" /> Add Card
+              </button>
+            </div>
+          </div>
         )}
 
         {/* Form Tạo Card */}
@@ -202,7 +207,7 @@ export function ColumnComponent({ column, isOverlay }: Props) {
         />
 
         {/* Danh sách Task */}
-        <div className="space-y-3 overflow-y-auto pr-1 flex-1 min-h-[60px]">
+        <div className="flex-1 min-h-0 h-75 overflow-y-auto pr-1 pl-1 space-y-3">
           <SortableContext items={tasksIds} strategy={verticalListSortingStrategy}>
             {column.tasks && column.tasks.length > 0 ? (
               column.tasks.map((task) => <TaskCard key={task.id} task={task} />)

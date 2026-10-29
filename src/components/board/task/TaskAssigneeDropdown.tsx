@@ -3,6 +3,7 @@
 import React, { useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Check } from "lucide-react";
+import { TaskMember } from "@/types/column";
 
 interface Member {
   id: string;
@@ -13,9 +14,9 @@ interface Member {
 interface TaskAssigneeDropdownProps {
   isOpen: boolean;
   onClose: () => void;
-  members: Member[];
+  members: TaskMember[];
   currentAssignee?: string;
-  onSelect: (memberName: string) => void;
+  onSelect: (memberId: string) => void;
   coords: { top: number; left: number }; // Nhận tọa độ vị trí nút bấm
 }
 
@@ -59,13 +60,13 @@ export function TaskAssigneeDropdown({
       </div>
       <div className="max-h-40 overflow-y-auto space-y-1">
         {members.map((member) => {
-          const isSelected = currentAssignee === member.name;
+          const isSelected = currentAssignee === member.user.name;
           return (
             <button
               key={member.id}
               type="button"
               onClick={() => {
-                onSelect(member.name);
+                onSelect(member.user.id);
                 onClose();
               }}
               className={`w-full flex items-center justify-between p-2 rounded-lg transition-colors text-left ${
@@ -75,9 +76,9 @@ export function TaskAssigneeDropdown({
               }`}>
               <div className="flex items-center gap-2">
                 <div className="w-5 h-5 rounded-full bg-indigo-500/20 flex items-center justify-center text-[10px] text-indigo-300 font-bold">
-                  {member.name.charAt(0)}
+                  {member.user.name.charAt(0)}
                 </div>
-                <span className="truncate">{member.name}</span>
+                <span className="truncate">{member.user.name}</span>
               </div>
               {isSelected && <Check className="w-3.5 h-3.5" />}
             </button>

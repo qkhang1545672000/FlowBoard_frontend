@@ -2,135 +2,347 @@
 
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Clock, X } from "lucide-react";
+import { Clock, X, Check } from "lucide-react";
+import { type DateRange } from "react-day-picker";
+import { Calendar } from "@/components/ui/calendar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 
 interface TaskSubtaskDatePickerProps {
   isOpen: boolean;
   onClose: () => void;
   startDate?: string | null;
   dueDate?: string | null;
+  taskStartDate?: string | null; // Ngày bắt đầu của Task cha
+  taskDueDate?: string | null; // Deadline của Task cha
   onSave: (startDate: string | null, dueDate: string | null) => void;
 }
-
-const formatToDatetimeLocal = (dateString?: string | null): string => {
-  if (!dateString) return "";
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) return "";
-
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
-};
 
 export function TaskSubtaskDatePicker({
   isOpen,
   onClose,
   startDate,
   dueDate,
+  taskStartDate,
+  taskDueDate,
   onSave,
 }: TaskSubtaskDatePickerProps) {
-  const [start, setStart] = useState<string>(formatToDatetimeLocal(startDate));
-  const [end, setEnd] = useState<string>(formatToDatetimeLocal(dueDate));
+  // State khoảng thời gian (Range)
+  const [range, setRange] = useState<DateRange | undefined>(() => ({
+    from: startDate ? new Date(startDate) : new Date(),
+    to: dueDate ? new Date(dueDate) : undefined,
+  }));
+
+  // State chọn Giờ Bắt Đầu & Giờ Kết Thúc
+  const [startTime, setStartTime] = useState<string>(() => {
+    const d = startDate ? new Date(startDate) : new Date();
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  });
+
+  const [endTime, setEndTime] = useState<string>(() => {
+    const d = dueDate ? new Date(dueDate) : new Date();
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  });
+
+  // State xác định tab giờ đang tương tác ("start" hoặc "end")
+  const [activeTab, setActiveTab] = useState<"start" | "end">("start");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    setStart(formatToDatetimeLocal(startDate));
-    setEnd(formatToDatetimeLocal(dueDate));
-  }, [startDate, dueDate]);
+    if (startDate || dueDate) {
+      setRange({
+        from: startDate ? new Date(startDate) : new Date(),
+        to: dueDate ? new Date(dueDate) : undefined,
+      });
+      if (startDate) {
+        const d = new Date(startDate);
+        setStartTime(
+          `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`,
+        );
+      }
+      if (dueDate) {
+        const d = new Date(dueDate);
+        setEndTime(
+          `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`,
+        );
+      }
+    } else {
+      setRange({ from: new Date(), to: undefined });
+    }
+    setErrorMsg(null);
+  }, [startDate, dueDate, isOpen]);
 
   if (!isOpen) return null;
 
+  // 🟢 Chuẩn hóa giới hạn thời gian của Task cha
+  const getNormalizedTaskLimits = () => {
+    const minLimit = taskStartDate ? new Date(taskStartDate) : null;
+    let maxLimit = taskDueDate ? new Date(taskDueDate) : null;
+
+    // Nếu taskDueDate là 00:00:00 (mặc định ngày thuần), giãn ra cuối ngày (23:59:59)
+    if (
+      maxLimit &&
+      maxLimit.getHours() === 0 &&
+      maxLimit.getMinutes() === 0 &&
+      maxLimit.getSeconds() === 0
+    ) {
+      maxLimit.setHours(23, 59, 59, 999);
+    }
+    return { minLimit, maxLimit };
+  };
+
+  // Danh sách khung giờ (cách nhau 30 phút)
+  const timeSlots = Array.from({ length: 48 }, (_, i) => {
+    const totalMinutes = i * 30;
+    const hour = Math.floor(totalMinutes / 60);
+    const minute = totalMinutes % 60;
+    return `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+  });
+
+  // Kiểm tra mốc giờ có hợp lệ hay không theo từng ngày trong range và giới hạn task cha
+  const isTimeSlotDisabled = (timeStr: string, type: "start" | "end") => {
+    const activeDate = type === "start" ? range?.from : range?.to || range?.from;
+    if (!activeDate) return true;
+
+    const [h, m] = timeStr.split(":").map(Number);
+    const candidateDate = new Date(activeDate);
+    candidateDate.setHours(h, m, 0, 0);
+
+    const { minLimit, maxLimit } = getNormalizedTaskLimits();
+
+    // 1. So với giới hạn Task cha
+    if (minLimit && candidateDate < minLimit) return true;
+    if (maxLimit && candidateDate > maxLimit) return true;
+
+    // 2. Nếu ngày bắt đầu và ngày kết thúc trùng nhau, giờ bắt đầu không lớn hơn giờ kết thúc
+    const effectiveTo = range?.to || range?.from;
+    const isSameDay =
+      range?.from &&
+      effectiveTo &&
+      new Date(range.from).toDateString() === new Date(effectiveTo).toDateString();
+
+    if (isSameDay) {
+      const [startH, startM] = startTime.split(":").map(Number);
+      const [endH, endM] = endTime.split(":").map(Number);
+      const candidateMinutes = h * 60 + m;
+
+      if (type === "start") {
+        const endMinutes = endH * 60 + endM;
+        if (candidateMinutes > endMinutes) return true;
+      } else {
+        const startMinutes = startH * 60 + startM;
+        if (candidateMinutes < startMinutes) return true;
+      }
+    }
+
+    return false;
+  };
+
   const handleSave = () => {
-    onSave(
-      start ? new Date(start).toISOString() : null,
-      end ? new Date(end).toISOString() : null,
-    );
+    setErrorMsg(null);
+    if (!range?.from) {
+      setErrorMsg("Vui lòng chọn ngày bắt đầu!");
+      return;
+    }
+
+    const [startH, startM] = startTime.split(":").map(Number);
+    const finalStart = new Date(range.from);
+    finalStart.setHours(startH || 0, startM || 0, 0, 0);
+
+    const targetTo = range.to || range.from;
+    const [endH, endM] = endTime.split(":").map(Number);
+    const finalEnd = new Date(targetTo);
+    finalEnd.setHours(endH || 23, endM || 59, 59, 999);
+
+    const { minLimit, maxLimit } = getNormalizedTaskLimits();
+
+    if (minLimit && finalStart < minLimit) {
+      setErrorMsg(
+        `Ngày bắt đầu không được trước Task cha (${new Date(taskStartDate!).toLocaleString("vi-VN")})`,
+      );
+      return;
+    }
+    if (maxLimit && finalEnd > maxLimit) {
+      setErrorMsg(
+        `Deadline không được vượt quá Task cha (${new Date(taskDueDate!).toLocaleString("vi-VN")})`,
+      );
+      return;
+    }
+    if (finalStart > finalEnd) {
+      setErrorMsg("Thời gian bắt đầu không được lớn hơn hạn chót!");
+      return;
+    }
+
+    onSave(finalStart.toISOString(), finalEnd.toISOString());
     onClose();
   };
 
   const handleClear = () => {
-    setStart("");
-    setEnd("");
+    setErrorMsg(null);
+    setRange(undefined);
     onSave(null, null);
     onClose();
   };
 
   return createPortal(
     <>
-      {/* Lớp nền trong suốt tuyệt đối: click ra ngoài chỉ đóng popup này, giữ nguyên modal cha */}
+      {/* Lớp nền tối mờ */}
       <div
-        className="fixed inset-0 z-[99998] bg-transparent"
+        className="fixed inset-0 z-[99998] bg-slate-950/70 backdrop-blur-xs"
         onClick={(e) => {
           e.stopPropagation();
           onClose();
         }}
       />
 
-      {/* Khung modal được canh giữa màn hình */}
+      {/* Khung Modal căn giữa */}
       <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 pointer-events-none">
         <div
-          className="pointer-events-auto bg-slate-900 border border-slate-700 rounded-2xl p-4 w-80 shadow-2xl space-y-4 text-slate-100 animate-in fade-in zoom-in-95 duration-150"
+          className="pointer-events-auto bg-slate-900 border border-slate-700/80 rounded-2xl w-[560px] shadow-2xl overflow-hidden text-slate-100 animate-in fade-in zoom-in-95 duration-150 flex flex-col"
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}>
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-            <h4 className="text-xs font-semibold flex items-center gap-1.5 text-indigo-400">
-              <Clock className="w-4 h-4" /> Thời gian công việc con
+          <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
+            <h4 className="text-sm font-semibold flex items-center gap-2 text-indigo-400">
+              <Clock className="w-4 h-4" /> Khoảng thời gian công việc con
             </h4>
             <button
               type="button"
               onClick={onClose}
-              className="text-slate-400 hover:text-slate-200 p-1 rounded-lg transition-colors">
+              className="text-slate-400 hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-800 transition-colors">
               <X className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Inputs */}
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <label className="text-[10px] font-medium text-slate-400">
-                Bắt đầu (Ngày & Giờ)
-              </label>
-              <input
-                type="datetime-local"
-                value={start}
-                onChange={(e) => setStart(e.target.value)}
-                style={{ colorScheme: "dark" }}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+          {/* Thông báo lỗi */}
+          {errorMsg && (
+            <div className="mx-5 mt-4 bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-2.5 rounded-xl">
+              {errorMsg}
+            </div>
+          )}
+
+          {/* Nội dung chính */}
+          <div className="relative flex flex-col sm:flex-row p-5 gap-5">
+            {/* Cột Lịch chọn Range */}
+            <div className="flex justify-center flex-1">
+              <Calendar
+                mode="range"
+                selected={range}
+                onSelect={setRange}
+                defaultMonth={range?.from}
+                disabled={(date) => {
+                  const { minLimit, maxLimit } = getNormalizedTaskLimits();
+                  if (minLimit) {
+                    const minD = new Date(minLimit);
+                    minD.setHours(0, 0, 0, 0);
+                    if (date < minD) return true;
+                  }
+                  if (maxLimit) {
+                    const maxD = new Date(maxLimit);
+                    maxD.setHours(23, 59, 59, 999);
+                    if (date > maxD) return true;
+                  }
+                  return false;
+                }}
+                classNames={{
+                  day_range_start:
+                    "bg-indigo-600 text-white rounded-l-xl rounded-r-none relative z-10 font-bold",
+                  day_range_end:
+                    "bg-indigo-600 text-white rounded-r-xl rounded-l-none relative z-10 font-bold",
+                  day_range_middle: "bg-slate-800/80 text-slate-200 rounded-none",
+                  day_selected: "bg-indigo-600 text-white rounded-xl",
+                  day: "h-9 w-9 p-0 font-normal aria-selected:opacity-100 rounded-xl",
+                }}
+                className="bg-transparent p-0 text-sm text-slate-200"
               />
             </div>
 
-            <div className="space-y-1">
-              <label className="text-[10px] font-medium text-slate-400">
-                Hết hạn / Deadline (Ngày & Giờ)
-              </label>
-              <input
-                type="datetime-local"
-                value={end}
-                onChange={(e) => setEnd(e.target.value)}
-                style={{ colorScheme: "dark" }}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
-              />
+            {/* Cột chọn Giờ phong cách danh sách Button */}
+            <div className="w-full sm:w-44 border-t sm:border-t-0 sm:border-l border-slate-800 pl-0 sm:pl-5 flex flex-col">
+              {/* Tab Bắt đầu / Hết hạn */}
+              <div className="flex items-center bg-slate-950/60 p-1 rounded-xl mb-3 border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("start")}
+                  className={`flex-1 py-1.5 text-[11px] font-medium rounded-lg transition-all ${
+                    activeTab === "start"
+                      ? "bg-indigo-600 text-white shadow"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}>
+                  Bắt đầu
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("end")}
+                  className={`flex-1 py-1.5 text-[11px] font-medium rounded-lg transition-all ${
+                    activeTab === "end"
+                      ? "bg-amber-600 text-white shadow"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}>
+                  Hết hạn
+                </button>
+              </div>
+
+              {/* Danh sách các nút giờ */}
+              <ScrollArea className="h-60 pr-2">
+                <div className="flex flex-col gap-2">
+                  {timeSlots.map((time) => {
+                    const currentTime = activeTab === "start" ? startTime : endTime;
+                    const isDisabled = isTimeSlotDisabled(time, activeTab);
+                    const isSelected = currentTime === time;
+
+                    return (
+                      <Button
+                        key={`${activeTab}-${time}`}
+                        type="button"
+                        disabled={isDisabled}
+                        variant={isSelected ? "default" : "outline"}
+                        onClick={() => {
+                          if (!isDisabled) {
+                            if (activeTab === "start") setStartTime(time);
+                            else setEndTime(time);
+                          }
+                        }}
+                        className={`w-full justify-center text-xs font-mono h-10 shadow-none rounded-xl transition-all ${
+                          isDisabled
+                            ? "opacity-30 cursor-not-allowed line-through bg-slate-900/20 border-slate-800 text-slate-600"
+                            : isSelected
+                              ? activeTab === "start"
+                                ? "bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-600 font-bold shadow-lg shadow-indigo-600/20"
+                                : "bg-amber-600 hover:bg-amber-500 text-white border-amber-600 font-bold shadow-lg shadow-amber-600/20"
+                              : "bg-slate-800/60 hover:bg-slate-800 text-slate-200 border-slate-700/80"
+                        }`}>
+                        {time}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
             </div>
           </div>
 
           {/* Footer Actions */}
-          <div className="flex items-center gap-2 pt-2">
+          <div className="flex items-center justify-between border-t border-slate-800 px-5 py-4 bg-slate-950/40">
             <button
               type="button"
               onClick={handleClear}
-              className="px-3 py-1.5 bg-slate-800 hover:bg-red-500/10 text-red-400 text-xs font-medium rounded-xl transition-colors">
+              className="px-3.5 py-2 bg-slate-800 hover:bg-red-500/15 text-red-400 text-xs font-medium rounded-xl transition-colors border border-slate-700/50">
               Xóa lịch
             </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              className="flex-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-xl transition-colors shadow-lg shadow-indigo-600/20">
-              Lưu
-            </button>
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-xl transition-colors border border-slate-700/50">
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition-colors shadow-lg shadow-indigo-600/25 flex items-center gap-1.5">
+                <Check className="w-3.5 h-3.5" /> Lưu
+              </button>
+            </div>
           </div>
         </div>
       </div>

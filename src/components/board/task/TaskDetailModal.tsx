@@ -328,7 +328,7 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
             )}
 
             {/* CONTENT TAB 2: VIỆC CẦN LÀM (Gọi từ file riêng) */}
-            {activeTab === "checklist" && <TaskChecklistTab />}
+            {activeTab === "checklist" && <TaskChecklistTab task={task} />}
           </div>
 
           {/* CỘT PHẢI: Info Task & Files */}
