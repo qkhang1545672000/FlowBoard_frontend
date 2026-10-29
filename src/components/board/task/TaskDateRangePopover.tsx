@@ -47,17 +47,16 @@ export function TaskDateRangePopover({
     to: dueDate ? new Date(dueDate) : addDays(new Date(), 1),
   }));
 
+  // 🟢 Đã sửa: Lấy chính xác số phút thực tế, không ép làm tròn chia 5
   const parseDateToTime12 = (dateObj: Date) => {
     const h24 = dateObj.getHours();
     const m = dateObj.getMinutes();
     const periodVal = h24 >= 12 ? "PM" : "AM";
     let h12 = h24 % 12;
     if (h12 === 0) h12 = 12;
-    const roundedM = Math.round(m / 5) * 5;
-    const finalM = roundedM === 60 ? 50 : roundedM;
     return {
       hour: String(h12).padStart(2, "0"),
-      minute: String(finalM).padStart(2, "0"),
+      minute: String(m).padStart(2, "0"), // Lấy chuẩn số phút (ví dụ: 04, 15, 30...)
       period: periodVal,
     };
   };

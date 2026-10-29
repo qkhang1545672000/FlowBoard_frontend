@@ -38,35 +38,6 @@ export const taskService = {
       throw error;
     }
   },
-  updateTaskPriority: async (taskId: string, Priority: TaskPriority): Promise<Task> => {
-    try {
-      const response = await axiosInstance.patch<Task>(`/api/v1/tasks/${taskId}`, {
-        priority: Priority,
-      });
-
-      return response.data;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      console.error("Lỗi updateAssign (Server):", error?.response?.data || error.message);
-      throw error;
-    }
-  },
-
-  updateTaskDates: async (
-    taskId: string,
-    dates: { startDate?: string | null; dueDate?: string | null },
-  ): Promise<Task> => {
-    try {
-      const response = await axiosInstance.patch<Task>(`/api/v1/tasks/${taskId}`, dates);
-      return response.data;
-    } catch (error: any) {
-      console.error(
-        "Lỗi updateTaskDates (Server):",
-        error?.response?.data || error.message,
-      );
-      throw error;
-    }
-  },
 
   updateAssign: async (
     taskId: string,
@@ -83,6 +54,26 @@ export const taskService = {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error("Lỗi updateAssign (Server):", error?.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  updateTask: async (
+    taskId: string,
+    data:
+      | Partial<Task>
+      | {
+          priority?: TaskPriority;
+          startDate?: string | null;
+          dueDate?: string | null;
+          isCompleted?: boolean;
+        },
+  ): Promise<Task> => {
+    try {
+      const response = await axiosInstance.patch<Task>(`/api/v1/tasks/${taskId}`, data);
+      return response.data;
+    } catch (error: any) {
+      console.error("Lỗi updateTask (Server):", error?.response?.data || error.message);
       throw error;
     }
   },

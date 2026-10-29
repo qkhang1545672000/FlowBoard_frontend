@@ -108,43 +108,29 @@ export const useUpdateAssignTask = (boardId: string) => {
   });
 };
 
-export const useUpdateTaskPriority = (boardId: string) => {
+export const useUpdateTask = (boardId: string) => {
   const queryClient = useQueryClient();
-  // const socket = useSocket();
-  return useMutation({
-    mutationFn: ({ taskId, priority }: { taskId: string; priority: TaskPriority }) =>
-      taskService.updateTaskPriority(taskId, priority),
-    onSuccess: (newTask: Task) => {
-      // Tự động refetch lại API Workspace Detail để cập nhật danh sách Board mới
-      queryClient.invalidateQueries({
-        queryKey: ["board", boardId],
-      });
-      // if (socket && boardId) {
-      //   socket.emit("create-task", {
-      //     boardId,
-      //     columnId: newTask.columnId,
-      //     newTask: newTask,
-      //   });
-      // }
-    },
-  });
-};
 
-export const useUpdateTaskDates = (boardId: string) => {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
       taskId,
-      startDate,
-      dueDate,
+      ...payload
     }: {
       taskId: string;
+      priority?: TaskPriority;
       startDate?: string | null;
       dueDate?: string | null;
-    }) => taskService.updateTaskDates(taskId, { startDate, dueDate }),
-    onSuccess: () => {
+      isCompleted?: boolean;
+      [key: string]: any;
+    }) => taskService.updateTask(taskId, payload),
+
+    onSuccess: (_, task) => {
+      // Tự động refetch lại Board data
       queryClient.invalidateQueries({
         queryKey: ["board", boardId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["subtasks", task.taskId],
       });
     },
   });

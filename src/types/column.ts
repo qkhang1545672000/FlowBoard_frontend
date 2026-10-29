@@ -20,6 +20,7 @@ export interface Task {
   labels: Label[];
   dueDate?: string; // Ngày hết hạn (nếu có)
   startDate: string;
+  isCompleted: boolean;
   members: TaskMember[];
   progress: number;
   timeRemaining: string;
@@ -39,7 +40,14 @@ export interface TaskMember {
 
 export interface createTask extends Omit<
   Task,
-  "createdAt" | "timeRemaining" | "progress" | "position" | "members" | "id" | "labels"
+  | "createdAt"
+  | "timeRemaining"
+  | "progress"
+  | "position"
+  | "members"
+  | "id"
+  | "labels"
+  | "isCompleted"
 > {
   labelIds?: string[]; // Dùng dấu ? để cho phép string[] | undefined
 }
@@ -59,7 +67,7 @@ export interface Column {
   tasks: Task[];
 }
 
-export interface CreateColumn extends Omit<Column, "id" | "tasks"> {
+export interface CreateColumn extends Omit<Column, "id" | "tasks" | "position"> {
   boardId?: string;
 }
 // Nếu bạn muốn dùng trực tiếp kiểu dữ liệu mảng các cột

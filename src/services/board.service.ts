@@ -27,7 +27,7 @@ export const boardService = {
   getBoardDetailByBoardId: async (boardId: string): Promise<BoardDetail> => {
     try {
       const response = await axiosInstance.get<BoardDetail>(`/api/v1/boards/${boardId}`);
-
+      console.log("ffffff", response.data);
       return response.data;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {

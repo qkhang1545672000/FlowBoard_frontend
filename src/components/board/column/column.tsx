@@ -117,7 +117,6 @@ export function ColumnComponent({ column, isOverlay }: Props) {
       title,
       boardId,
       lock_type: ColumnLockType.UNLOCKED,
-      position: 1000.0,
     }); // Gọi API tạo cột mới
     setIsCreatingColumn(false);
   };

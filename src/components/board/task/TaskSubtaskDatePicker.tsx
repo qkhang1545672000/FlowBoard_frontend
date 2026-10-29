@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Clock, X, Check } from "lucide-react";
 import { type DateRange } from "react-day-picker";
@@ -18,6 +18,14 @@ interface TaskSubtaskDatePickerProps {
   onSave: (startDate: string | null, dueDate: string | null) => void;
 }
 
+// 🟢 Hàm parse ngày an toàn, xử lý chuẩn múi giờ Local
+const parseDateSafe = (dateStr?: string | null) => {
+  if (!dateStr) return null;
+  if (dateStr instanceof Date) return new Date(dateStr);
+  const parsed = new Date(dateStr);
+  return isNaN(parsed.getTime()) ? null : parsed;
+};
+
 export function TaskSubtaskDatePicker({
   isOpen,
   onClose,
@@ -29,42 +37,46 @@ export function TaskSubtaskDatePicker({
 }: TaskSubtaskDatePickerProps) {
   // State khoảng thời gian (Range)
   const [range, setRange] = useState<DateRange | undefined>(() => ({
-    from: startDate ? new Date(startDate) : new Date(),
-    to: dueDate ? new Date(dueDate) : undefined,
+    from: startDate ? parseDateSafe(startDate) || new Date() : new Date(),
+    to: dueDate ? parseDateSafe(dueDate) || undefined : undefined,
   }));
 
   // State chọn Giờ Bắt Đầu & Giờ Kết Thúc
   const [startTime, setStartTime] = useState<string>(() => {
-    const d = startDate ? new Date(startDate) : new Date();
+    const d = startDate ? parseDateSafe(startDate) || new Date() : new Date();
     return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
   });
 
   const [endTime, setEndTime] = useState<string>(() => {
-    const d = dueDate ? new Date(dueDate) : new Date();
+    const d = dueDate ? parseDateSafe(dueDate) || new Date() : new Date();
     return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
   });
 
-  // State xác định tab giờ đang tương tác ("start" hoặc "end")
   const [activeTab, setActiveTab] = useState<"start" | "end">("start");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // 🟢 Ref để trỏ đến nút giờ đang được chọn nhằm tự động scroll tới
+  const selectedButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (startDate || dueDate) {
       setRange({
-        from: startDate ? new Date(startDate) : new Date(),
-        to: dueDate ? new Date(dueDate) : undefined,
+        from: startDate ? parseDateSafe(startDate) || new Date() : new Date(),
+        to: dueDate ? parseDateSafe(dueDate) || undefined : undefined,
       });
       if (startDate) {
-        const d = new Date(startDate);
-        setStartTime(
-          `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`,
-        );
+        const d = parseDateSafe(startDate);
+        if (d)
+          setStartTime(
+            `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`,
+          );
       }
       if (dueDate) {
-        const d = new Date(dueDate);
-        setEndTime(
-          `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`,
-        );
+        const d = parseDateSafe(dueDate);
+        if (d)
+          setEndTime(
+            `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`,
+          );
       }
     } else {
       setRange({ from: new Date(), to: undefined });
@@ -72,49 +84,64 @@ export function TaskSubtaskDatePicker({
     setErrorMsg(null);
   }, [startDate, dueDate, isOpen]);
 
+  // 🟢 Tự động cuộn đến vị trí giờ đang chọn khi mở modal hoặc chuyển tab/đổi giờ
+  useEffect(() => {
+    if (isOpen) {
+      // Dùng setTimeout nhỏ để đảm bảo DOM của ScrollArea đã render xong
+      const timer = setTimeout(() => {
+        selectedButtonRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, activeTab, startTime, endTime]);
+
   if (!isOpen) return null;
 
-  // 🟢 Chuẩn hóa giới hạn thời gian của Task cha
+  // 🟢 Chuẩn hóa giới hạn Task cha
   const getNormalizedTaskLimits = () => {
-    const minLimit = taskStartDate ? new Date(taskStartDate) : null;
-    let maxLimit = taskDueDate ? new Date(taskDueDate) : null;
+    const minLimit = parseDateSafe(taskStartDate);
+    let maxLimit = parseDateSafe(taskDueDate);
 
-    // Nếu taskDueDate là 00:00:00 (mặc định ngày thuần), giãn ra cuối ngày (23:59:59)
     if (
       maxLimit &&
       maxLimit.getHours() === 0 &&
       maxLimit.getMinutes() === 0 &&
       maxLimit.getSeconds() === 0
     ) {
-      maxLimit.setHours(23, 59, 59, 999);
+      maxLimit.setHours(23, 59, 0, 0);
     }
     return { minLimit, maxLimit };
   };
 
-  // Danh sách khung giờ (cách nhau 30 phút)
-  const timeSlots = Array.from({ length: 48 }, (_, i) => {
-    const totalMinutes = i * 30;
-    const hour = Math.floor(totalMinutes / 60);
-    const minute = totalMinutes % 60;
+  // 🟢 Danh sách khung giờ chi tiết từng phút (1440 phút trong ngày)
+  const timeSlots = Array.from({ length: 1440 }, (_, i) => {
+    const hour = Math.floor(i / 60);
+    const minute = i % 60;
     return `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
   });
 
-  // Kiểm tra mốc giờ có hợp lệ hay không theo từng ngày trong range và giới hạn task cha
+  // Kiểm tra mốc giờ có hợp lệ không
   const isTimeSlotDisabled = (timeStr: string, type: "start" | "end") => {
     const activeDate = type === "start" ? range?.from : range?.to || range?.from;
     if (!activeDate) return true;
 
     const [h, m] = timeStr.split(":").map(Number);
-    const candidateDate = new Date(activeDate);
-    candidateDate.setHours(h, m, 0, 0);
+    const candidateMinutes = h * 60 + m;
 
     const { minLimit, maxLimit } = getNormalizedTaskLimits();
 
-    // 1. So với giới hạn Task cha
-    if (minLimit && candidateDate < minLimit) return true;
-    if (maxLimit && candidateDate > maxLimit) return true;
+    if (minLimit && activeDate.toDateString() === minLimit.toDateString()) {
+      const minMinutes = minLimit.getHours() * 60 + minLimit.getMinutes();
+      if (candidateMinutes < minMinutes) return true;
+    }
+    if (maxLimit && activeDate.toDateString() === maxLimit.toDateString()) {
+      const maxMinutes = maxLimit.getHours() * 60 + maxLimit.getMinutes();
+      if (candidateMinutes > maxMinutes) return true;
+    }
 
-    // 2. Nếu ngày bắt đầu và ngày kết thúc trùng nhau, giờ bắt đầu không lớn hơn giờ kết thúc
     const effectiveTo = range?.to || range?.from;
     const isSameDay =
       range?.from &&
@@ -124,7 +151,6 @@ export function TaskSubtaskDatePicker({
     if (isSameDay) {
       const [startH, startM] = startTime.split(":").map(Number);
       const [endH, endM] = endTime.split(":").map(Number);
-      const candidateMinutes = h * 60 + m;
 
       if (type === "start") {
         const endMinutes = endH * 60 + endM;
@@ -152,23 +178,73 @@ export function TaskSubtaskDatePicker({
     const targetTo = range.to || range.from;
     const [endH, endM] = endTime.split(":").map(Number);
     const finalEnd = new Date(targetTo);
-    finalEnd.setHours(endH || 23, endM || 59, 59, 999);
+    finalEnd.setHours(endH || 23, endM || 59, 0, 0);
 
     const { minLimit, maxLimit } = getNormalizedTaskLimits();
 
-    if (minLimit && finalStart < minLimit) {
-      setErrorMsg(
-        `Ngày bắt đầu không được trước Task cha (${new Date(taskStartDate!).toLocaleString("vi-VN")})`,
-      );
-      return;
+    if (minLimit && finalStart.toDateString() === minLimit.toDateString()) {
+      const startMin = startH * 60 + startM;
+      const minLimitMin = minLimit.getHours() * 60 + minLimit.getMinutes();
+      if (startMin < minLimitMin) {
+        setErrorMsg(
+          `Ngày bắt đầu không được trước Task cha (${new Date(taskStartDate!).toLocaleString("vi-VN")})`,
+        );
+        return;
+      }
     }
-    if (maxLimit && finalEnd > maxLimit) {
-      setErrorMsg(
-        `Deadline không được vượt quá Task cha (${new Date(taskDueDate!).toLocaleString("vi-VN")})`,
-      );
-      return;
+
+    if (maxLimit && finalEnd.toDateString() === maxLimit.toDateString()) {
+      const endMin = endH * 60 + endM;
+      const maxLimitMin = maxLimit.getHours() * 60 + maxLimit.getMinutes();
+      if (endMin > maxLimitMin) {
+        setErrorMsg(
+          `Deadline không được vượt quá Task cha (${new Date(taskDueDate!).toLocaleString("vi-VN")})`,
+        );
+        return;
+      }
     }
-    if (finalStart > finalEnd) {
+
+    if (minLimit) {
+      const startDayOnly = new Date(
+        finalStart.getFullYear(),
+        finalStart.getMonth(),
+        finalStart.getDate(),
+      );
+      const minDayOnly = new Date(
+        minLimit.getFullYear(),
+        minLimit.getMonth(),
+        minLimit.getDate(),
+      );
+      if (startDayOnly < minDayOnly) {
+        setErrorMsg(
+          `Ngày bắt đầu không được trước Task cha (${new Date(taskStartDate!).toLocaleString("vi-VN")})`,
+        );
+        return;
+      }
+    }
+
+    if (maxLimit) {
+      const endDayOnly = new Date(
+        finalEnd.getFullYear(),
+        finalEnd.getMonth(),
+        finalEnd.getDate(),
+      );
+      const maxDayOnly = new Date(
+        maxLimit.getFullYear(),
+        maxLimit.getMonth(),
+        maxLimit.getDate(),
+      );
+      if (endDayOnly > maxDayOnly) {
+        setErrorMsg(
+          `Deadline không được vượt quá Task cha (${new Date(taskDueDate!).toLocaleString("vi-VN")})`,
+        );
+        return;
+      }
+    }
+
+    const startTotalMin = finalStart.getTime();
+    const endTotalMin = finalEnd.getTime();
+    if (startTotalMin > endTotalMin) {
       setErrorMsg("Thời gian bắt đầu không được lớn hơn hạn chót!");
       return;
     }
@@ -239,7 +315,7 @@ export function TaskSubtaskDatePicker({
                   }
                   if (maxLimit) {
                     const maxD = new Date(maxLimit);
-                    maxD.setHours(23, 59, 59, 999);
+                    maxD.setHours(23, 59, 0, 0);
                     if (date > maxD) return true;
                   }
                   return false;
@@ -257,7 +333,7 @@ export function TaskSubtaskDatePicker({
               />
             </div>
 
-            {/* Cột chọn Giờ phong cách danh sách Button */}
+            {/* Cột chọn Giờ phong cách danh sách Button (Từng phút) */}
             <div className="w-full sm:w-44 border-t sm:border-t-0 sm:border-l border-slate-800 pl-0 sm:pl-5 flex flex-col">
               {/* Tab Bắt đầu / Hết hạn */}
               <div className="flex items-center bg-slate-950/60 p-1 rounded-xl mb-3 border border-slate-800">
@@ -294,6 +370,7 @@ export function TaskSubtaskDatePicker({
                     return (
                       <Button
                         key={`${activeTab}-${time}`}
+                        ref={isSelected ? selectedButtonRef : null} // 🟢 Gán ref cho nút đang được chọn
                         type="button"
                         disabled={isDisabled}
                         variant={isSelected ? "default" : "outline"}

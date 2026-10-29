@@ -1,14 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import ReactDOM from "react-dom";
 import { Clock, Check } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 const hours = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
-const minutes = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"));
+const minutes = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
 const periods = ["AM", "PM"];
 
 interface TimePickerDropdownProps {
@@ -31,6 +31,11 @@ export function TimePickerDropdown({
   } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
+  // 🟢 Tạo các ref lưu trữ vị trí của các nút đang được chọn trong từng cột
+  const selectedHourRef = useRef<HTMLButtonElement>(null);
+  const selectedMinuteRef = useRef<HTMLButtonElement>(null);
+  const selectedPeriodRef = useRef<HTMLButtonElement>(null);
+
   const handleOpen = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!isOpen) {
@@ -47,24 +52,45 @@ export function TimePickerDropdown({
     setIsOpen(!isOpen);
   };
 
+  // 🟢 Tự động cuộn đến vị trí đang chọn ngay khi dropdown mở ra
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        selectedHourRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        selectedMinuteRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+        selectedPeriodRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
   const columns = [
     {
       label: "Hour",
       options: hours,
       value: tempTime.hour,
       key: "hour" as const,
+      selectedRef: selectedHourRef,
     },
     {
       label: "Minute",
       options: minutes,
       value: tempTime.minute,
       key: "minute" as const,
+      selectedRef: selectedMinuteRef,
     },
     {
       label: "Period",
       options: periods,
       value: tempTime.period,
       key: "period" as const,
+      selectedRef: selectedPeriodRef,
     },
   ];
 
@@ -131,6 +157,7 @@ export function TimePickerDropdown({
                           return (
                             <button
                               key={option}
+                              ref={selected ? column.selectedRef : null} // 🟢 Gán ref cho nút đang được chọn
                               type="button"
                               role="option"
                               aria-selected={selected}

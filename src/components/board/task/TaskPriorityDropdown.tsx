@@ -5,7 +5,7 @@ import React, { useRef } from "react";
 import { createPortal } from "react-dom";
 import { Flame, Zap, ChevronDown } from "lucide-react";
 import { TaskPriority } from "@/types";
-import { useUpdateTaskPriority } from "@/hooks/useTask";
+import { useUpdateTask, useUpdateTaskPriority } from "@/hooks/useTask";
 import { useBoardStore } from "@/store/useBoardStore";
 
 interface TaskPriorityDropdownProps {
@@ -38,7 +38,7 @@ export function TaskPriorityDropdown({
   const boardId = useBoardStore((state) => state.activeBoardId) ?? "";
   const priorityBtnRef = useRef<HTMLButtonElement>(null);
 
-  const { mutate: updateTaskPriority } = useUpdateTaskPriority(boardId);
+  const { mutate: updateTaskPriority } = useUpdateTask(boardId);
   const getPriorityConfig = (p: TaskPriority) => {
     switch (p) {
       case TaskPriority.URGENT:

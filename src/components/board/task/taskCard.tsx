@@ -12,7 +12,7 @@ import { useBoardStore } from "@/store/useBoardStore";
 import { LockedUser } from "@/hooks/useBoardSocket";
 import { TaskDetailModal } from "./TaskDetailModal";
 import { AssignTaskModal } from "./AssignTaskModal";
-import { useDeleteTask, useUpdateTaskDates } from "@/hooks/useTask";
+import { useDeleteTask, useUpdateTask } from "@/hooks/useTask";
 import { useSafeUser } from "@/hooks/useSafeUser";
 import GroupChatAvatar from "../../ui/GroupChatAvatar";
 import { useTaskPermission } from "./useTaskPermission";
@@ -47,9 +47,11 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
   const [isPriorityOpen, setIsPriorityOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
+  // Cập nhật lại state khi task thay đổi từ props
+
   const enterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const leaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const cardRef = useRef<HTMLDivElement>(null); // 👈 Thêm ref quản lý thẻ div chính
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -60,7 +62,7 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
   const user = useSafeUser();
   const { isTaskLeader } = useTaskPermission(boardId, task.id);
   const { mutate: deleteTask } = useDeleteTask(boardId);
-  const { mutate: updateTaskDates } = useUpdateTaskDates(boardId);
+  const { mutate: updateTaskDates } = useUpdateTask(boardId);
   const isLockedByOther = Boolean(lockedBy && lockedBy.id !== user?.id);
   const isAssignee = isTaskLeader || user?.role === "ADMIN" || isOwn || isOwnWorkspace;
   const canDrag = isAssignee && !isLockedByOther;
@@ -81,14 +83,9 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
     };
   }, [isMenuOpen]);
 
-  // 🟢 Kiểm tra nếu menu priority vừa đóng mà chuột nằm ngoài thẻ thì lập tức thu gọn
   useEffect(() => {
     if (!isPriorityOpen) {
       if (cardRef.current) {
-        const rect = cardRef.current.getBoundingClientRect();
-        // Lấy tọa độ chuột hiện tại qua sự kiện hoặc kiểm tra nếu chuột không nằm trong rect của card
-        const isMouseInside = window.matchMedia("(pointer: coarse)").matches || false; // Nếu mobile thì bỏ qua
-        // Đơn giản hóa bằng cách cho phép kích hoạt lại bộ đếm leave khi đóng dropdown
         if (leaveTimeoutRef.current) clearTimeout(leaveTimeoutRef.current);
         leaveTimeoutRef.current = setTimeout(() => {
           setIsHovered(false);
@@ -114,7 +111,6 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
       disabled: !canDrag,
     });
 
-  // Gắn kết ref nội bộ với setNodeRef của dnd-kit
   const combinedRef = (node: HTMLDivElement | null) => {
     setNodeRef(node);
     cardRef.current = node;
@@ -125,7 +121,8 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
     transform: CSS.Translate.toString(transform),
   };
 
-  const progressValue = Math.round(task.progress ?? 0);
+  // 🟢 Nếu hoàn thành thì ép tiến độ thành 100%, ngược lại lấy giá trị gốc của task
+  const progressValue = task.isCompleted ? 100 : Math.round(task.progress ?? 0);
 
   const isExpanded =
     isHovered ||
@@ -192,14 +189,18 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
         {!isExpanded && (
           <>
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
                 <div
                   className={`w-6 h-2 rounded-sm shrink-0 ${priorityColorMap[task.priority] || "bg-slate-600"}`}
                   title={`Priority: ${task.priority}`}
                 />
-                <h4 className="text-xs font-medium text-slate-100 truncate">
+                {/* 🟢 Dùng truncate kết hợp min-w-0 để tự động ... khi dài quá */}
+                <h4 className="text-xs font-medium text-slate-100 truncate line-clamp-5 max-w-[100px]">
                   {task.title}
                 </h4>
+                <div className="flex justify-between items-center text-[10px] text-slate-400">
+                  ({task.timeRemaining})
+                </div>
               </div>
               <div
                 onClick={(e) => {
@@ -223,13 +224,15 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
             <div className="w-full bg-slate-700/50 h-1.5 rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-300 ${
-                  progressValue >= 70
-                    ? "bg-red-600 shadow-sm shadow-red-500/50"
-                    : progressValue >= 50
-                      ? "bg-amber-500"
-                      : progressValue >= 30
+                  task.isCompleted
+                    ? "bg-emerald-500 shadow-sm shadow-emerald-500/50"
+                    : progressValue >= 70
+                      ? "bg-red-600 shadow-sm shadow-red-500/50"
+                      : progressValue >= 50
                         ? "bg-amber-500"
-                        : "bg-sky-500"
+                        : progressValue >= 30
+                          ? "bg-amber-500"
+                          : "bg-sky-500"
                 }`}
                 style={{ width: `${Math.max(progressValue, 4)}%` }}
               />
@@ -330,13 +333,15 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
               <div className="w-full bg-slate-700/50 h-1.5 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-300 ${
-                    progressValue >= 70
-                      ? "bg-red-600 shadow-sm shadow-red-500/50"
-                      : progressValue >= 50
-                        ? "bg-amber-500"
-                        : progressValue >= 30
+                    task.isCompleted
+                      ? "bg-emerald-500 shadow-sm shadow-emerald-500/50"
+                      : progressValue >= 70
+                        ? "bg-red-600 shadow-sm shadow-red-500/50"
+                        : progressValue >= 50
                           ? "bg-amber-500"
-                          : "bg-sky-500"
+                          : progressValue >= 30
+                            ? "bg-amber-500"
+                            : "bg-sky-500"
                   }`}
                   style={{ width: `${Math.max(progressValue, 4)}%` }}
                 />

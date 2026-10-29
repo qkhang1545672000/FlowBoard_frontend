@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -14,6 +15,7 @@ import {
   User as UserIcon,
   Tag,
   Loader2,
+  Check,
 } from "lucide-react";
 import { Task } from "@/types/column";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -23,12 +25,14 @@ import { useGetMessages, useSendMessage } from "@/hooks/useChat";
 import { useChatSocket } from "@/hooks/useChatSocket";
 import { ChatScope } from "@/services/chat.service";
 import UserAvatar from "../../ui/UserAvatar";
-import { TaskChecklistTab } from "./TaskChecklistTab"; // 👈 Import component mới tách
+import { TaskChecklistTab } from "./TaskChecklistTab";
+import { useUpdateTask } from "@/hooks/useTask";
 
 interface TaskDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   task: Task;
+  onComplete?: (isCompleted: boolean) => void;
 }
 
 interface UploadedFile {
@@ -39,11 +43,20 @@ interface UploadedFile {
   uploadedAt: string;
 }
 
-export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps) {
+export function TaskDetailModal({
+  isOpen,
+  onClose,
+  task,
+  onComplete,
+}: TaskDetailModalProps) {
   const [mounted, setMounted] = useState(false);
   const user = useAuthStore((state) => state.user);
   const boardId = useBoardStore((state) => state.activeBoardId) ?? "";
   const workspaceId = useWorkspaceStore((state) => state.activeWorkspaceId) ?? "";
+  const leader = task.members.find((i) => i.role === "TASK_LEADER");
+
+  // 🟢 Tích hợp hook update task tổng quát
+  const { mutate: updateTask } = useUpdateTask(boardId);
 
   const [inputText, setInputText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -51,10 +64,14 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
   // State quản lý Tab đang active ("discussion" hoặc "checklist")
   const [activeTab, setActiveTab] = useState<"discussion" | "checklist">("discussion");
 
+  // State quản lý trạng thái hoàn thành của task
+
   // 1. Tránh SSR Mismatch khi render React Portal
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Cập nhật lại state khi task thay đổi
 
   // 2. Kết nối Socket Realtime theo scope TASK
   const { emitSendMessage } = useChatSocket(ChatScope.TASK, task?.id || "");
@@ -157,11 +174,34 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
               <p className="text-[11px] text-slate-400">Chi tiết công việc & Thảo luận</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors shrink-0">
-            <X className="w-5 h-5" />
-          </button>
+
+          <div className="flex items-center gap-2">
+            {/* Nút Hoàn thành / Đã hoàn thành */}
+            <button
+              type="button"
+              onClick={() => {
+                // 🟢 Gọi API update lên server thông qua hook tổng quát
+                updateTask({
+                  taskId: task.id,
+                  isCompleted: !task.isCompleted,
+                });
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shadow-sm cursor-pointer shrink-0 ${
+                task.isCompleted
+                  ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+                  : "bg-indigo-600 hover:bg-indigo-500 text-white"
+              }`}>
+              <Check className="w-4 h-4" />
+              <span>{task.isCompleted ? "Đã hoàn thành" : "Hoàn thành"}</span>
+            </button>
+
+            {/* Nút Đóng Modal */}
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors shrink-0">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Body grid */}
@@ -230,7 +270,7 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
                           {!isMe && (
                             <UserAvatar
                               name={senderName}
-                              image={msg.sender?.image}
+                              avatarUrl={msg.sender?.image}
                               type="chat"
                               fallbackClassName="bg-indigo-600 text-xs shrink-0"
                             />
@@ -327,7 +367,7 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
               </>
             )}
 
-            {/* CONTENT TAB 2: VIỆC CẦN LÀM (Gọi từ file riêng) */}
+            {/* CONTENT TAB 2: VIỆC CẦN LÀM */}
             {activeTab === "checklist" && <TaskChecklistTab task={task} />}
           </div>
 
@@ -341,10 +381,10 @@ export function TaskDetailModal({ isOpen, onClose, task }: TaskDetailModalProps)
               <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3 space-y-2.5 text-xs">
                 <div className="flex justify-between items-center gap-2">
                   <span className="text-slate-400 flex items-center gap-1.5 shrink-0">
-                    <UserIcon className="w-3.5 h-3.5" /> Người thực hiện:
+                    <UserIcon className="w-3.5 h-3.5" /> Nhóm trưởng:
                   </span>
                   <span className="font-medium text-slate-200 truncate">
-                    {task.assignee ? task.assignee.name : "Chưa giao"}
+                    {leader ? leader.user.name : "Chưa giao"}
                   </span>
                 </div>
 
