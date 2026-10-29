@@ -13,12 +13,11 @@ interface TaskSubtaskDatePickerProps {
   onClose: () => void;
   startDate?: string | null;
   dueDate?: string | null;
-  taskStartDate?: string | null; // Ngày bắt đầu của Task cha
-  taskDueDate?: string | null; // Deadline của Task cha
+  taskStartDate?: string | null;
+  taskDueDate?: string | null;
   onSave: (startDate: string | null, dueDate: string | null) => void;
 }
 
-// 🟢 Hàm parse ngày an toàn, xử lý chuẩn múi giờ Local
 const parseDateSafe = (dateStr?: string | null) => {
   if (!dateStr) return null;
   if (dateStr instanceof Date) return new Date(dateStr);
@@ -35,13 +34,11 @@ export function TaskSubtaskDatePicker({
   taskDueDate,
   onSave,
 }: TaskSubtaskDatePickerProps) {
-  // State khoảng thời gian (Range)
   const [range, setRange] = useState<DateRange | undefined>(() => ({
     from: startDate ? parseDateSafe(startDate) || new Date() : new Date(),
     to: dueDate ? parseDateSafe(dueDate) || undefined : undefined,
   }));
 
-  // State chọn Giờ Bắt Đầu & Giờ Kết Thúc
   const [startTime, setStartTime] = useState<string>(() => {
     const d = startDate ? parseDateSafe(startDate) || new Date() : new Date();
     return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -55,7 +52,6 @@ export function TaskSubtaskDatePicker({
   const [activeTab, setActiveTab] = useState<"start" | "end">("start");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // 🟢 Ref để trỏ đến nút giờ đang được chọn nhằm tự động scroll tới
   const selectedButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
@@ -84,10 +80,8 @@ export function TaskSubtaskDatePicker({
     setErrorMsg(null);
   }, [startDate, dueDate, isOpen]);
 
-  // 🟢 Tự động cuộn đến vị trí giờ đang chọn khi mở modal hoặc chuyển tab/đổi giờ
   useEffect(() => {
     if (isOpen) {
-      // Dùng setTimeout nhỏ để đảm bảo DOM của ScrollArea đã render xong
       const timer = setTimeout(() => {
         selectedButtonRef.current?.scrollIntoView({
           behavior: "smooth",
@@ -100,10 +94,9 @@ export function TaskSubtaskDatePicker({
 
   if (!isOpen) return null;
 
-  // 🟢 Chuẩn hóa giới hạn Task cha
   const getNormalizedTaskLimits = () => {
     const minLimit = parseDateSafe(taskStartDate);
-    let maxLimit = parseDateSafe(taskDueDate);
+    const maxLimit = parseDateSafe(taskDueDate);
 
     if (
       maxLimit &&
@@ -116,14 +109,12 @@ export function TaskSubtaskDatePicker({
     return { minLimit, maxLimit };
   };
 
-  // 🟢 Danh sách khung giờ chi tiết từng phút (1440 phút trong ngày)
   const timeSlots = Array.from({ length: 1440 }, (_, i) => {
     const hour = Math.floor(i / 60);
     const minute = i % 60;
     return `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
   });
 
-  // Kiểm tra mốc giờ có hợp lệ không
   const isTimeSlotDisabled = (timeStr: string, type: "start" | "end") => {
     const activeDate = type === "start" ? range?.from : range?.to || range?.from;
     if (!activeDate) return true;
@@ -178,7 +169,7 @@ export function TaskSubtaskDatePicker({
     const targetTo = range.to || range.from;
     const [endH, endM] = endTime.split(":").map(Number);
     const finalEnd = new Date(targetTo);
-    finalEnd.setHours(endH || 23, endM || 59, 0, 0);
+    finalEnd.setHours(!isNaN(endH) ? endH : 23, !isNaN(endM) ? endM : 59, 0, 0);
 
     const { minLimit, maxLimit } = getNormalizedTaskLimits();
 
@@ -262,7 +253,6 @@ export function TaskSubtaskDatePicker({
 
   return createPortal(
     <>
-      {/* Lớp nền tối mờ */}
       <div
         className="fixed inset-0 z-[99998] bg-slate-950/70 backdrop-blur-xs"
         onClick={(e) => {
@@ -271,13 +261,11 @@ export function TaskSubtaskDatePicker({
         }}
       />
 
-      {/* Khung Modal căn giữa */}
       <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 pointer-events-none">
         <div
           className="pointer-events-auto bg-slate-900 border border-slate-700/80 rounded-2xl w-[560px] shadow-2xl overflow-hidden text-slate-100 animate-in fade-in zoom-in-95 duration-150 flex flex-col"
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}>
-          {/* Header */}
           <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
             <h4 className="text-sm font-semibold flex items-center gap-2 text-indigo-400">
               <Clock className="w-4 h-4" /> Khoảng thời gian công việc con
@@ -290,16 +278,13 @@ export function TaskSubtaskDatePicker({
             </button>
           </div>
 
-          {/* Thông báo lỗi */}
           {errorMsg && (
             <div className="mx-5 mt-4 bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-2.5 rounded-xl">
               {errorMsg}
             </div>
           )}
 
-          {/* Nội dung chính */}
           <div className="relative flex flex-col sm:flex-row p-5 gap-5">
-            {/* Cột Lịch chọn Range */}
             <div className="flex justify-center flex-1">
               <Calendar
                 mode="range"
@@ -333,9 +318,7 @@ export function TaskSubtaskDatePicker({
               />
             </div>
 
-            {/* Cột chọn Giờ phong cách danh sách Button (Từng phút) */}
             <div className="w-full sm:w-44 border-t sm:border-t-0 sm:border-l border-slate-800 pl-0 sm:pl-5 flex flex-col">
-              {/* Tab Bắt đầu / Hết hạn */}
               <div className="flex items-center bg-slate-950/60 p-1 rounded-xl mb-3 border border-slate-800">
                 <button
                   type="button"
@@ -359,7 +342,6 @@ export function TaskSubtaskDatePicker({
                 </button>
               </div>
 
-              {/* Danh sách các nút giờ */}
               <ScrollArea className="h-60 pr-2">
                 <div className="flex flex-col gap-2">
                   {timeSlots.map((time) => {
@@ -370,7 +352,7 @@ export function TaskSubtaskDatePicker({
                     return (
                       <Button
                         key={`${activeTab}-${time}`}
-                        ref={isSelected ? selectedButtonRef : null} // 🟢 Gán ref cho nút đang được chọn
+                        ref={isSelected ? selectedButtonRef : null}
                         type="button"
                         disabled={isDisabled}
                         variant={isSelected ? "default" : "outline"}
@@ -398,7 +380,6 @@ export function TaskSubtaskDatePicker({
             </div>
           </div>
 
-          {/* Footer Actions */}
           <div className="flex items-center justify-between border-t border-slate-800 px-5 py-4 bg-slate-950/40">
             <button
               type="button"
