@@ -65,11 +65,7 @@ export const auth = betterAuth({
       await sendVerificationEmail(user.email, user.name, verifyUrl);
     },
   },
-  defaultCookieAttributes: {
-    sameSite: "none", // RẤT QUAN TRỌNG: Cho phép gửi cookie giữa 2 domain khác nhau (Vercel -> Render)
-    secure: true, // Bắt buộc đi kèm khi sameSite = "none"
-    partitioned: true,
-  },
+
   secret: process.env.BETTER_AUTH_SECRET || "",
   baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
   basePath: "/api/auth",
@@ -123,6 +119,11 @@ export const auth = betterAuth({
   advanced: {
     database: {
       generateId: () => uuidv7(),
+    },
+    defaultCookieAttributes: {
+      sameSite: "none", // RẤT QUAN TRỌNG: Cho phép gửi cookie giữa 2 domain khác nhau (Vercel -> Render)
+      secure: true, // Bắt buộc đi kèm khi sameSite = "none"
+      partitioned: true,
     },
   },
   socialProviders: {
