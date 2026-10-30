@@ -8,6 +8,7 @@ interface Props {
   isSelected?: boolean; // Thay thế cho selectedUserId cũ
   selectedUserId?: string | null; // Giữ lại để tương thích ngược nếu cần
   setSelectedUserId?: any; // Giữ lại để tương thích ngược nếu cần
+  isLeader?: boolean;
 }
 
 const CardMember = ({ member, isSelected = false }: Props) => {

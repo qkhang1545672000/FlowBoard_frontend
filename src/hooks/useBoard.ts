@@ -24,7 +24,10 @@ export const useCreateBoard = () => {
       )?.response?.data?.message;
 
       toast.error(
-        typeof message === "string" ? message : (message?.error ?? "Sign in failed"),
+        typeof message === "string"
+          ? message
+          : // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ((error as any)?.error ?? "Đã có lỗi xảy ra"),
       );
     },
   });
@@ -57,7 +60,11 @@ export const useDeleteBoard = (workspaceId: string) => {
       )?.response?.data?.message;
 
       toast.error(
-        typeof message === "string" ? message : (message?.error ?? "Sign in failed"),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        typeof message === "string"
+          ? message
+          : // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ((error as any)?.error ?? "Đã có lỗi xảy ra"),
       );
     },
   });

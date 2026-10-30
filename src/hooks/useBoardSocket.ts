@@ -61,7 +61,7 @@ export const useBoardSocket = ({
         if (!movedTask) return prevCols;
 
         movedTask = {
-          ...movedTask,
+          ...(movedTask as any),
           columnId: data.columnId,
           position: data.position,
         };

@@ -46,6 +46,7 @@ import { useBoardPermission } from "@/components/board/useBoardPermission";
 import { useTaskPermission } from "@/components/board/task/useTaskPermission";
 import { useWorkspacePermission } from "@/components/workspace/useWorkspacePermission";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
+import { BoardVisibility } from "@/types";
 
 export default function BoardDetailPage() {
   // --------------------------------------------------------------------------
@@ -560,7 +561,7 @@ export default function BoardDetailPage() {
         <Header />
         <BoardBar
           boardTitle={boardDetail?.title ?? ""}
-          visibility={boardDetail?.visibility ?? "WORKSPACE"}
+          visibility={boardDetail?.visibility ?? BoardVisibility.WORKSPACE}
           members={[]}
           onOpenChat={() => {}}
           onOpenActivityLog={() => {}}
@@ -580,7 +581,7 @@ export default function BoardDetailPage() {
       {/* Thanh công cụ hiển thị thông tin Bảng */}
       <BoardBar
         boardTitle={boardDetail?.title ?? ""}
-        visibility={boardDetail?.visibility ?? "WORKSPACE"}
+        visibility={boardDetail?.visibility ?? BoardVisibility.WORKSPACE}
         members={[]}
         onOpenChat={() => {}}
         onOpenActivityLog={() => {}}

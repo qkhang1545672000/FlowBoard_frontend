@@ -1,3 +1,5 @@
+import { UserRole } from ".";
+
 export interface User {
   id: string;
   email: string;
@@ -6,7 +8,7 @@ export interface User {
   phone?: string | null;
   isOnline: boolean;
   emailVerified?: boolean;
-  role: string;
+  role: UserRole;
   isAnonymous?: boolean;
   birthday?: string | null;
   gender?: string | null;

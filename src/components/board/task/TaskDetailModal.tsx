@@ -256,7 +256,7 @@ export function TaskDetailModal({
                   ) : (
                     messages.map((msg) => {
                       const senderId = String(
-                        msg.sender?.id || msg.sender?._id || (msg as any).senderId || "",
+                        msg.sender?.id || msg.sender?.id || (msg as any).senderId || "",
                       );
                       const isMe = Boolean(currentUserId && senderId === currentUserId);
                       const senderName = msg.sender?.name || "Người dùng";

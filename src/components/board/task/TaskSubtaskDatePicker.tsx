@@ -18,10 +18,11 @@ interface TaskSubtaskDatePickerProps {
   onSave: (startDate: string | null, dueDate: string | null) => void;
 }
 
-const parseDateSafe = (dateStr?: string | null) => {
+const parseDateSafe = (dateStr?: string | null | Date) => {
   if (!dateStr) return null;
-  if (dateStr instanceof Date) return new Date(dateStr);
-  const parsed = new Date(dateStr);
+  if (dateStr instanceof Date) return new Date(dateStr); // Hết lỗi vì đã cho phép Date ở kiểu tham số
+
+  const parsed = new Date(dateStr as string);
   return isNaN(parsed.getTime()) ? null : parsed;
 };
 
@@ -56,6 +57,7 @@ export function TaskSubtaskDatePicker({
 
   useEffect(() => {
     if (startDate || dueDate) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRange({
         from: startDate ? parseDateSafe(startDate) || new Date() : new Date(),
         to: dueDate ? parseDateSafe(dueDate) || undefined : undefined,
@@ -306,12 +308,14 @@ export function TaskSubtaskDatePicker({
                   return false;
                 }}
                 classNames={{
-                  day_range_start:
-                    "bg-indigo-600 text-white rounded-l-xl rounded-r-none relative z-10 font-bold",
-                  day_range_end:
-                    "bg-indigo-600 text-white rounded-r-xl rounded-l-none relative z-10 font-bold",
-                  day_range_middle: "bg-slate-800/80 text-slate-200 rounded-none",
-                  day_selected: "bg-indigo-600 text-white rounded-xl",
+                  range_start:
+                    "bg-indigo-600 text-white rounded-l-xl rounded-r-none relative z-10",
+                  range_end:
+                    "bg-indigo-600 text-white rounded-r-xl rounded-l-none relative z-10",
+                  range_middle:
+                    "bg-slate-800/80 text-slate-200 rounded-none first:rounded-l-xl last:rounded-r-xl",
+                  selected:
+                    "bg-indigo-600 text-white hover:bg-indigo-600 hover:text-white focus:bg-indigo-600 focus:text-white rounded-xl",
                   day: "h-9 w-9 p-0 font-normal aria-selected:opacity-100 rounded-xl",
                 }}
                 className="bg-transparent p-0 text-sm text-slate-200"

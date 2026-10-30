@@ -5,9 +5,9 @@ import { useResendVerificationEmail } from "@/hooks/user-auth";
 import { getAuthClient } from "@/lib/auth/auth-client";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const email = searchParams.get("email");
@@ -55,9 +55,7 @@ export default function VerifyEmailPage() {
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6">
       <h1 className="text-2xl font-semibold">Xác minh email</h1>
 
-      {status === "loading" && (
-        <p className="text-muted-foreground">Đang xác minh...</p>
-      )}
+      {status === "loading" && <p className="text-muted-foreground">Đang xác minh...</p>}
 
       {(status === "ok" || status === "err") && (
         <p className={status === "ok" ? "text-green-600" : "text-destructive"}>
@@ -66,20 +64,27 @@ export default function VerifyEmailPage() {
       )}
 
       {status === "err" && email && (
-        <Button
-          disabled={isResending}
-          onClick={() => resend(email)}
-        >
+        <Button disabled={isResending} onClick={() => resend(email)}>
           {isResending ? "Đang gửi..." : "Gửi lại email xác minh"}
         </Button>
       )}
 
-      <Link
-        href="/auth/signin"
-        className={buttonVariants({ variant: "outline" })}
-      >
+      <Link href="/auth/signin" className={buttonVariants({ variant: "outline" })}>
         Quay lại đăng nhập
       </Link>
     </div>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <p className="text-muted-foreground">Đang tải trang xác minh...</p>
+        </div>
+      }>
+      <VerifyEmailContent />
+    </Suspense>
   );
 }

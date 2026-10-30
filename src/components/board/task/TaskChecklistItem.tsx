@@ -9,6 +9,7 @@ import { SubTask } from "@/services/sub-task.service"; // Hoặc đường dẫn
 interface TaskChecklistItemProps {
   item: SubTask;
   index: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   taskMembers: any[];
   taskStartDate?: string | null;
   taskDueDate?: string | null;

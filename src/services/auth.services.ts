@@ -1,4 +1,5 @@
 import { getAuthClient } from "@/lib/auth/auth-client";
+import { UserRole } from "@/types";
 
 import {
   AuthResponse,
@@ -18,7 +19,7 @@ function mapAuthUser(u: {
   image?: string | null;
   emailVerified: boolean;
   isOnline: boolean;
-  role?: string;
+  role?: UserRole;
   createdAt: Date;
   updatedAt: Date;
 }): User {
@@ -27,9 +28,9 @@ function mapAuthUser(u: {
     email: u.email,
     name: u.name,
     image: u.image ?? undefined,
-    role: u.role || "customer",
+    role: u.role || UserRole.CUSTOMER,
     emailVerified: u.emailVerified,
-    isOnline: true,
+    isOnline: u.isOnline, //
     createdAt:
       u.createdAt instanceof Date ? u.createdAt.toISOString() : String(u.createdAt),
     updatedAt:
@@ -68,7 +69,11 @@ export const authService = {
       });
     }
 
-    const user = mapAuthUser(raw);
+    const user = mapAuthUser({
+      ...raw,
+      isOnline: true, // Bổ sung trường bắt buộc còn thiếu
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
     const token = await readSessionToken();
 
     return {
@@ -120,7 +125,11 @@ export const authService = {
       });
     }
 
-    const user = mapAuthUser(raw);
+    const user = mapAuthUser({
+      ...raw,
+      isOnline: true, // Bổ sung trường bắt buộc còn thiếu
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
 
     if (user.emailVerified === false) {
       throw Object.assign(

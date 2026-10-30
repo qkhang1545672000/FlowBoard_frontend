@@ -25,7 +25,6 @@ export function EmptyColumnComponent() {
         title,
         boardId: boardId,
         lock_type: ColumnLockType.UNLOCKED,
-        position: 1000.0,
       });
       setTitle("");
       setIsCreating(false);

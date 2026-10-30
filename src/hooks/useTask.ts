@@ -42,7 +42,7 @@ export const useMoveTask = (boardId: string) => {
   return useMutation({
     mutationFn: ({ id, dto }: { id: string; dto: MoveTaskDto }) =>
       taskService.moveTask(id, dto),
-    onSuccess: () => {
+    onSuccess: (_, newColumn) => {
       // Refresh dữ liệu board sau khi di chuyển thành công
       queryClient.invalidateQueries({
         queryKey: ["board", boardId],
@@ -51,7 +51,8 @@ export const useMoveTask = (boardId: string) => {
         socket.emit("typeLock-column", {
           boardId,
           columnId: newColumn.id,
-          typeLock: newColumn.lock_type,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          typeLock: (newColumn as any).lock_type,
         });
       }
     },
@@ -121,6 +122,7 @@ export const useUpdateTask = (boardId: string) => {
       startDate?: string | null;
       dueDate?: string | null;
       isCompleted?: boolean;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       [key: string]: any;
     }) => taskService.updateTask(taskId, payload),
 

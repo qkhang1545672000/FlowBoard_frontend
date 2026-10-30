@@ -8,8 +8,6 @@ import { useWorkSpace } from "@/hooks/useWorkSpace";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { WorkspaceSlugSync } from "@/components/workspace/WorkspaceSlugSync";
 
-import { useAuthStore } from "@/store/useAuthStore";
-
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const activeWorkspaceSlug = useWorkspaceStore((state) => state.activeWorkspaceSlug);
 

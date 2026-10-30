@@ -1,4 +1,4 @@
-import { BoardMemberRole } from ".";
+import { BoardMemberRole, BoardVisibility } from ".";
 import { User } from "./api.types";
 import { Column } from "./column";
 
@@ -46,6 +46,7 @@ export interface BoardStore {
 export interface BoardDetail extends Board {
   columns: Column[];
   members: MemberBoard[];
+  visibility: BoardVisibility;
 }
 
 export interface UpdateBoardDto {

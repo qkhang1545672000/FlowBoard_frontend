@@ -64,7 +64,11 @@ export const useCreateWorkspace = () => {
       )?.response?.data?.message;
 
       toast.error(
-        typeof message === "string" ? message : (message?.error ?? "Sign in failed"),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        typeof message === "string"
+          ? message
+          : // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ((error as any)?.error ?? "Đã có lỗi xảy ra"),
       );
     },
   });
@@ -109,6 +113,7 @@ export const useRemoveMemberWorkspace = (workspaceId: string) => {
       toast.success("Đã xóa thành viên khỏi workspace thành công!");
     },
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (error: any) => {
       console.error("Lỗi khi xóa thành viên:", error);
 
@@ -198,6 +203,7 @@ export const useAcceptMemberW = () => {
     },
 
     // Chạy khi API thất bại hoặc lỗi mạng
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (error: any, token) => {
       toast.error("Bạn cần đăng ký/đăng nhập để gia nhập Workspace.");
 
@@ -242,7 +248,11 @@ export const useUpdateRoleForWorkspaceMember = (workspaceId: string) => {
       )?.response?.data?.message;
 
       toast.error(
-        typeof message === "string" ? message : (message?.error ?? "Sign in failed"),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        typeof message === "string"
+          ? message
+          : // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ((error as any)?.error ?? "Đã có lỗi xảy ra"),
       );
     },
   });

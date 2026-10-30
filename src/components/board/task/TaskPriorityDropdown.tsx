@@ -5,7 +5,7 @@ import React, { useRef } from "react";
 import { createPortal } from "react-dom";
 import { Flame, Zap, ChevronDown } from "lucide-react";
 import { TaskPriority } from "@/types";
-import { useUpdateTask, useUpdateTaskPriority } from "@/hooks/useTask";
+import { useUpdateTask } from "@/hooks/useTask";
 import { useBoardStore } from "@/store/useBoardStore";
 
 interface TaskPriorityDropdownProps {
