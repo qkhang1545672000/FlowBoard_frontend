@@ -117,6 +117,11 @@ export const auth = betterAuth({
     },
   },
   advanced: {
+    useSecureCookies: true, // Bắt buộc cho HTTPS
+    cookiePrefix: "better-auth",
+    crossSubDomainCookies: {
+      enabled: true,
+    },
     database: {
       generateId: () => uuidv7(),
     },
