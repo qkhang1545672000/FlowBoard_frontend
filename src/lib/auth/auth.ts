@@ -17,6 +17,9 @@ const pool = new Pool({
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
+  ssl: {
+    rejectUnauthorized: false, // Bắt buộc phải có dòng này để cho phép kết nối SSL lên Render
+  },
 });
 
 function getAppUrl(): string {
@@ -35,7 +38,7 @@ export const auth = betterAuth({
   plugins: [bearer(), nextCookies()],
   trustedOrigins: [
     "http://localhost:3000",
-    "https://kaban2000.vercel.app/",
+    "https://kaban2000.vercel.app",
     "http://backend-book-store-p0k1tbycx-khangtrans-projects-54426753.vercel.app",
     "https://backend-book-store-mibtvh47e-khangtrans-projects-54426753.vercel.app",
 
