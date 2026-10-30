@@ -1,28 +1,18 @@
 import axios, { AxiosError } from "axios";
+
+import { redirect } from "next/navigation";
 import { toast } from "sonner";
 
 const axiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
   timeout: 30000,
+
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// 1. Tự động đính kèm token vào mọi request gửi đi
-axiosInstance.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    // Lấy token từ localStorage (hoặc nơi bạn lưu trữ phiên đăng nhập/token của Better Auth)
-    const token = localStorage.getItem("bearer_token"); // Thay đổi key này nếu project của bạn lưu tên khác
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-  }
-  return config;
-});
-
-// 2. Xử lý response và lỗi trả về từ server
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
@@ -30,8 +20,7 @@ axiosInstance.interceptors.response.use(
       toast.error("Bạn cần đăng nhập để tiếp tục");
 
       if (typeof window !== "undefined") {
-        // Dùng window.location.href thay cho redirect() để tránh crash client-side
-        window.location.href = "/auth/signin";
+        redirect("/auth/signin");
       }
     }
 
