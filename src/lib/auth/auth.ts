@@ -60,7 +60,9 @@ export const auth = betterAuth({
     },
   },
   secret: process.env.BETTER_AUTH_SECRET || "",
-  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+  baseURL:
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "https://backend-book-store-mibtvh47e-khangtrans-projects-54426753.vercel.app",
   basePath: "/api/auth",
   user: {
     fields: {
