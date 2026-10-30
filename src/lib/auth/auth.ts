@@ -36,6 +36,7 @@ export const auth = betterAuth({
   trustedOrigins: [
     "http://localhost:3000",
     "https://backend-book-store-mibtvh47e-khangtrans-projects-54426753.vercel.app",
+    "https://backend-book-store-ntp0vkwdb-khangtrans-projects-54426753.vercel.app", // Thêm domain mới vào đây
     process.env.BETTER_AUTH_URL || "http://localhost:3000",
     process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   ],
