@@ -1,16 +1,30 @@
 import axios, { AxiosError } from "axios";
-
-import { redirect } from "next/navigation";
+import Cookies from "js-cookie";
 import { toast } from "sonner";
 
 const axiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
   timeout: 30000,
-
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
+});
+
+// Tự động lấy cookie __Secure-better-auth.session_token và nhét vào Header
+axiosInstance.interceptors.request.use((config) => {
+  if (typeof window !== "undefined") {
+    // Lấy chính xác tên cookie secure của Better Auth khi chạy trên production
+    const token =
+      Cookies.get("__Secure-better-auth.session_token") ||
+      Cookies.get("better-auth.session_token");
+
+    if (token) {
+      // Gửi dưới dạng Bearer Token để Backend trên Render đọc được dễ dàng
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
 });
 
 axiosInstance.interceptors.response.use(
@@ -20,7 +34,7 @@ axiosInstance.interceptors.response.use(
       toast.error("Bạn cần đăng nhập để tiếp tục");
 
       if (typeof window !== "undefined") {
-        redirect("/auth/signin");
+        window.location.href = "/auth/signin";
       }
     }
 
