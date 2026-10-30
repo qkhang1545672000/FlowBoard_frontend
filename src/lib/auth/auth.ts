@@ -35,6 +35,7 @@ export const auth = betterAuth({
   plugins: [bearer(), nextCookies()],
   trustedOrigins: [
     "http://localhost:3000",
+    "https://kaban2000.vercel.app/",
     "http://backend-book-store-p0k1tbycx-khangtrans-projects-54426753.vercel.app",
     "https://backend-book-store-mibtvh47e-khangtrans-projects-54426753.vercel.app",
 
