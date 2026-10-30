@@ -18,7 +18,7 @@ const pool = new Pool({
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
   ssl: {
-    rejectUnauthorized: false, // Bắt buộc phải có dòng này để cho phép kết nối SSL lên Render
+    rejectUnauthorized: false, // Bắt buộc cho Render PostgreSQL
   },
 });
 
@@ -26,7 +26,7 @@ function getAppUrl(): string {
   const raw =
     process.env.BETTER_AUTH_APP_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
-    "http://localhost:3000";
+    "https://kaban2000.vercel.app";
 
   return raw.replace(/\/+$/, "");
 }
@@ -39,36 +39,31 @@ export const auth = betterAuth({
   trustedOrigins: [
     "http://localhost:3000",
     "https://kaban2000.vercel.app",
-    "http://backend-book-store-p0k1tbycx-khangtrans-projects-54426753.vercel.app",
-    "https://backend-book-store-mibtvh47e-khangtrans-projects-54426753.vercel.app",
-
-    // Thêm domain mới vào đây
-    process.env.BETTER_AUTH_URL || "http://localhost:3000",
-    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+    process.env.BETTER_AUTH_URL || "https://kaban2000.vercel.app",
+    process.env.NEXT_PUBLIC_APP_URL || "https://kaban2000.vercel.app",
   ],
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
     sendResetPassword: async ({ user, token }) => {
       const resetPasswordUrl = `${appUrl}/auth/reset-password?token=${encodeURIComponent(token)}`;
-
       await sendPasswordResetEmail(user.email, user.name, resetPasswordUrl);
     },
   },
   emailVerification: {
     sendOnSignUp: true,
     autoSignInAfterVerification: false,
-    expiresIn: 24 * 60 * 60,
+    expiresIn: 86400, // 24 giờ (tính bằng giây)
     sendVerificationEmail: async ({ user, token }) => {
       const verifyUrl = `${appUrl}/auth/verify-email?token=${encodeURIComponent(token)}&email=${encodeURIComponent(user.email)}`;
-
       await sendVerificationEmail(user.email, user.name, verifyUrl);
     },
   },
 
   secret: process.env.BETTER_AUTH_SECRET || "",
-  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+  baseURL: process.env.BETTER_AUTH_URL || "https://flowboard-5qt4.onrender.com", // QUAN TRỌNG: baseURL phải trỏ thẳng về Backend trên Render!
   basePath: "/api/auth",
+
   user: {
     fields: {
       emailVerified: "email_verified",
@@ -84,8 +79,8 @@ export const auth = betterAuth({
     },
   },
   session: {
-    expiresIn: 60 * 60 * 24 * 7,
-    updateAge: 60 * 60 * 24,
+    expiresIn: 60 * 60 * 24 * 7, // 7 ngày
+    updateAge: 60 * 60 * 24, // 1 ngày
     fields: {
       userId: "user_id",
       expiresAt: "expires_at",
@@ -117,17 +112,14 @@ export const auth = betterAuth({
     },
   },
   advanced: {
-    useSecureCookies: true, // Bắt buộc cho HTTPS
+    useSecureCookies: true,
     cookiePrefix: "better-auth",
-    crossSubDomainCookies: {
-      enabled: true,
-    },
     database: {
       generateId: () => uuidv7(),
     },
     defaultCookieAttributes: {
-      sameSite: "none", // RẤT QUAN TRỌNG: Cho phép gửi cookie giữa 2 domain khác nhau (Vercel -> Render)
-      secure: true, // Bắt buộc đi kèm khi sameSite = "none"
+      sameSite: "none",
+      secure: true,
       partitioned: true,
     },
   },
