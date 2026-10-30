@@ -1,27 +1,28 @@
 import axios, { AxiosError } from "axios";
-import Cookies from "js-cookie";
+import { getAuthClient } from "./auth/auth-client"; // file auth client của bạn
 import { toast } from "sonner";
 
 const axiosInstance = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: process.env.NEXT_PUBLIC_API_URL, // https://flowboard-5qt4.onrender.com/api/v1
   timeout: 30000,
-  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Tự động lấy cookie __Secure-better-auth.session_token và nhét vào Header
-axiosInstance.interceptors.request.use((config) => {
+// Interceptor tự động gác token vào Header theo đúng chuẩn Bearer mà NestJS Guard đang đọc
+axiosInstance.interceptors.request.use(async (config) => {
   if (typeof window !== "undefined") {
-    // Lấy chính xác tên cookie secure của Better Auth khi chạy trên production
-    const token =
-      Cookies.get("__Secure-better-auth.session_token") ||
-      Cookies.get("better-auth.session_token");
+    try {
+      // Lấy session và token từ Better Auth Client
+      const session = await getAuthClient().getSession();
+      const token = session?.data?.session?.token;
 
-    if (token) {
-      // Gửi dưới dạng Bearer Token để Backend trên Render đọc được dễ dàng
-      config.headers.Authorization = `Bearer ${token}`;
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.error("Không lấy được session token:", error);
     }
   }
   return config;
@@ -31,21 +32,11 @@ axiosInstance.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      toast.error("Bạn cần đăng nhập để tiếp tục");
-
+      toast.error("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại");
       if (typeof window !== "undefined") {
         window.location.href = "/auth/signin";
       }
     }
-
-    if (error.response?.status === 403) {
-      toast.error("Bạn không có quyền thực hiện thao tác này");
-    }
-
-    if (!error.response) {
-      toast.error("Không kết nối được máy chủ, vui lòng thử lại sau");
-    }
-
     return Promise.reject(error);
   },
 );
