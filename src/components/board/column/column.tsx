@@ -29,6 +29,7 @@ import { ColumnLockMenu } from "./ColumnLockMenu";
 import { ColumnOptionsMenu } from "./ColumnOptionsMenu";
 import { TaskCreationForm } from "../task/TaskCreationForm";
 import { CreateColumnInput } from "./CreateColumnInput";
+import { LoadingModal } from "@/components/ui/loading-modal";
 
 interface Props {
   column: Column;
@@ -39,7 +40,7 @@ export function ColumnComponent({ column, isOverlay }: Props) {
   const boardId = useBoardStore((state) => state.activeBoardId) ?? "";
   const workspaceId = useWorkspaceStore((state) => state.activeWorkspaceId) ?? "";
 
-  const { mutate: createTask } = useCreateTask(boardId);
+  const { mutate: createTask, isPending: isPendingCreateTask } = useCreateTask(boardId);
   const { mutate: updateColumnClock } = useUpdateColumnClock(boardId);
   const { mutate: deleteColumn } = useDeleteColumn(boardId);
   const { mutate: createColumn } = useCreateColumn(boardId);
@@ -110,6 +111,15 @@ export function ColumnComponent({ column, isOverlay }: Props) {
       setIsCreatingTask(false);
     }
   };
+  if (isPendingCreateTask) {
+    return (
+      <LoadingModal
+        isOpen={isCreatingTask}
+        message="Xin chờ trong giây lát"
+        blurBackground={true}
+      />
+    );
+  }
 
   // Hàm xử lý khi submit tạo cột mới từ CreateColumnInput
   const handleCreateColumnSubmit = (title: string) => {
