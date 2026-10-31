@@ -47,6 +47,7 @@ import { useTaskPermission } from "@/components/board/task/useTaskPermission";
 import { useWorkspacePermission } from "@/components/workspace/useWorkspacePermission";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { BoardVisibility } from "@/types";
+import { LoadingModal } from "@/components/ui/loading-modal";
 
 export default function BoardDetailPage() {
   // --------------------------------------------------------------------------
@@ -552,7 +553,14 @@ export default function BoardDetailPage() {
   // 12. HIỂN THỊ MÀN HÌNH CHỜ & GIAO DIỆN CHÍNH
   // --------------------------------------------------------------------------
   // Nếu API chưa tải xong dữ liệu Bảng -> Hiển thị chữ "loading"
-  if (isLoading) return "loading";
+  if (isLoading)
+    return (
+      <LoadingModal
+        isOpen={isLoading}
+        message="Xin chờ trong giấy lát"
+        blurBackground={true}
+      />
+    );
 
   // Nếu code chưa chạy xong ở Browser -> Hiển thị khung chờ Skeleton mờ mờ
   if (!isMounted) {
