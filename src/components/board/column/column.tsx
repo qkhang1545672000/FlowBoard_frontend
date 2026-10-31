@@ -54,7 +54,7 @@ export function ColumnComponent({ column, isOverlay }: Props) {
 
   const { isOwn } = useBoardPermission(boardId);
   const { isOwn: isOwnWorkspace } = useWorkspacePermission(workspaceId);
-
+  const isPermissonCreateTask = isOwn || isOwnWorkspace;
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(0, 0, 0, 0);
@@ -190,17 +190,21 @@ export function ColumnComponent({ column, isOverlay }: Props) {
         </div>
 
         {/* Nút thêm Card */}
-        {!isCreatingTask && (
-          <div className="grid grid-rows-[0fr] group-hover:grid-rows-[1fr] transition-all duration-200 overflow-hidden">
-            <div className="min-h-0">
-              <button
-                type="button"
-                onClick={() => setIsCreatingTask(true)}
-                className="mb-3 flex items-center justify-center gap-2 w-full py-2 bg-slate-800/40 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl text-xs font-medium border border-dashed border-slate-700 transition-colors">
-                <Plus className="w-3.5 h-3.5" /> Add Card
-              </button>
+        {isPermissonCreateTask ? (
+          !isCreatingTask && (
+            <div className="grid grid-rows-[0fr] group-hover:grid-rows-[1fr] transition-all duration-200 overflow-hidden">
+              <div className="min-h-0">
+                <button
+                  type="button"
+                  onClick={() => setIsCreatingTask(true)}
+                  className="mb-3 flex items-center justify-center gap-2 w-full py-2 bg-slate-800/40 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl text-xs font-medium border border-dashed border-slate-700 transition-colors">
+                  <Plus className="w-3.5 h-3.5" /> Add Card
+                </button>
+              </div>
             </div>
-          </div>
+          )
+        ) : (
+          <div></div>
         )}
 
         {/* Form Tạo Card */}

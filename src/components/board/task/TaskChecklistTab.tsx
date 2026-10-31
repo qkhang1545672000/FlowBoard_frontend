@@ -80,9 +80,7 @@ export function TaskChecklistTab({ task }: TaskChecklistTabProps) {
             key={item.id}
             item={item}
             index={index}
-            taskMembers={task.members}
-            taskStartDate={task.startDate}
-            taskDueDate={task.dueDate}
+            task={task}
             onToggleComplete={() =>
               updateSubTaskMutation.mutate({
                 id: item.id,
