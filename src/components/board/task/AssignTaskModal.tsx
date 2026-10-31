@@ -10,6 +10,7 @@ import { useBoardDetail } from "@/hooks/useBoard";
 import { useUpdateAssignTask } from "@/hooks/useTask";
 import { User } from "@/types/api.types";
 import UserAvatar from "@/components/ui/UserAvatar";
+import { LoadingModal } from "@/components/ui/loading-modal";
 
 interface AssignTaskModalProps {
   isOpen: boolean;
@@ -28,7 +29,7 @@ export function AssignTaskModal({
 
   const boardId = useBoardStore((state) => state.activeBoardId) ?? "";
   const { data: BoardDetail } = useBoardDetail(boardId);
-  const { mutate: updateAssignTask } = useUpdateAssignTask(boardId);
+  const { mutate: updateAssignTask, isPending } = useUpdateAssignTask(boardId);
 
   // Khởi tạo danh sách các User đã chọn từ task ban đầu
   const [selectedUsers, setSelectedUsers] = useState<User[]>(() => {
@@ -84,6 +85,9 @@ export function AssignTaskModal({
     console.log("selectedUserIds:", userIds, "leaderId:", leaderId);
     updateAssignTask({ taskId: task.id, userIds, leaderId });
   };
+  if (isPending) {
+    return <LoadingModal isOpen={isPending} />;
+  }
 
   return createPortal(
     <div
