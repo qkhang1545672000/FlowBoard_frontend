@@ -107,7 +107,7 @@ export const useSignIn = (messages?: AuthToastMessages, redirectTo?: string) => 
   const router = useRouter();
   const queryClient = useQueryClient();
   const setUser = useAuthStore((state) => state.setUser); // Lấy setter của Zustand
-
+  const setToken = useAuthStore((state) => state.setToken);
   const socket = useSocket("/auth");
   return useMutation({
     mutationFn: (data: SignInDto & { rememberMe?: boolean }) => authService.signIn(data),
@@ -128,7 +128,7 @@ export const useSignIn = (messages?: AuthToastMessages, redirectTo?: string) => 
 
       // 2. Cập nhật dữ liệu vào Zustand Store
       setUser(response.user as User);
-
+      setToken(response.token);
       if (response.user && socket) {
         if (socket.connected) {
           // Nếu socket đang kết nối sẵn, emit và ngắt luôn
