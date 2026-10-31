@@ -22,6 +22,7 @@ import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { useWorkspacePermission } from "../../workspace/useWorkspacePermission";
 import { formatDateRangeDisplay } from "@/lib/took";
 import { DeleteConfirmModal } from "../../ui/DeleteConfirmModal";
+import { LoadingModal } from "@/components/ui/loading-modal";
 
 interface Props {
   task: Task;
@@ -61,7 +62,7 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
   const { isOwn: isOwnWorkspace } = useWorkspacePermission(workspapceId);
   const user = useSafeUser();
   const { isTaskLeader } = useTaskPermission(boardId, task.id);
-  const { mutate: deleteTask } = useDeleteTask(boardId);
+  const { mutate: deleteTask, isPending: isPedingDeleteTask } = useDeleteTask(boardId);
   const { mutate: updateTaskDates } = useUpdateTask(boardId);
   const isLockedByOther = Boolean(lockedBy && lockedBy.id !== user?.id);
   const isAssignee = isTaskLeader || user?.role === "ADMIN" || isOwn || isOwnWorkspace;
@@ -157,7 +158,15 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
       leaveTimeoutRef.current = null;
     }, 200);
   };
-
+  if (isPedingDeleteTask) {
+    return (
+      <LoadingModal
+        isOpen={isPedingDeleteTask}
+        message="Xin chờ trong giấy lát"
+        blurBackground={true}
+      />
+    );
+  }
   return (
     <>
       <div
