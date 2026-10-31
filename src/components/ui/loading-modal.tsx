@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { createPortal } from "react-dom";
 import { Loader2 } from "lucide-react";
 
 interface LoadingModalProps {
@@ -14,10 +15,11 @@ export const LoadingModal: React.FC<LoadingModalProps> = ({
   message = "Đang xử lý dữ liệu...",
   blurBackground = true,
 }) => {
-  if (!isOpen) return null;
+  // Kiểm tra nếu modal đóng hoặc đang chạy ở môi trường SSR (Server-Side Rendering) thì không render
+  if (!isOpen || typeof window === "undefined") return null;
 
-  return (
-    // OVERLAY CỐ ĐỊNH, CHẾT TOÀN MÀN HÌNH (Z-[1000] để chắc chắn đè lên sidebar/header)
+  return createPortal(
+    // OVERLAY CỐ ĐỊNH, CHẮN TOÀN MÀN HÌNH (Z-[1000] để chắc chắn đè lên sidebar/header)
     <div
       className={`fixed inset-0 z-[1000] flex items-center justify-center p-4 transition-opacity duration-300 animate-in fade-in ${
         blurBackground ? "bg-black/60 backdrop-blur-sm" : "bg-black/40"
@@ -44,13 +46,9 @@ export const LoadingModal: React.FC<LoadingModalProps> = ({
           <p className="text-xs font-medium text-slate-300 tracking-wide font-inter">
             {message}
           </p>
-
-          {/* Thanh loading bar giả lập ở dưới nếu thích sự chi tiết */}
-          {/* <div className="w-24 h-0.5 bg-slate-700/50 rounded-full overflow-hidden mt-1 relative">
-                <div className="absolute inset-y-0 left-0 bg-indigo-500 rounded-full animate-loading-bar-shimmy w-1/3"></div>
-            </div> */}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body, // Đẩy toàn bộ cấu trúc portal này trực tiếp vào thẻ body của DOM
   );
 };

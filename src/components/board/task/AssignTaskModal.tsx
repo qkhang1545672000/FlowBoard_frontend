@@ -80,13 +80,26 @@ export function AssignTaskModal({
     });
   };
 
-  const handleAssign = async () => {
+  const handleAssign = () => {
     const userIds = selectedUsers.map((u) => u.id);
     console.log("selectedUserIds:", userIds, "leaderId:", leaderId);
-    updateAssignTask({ taskId: task.id, userIds, leaderId });
+
+    updateAssignTask(
+      {
+        taskId: task.id,
+        userIds,
+        leaderId: leaderId ?? "",
+      },
+      {
+        onSuccess: () => {
+          // 🚀 Chỉ đóng modal sau khi API gọi thành công và data đã trả về xong
+          onClose();
+        },
+      },
+    );
   };
   if (isPending) {
-    return <LoadingModal isOpen={isPending} />;
+    return <LoadingModal isOpen={isPending} message="Đang cập nhật phân công" />;
   }
 
   return createPortal(
@@ -217,7 +230,6 @@ export function AssignTaskModal({
           <button
             onClick={() => {
               handleAssign();
-              onClose();
             }}
             className="px-5 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold text-sm rounded-xl shadow-lg shadow-cyan-500/20 transition-all">
             Áp dụng
