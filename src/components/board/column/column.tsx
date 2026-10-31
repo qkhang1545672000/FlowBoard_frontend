@@ -114,7 +114,7 @@ export function ColumnComponent({ column, isOverlay }: Props) {
   if (isPendingCreateTask) {
     return (
       <LoadingModal
-        isOpen={isCreatingTask}
+        isOpen={isPendingCreateTask}
         message="Xin chờ trong giây lát"
         blurBackground={true}
       />
