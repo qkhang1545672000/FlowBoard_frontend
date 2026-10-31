@@ -9,6 +9,7 @@ import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useAcceptMemberW } from "@/hooks/useWorkSpace";
+import { getAuthClient } from "@/lib/auth/auth-client";
 
 type AuthMeResponse = {
   success: boolean;
@@ -37,7 +38,10 @@ async function fetchMeWithRetry(): Promise<User | null> {
   }
   return user;
 }
-
+async function readSessionToken(): Promise<string> {
+  const s = await getAuthClient().getSession();
+  return s.data?.session?.token ?? "";
+}
 function GoogleCallbackPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -45,6 +49,7 @@ function GoogleCallbackPageInner() {
   const { mutate: acceptMemberW, isPending } = useAcceptMemberW();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const setUser = useAuthStore((state) => state.setUser);
+  const setToken = useAuthStore((state) => state.setToken);
   useEffect(() => {
     let cancelled = false;
     let redirectTimer: ReturnType<typeof setTimeout> | undefined;
@@ -62,6 +67,8 @@ function GoogleCallbackPageInner() {
           isAuthenticated: true,
         });
         setUser(user);
+        const token = await readSessionToken();
+        setToken(token);
         setStatus("success");
         if (user.emailVerified === false) {
           toast.info("Vui lòng kiểm tra email để xác minh tài khoản.");
