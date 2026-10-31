@@ -20,7 +20,7 @@ interface TaskSubtaskDatePickerProps {
 
 const parseDateSafe = (dateStr?: string | null | Date) => {
   if (!dateStr) return null;
-  if (dateStr instanceof Date) return new Date(dateStr); // Hết lỗi vì đã cho phép Date ở kiểu tham số
+  if (dateStr instanceof Date) return new Date(dateStr);
 
   const parsed = new Date(dateStr as string);
   return isNaN(parsed.getTime()) ? null : parsed;
@@ -126,6 +126,7 @@ export function TaskSubtaskDatePicker({
 
     const { minLimit, maxLimit } = getNormalizedTaskLimits();
 
+    // 1. Kiểm tra giới hạn của Task cha (chỉ disable nếu vượt quá khung giờ của Task cha)
     if (minLimit && activeDate.toDateString() === minLimit.toDateString()) {
       const minMinutes = minLimit.getHours() * 60 + minLimit.getMinutes();
       if (candidateMinutes < minMinutes) return true;
@@ -135,6 +136,7 @@ export function TaskSubtaskDatePicker({
       if (candidateMinutes > maxMinutes) return true;
     }
 
+    // 2. Kiểm tra quan hệ cùng ngày giữa Bắt đầu và Hết hạn (chỉ chặn khi thực sự vi phạm logic đảo ngược)
     const effectiveTo = range?.to || range?.from;
     const isSameDay =
       range?.from &&
@@ -145,10 +147,7 @@ export function TaskSubtaskDatePicker({
       const [startH, startM] = startTime.split(":").map(Number);
       const [endH, endM] = endTime.split(":").map(Number);
 
-      if (type === "start") {
-        const endMinutes = endH * 60 + endM;
-        if (candidateMinutes > endMinutes) return true;
-      } else {
+      if (type === "end") {
         const startMinutes = startH * 60 + startM;
         if (candidateMinutes < startMinutes) return true;
       }
@@ -175,6 +174,7 @@ export function TaskSubtaskDatePicker({
 
     const { minLimit, maxLimit } = getNormalizedTaskLimits();
 
+    // So sánh phút tuyệt đối với Task cha
     if (minLimit && finalStart.toDateString() === minLimit.toDateString()) {
       const startMin = startH * 60 + startM;
       const minLimitMin = minLimit.getHours() * 60 + minLimit.getMinutes();
