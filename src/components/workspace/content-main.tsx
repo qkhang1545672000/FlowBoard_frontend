@@ -13,6 +13,7 @@ import { WorkspaceChat } from "./workspace-chat";
 import { WorkspaceHeader } from "./WorkspaceHeader";
 import { BoardsView } from "./BoardsView";
 import { MemberSidebar } from "./MemberSidebar";
+import { LoadingModal } from "../ui/loading-modal";
 
 interface ContentMainProps {
   activeMainTab: "boards" | "chat";
@@ -68,17 +69,14 @@ const ContentMain = ({
     });
   }, [membersList, searchQuery]);
 
-  if (isLoading) return <div className="p-8 text-slate-400">Loading workspace...</div>;
-
-  const handleCreateBoardSubmit = (data: {
-    title: string;
-    description: string;
-    memberIds: string[];
-    leaderId: string | null;
-  }) => {
-    console.log("Dữ liệu tạo board:", data);
-  };
-
+  if (isLoading)
+    return (
+      <LoadingModal
+        isOpen={isLoading}
+        message="Xin chờ trong giây lát"
+        blurBackground={true}
+      />
+    );
   return (
     <div className="flex-1 flex min-h-0 overflow-hidden relative">
       {/* MAIN BODY AREA */}

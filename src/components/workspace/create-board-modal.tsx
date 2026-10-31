@@ -22,6 +22,7 @@ import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { formatWorkspaceSlug } from "@/lib/took";
 import { WorkspaceRole, BoardMemberRole } from "@/types";
 import { BoardOverview } from "@/types/board";
+import { LoadingModal } from "../ui/loading-modal";
 
 interface SelectedMemberData {
   member: WorkspaceMember;
@@ -57,7 +58,7 @@ export const CreateBoardModal = ({
     workspaceId,
     boardToEdit?.id,
   );
-  const { data: boardDetail } = useBoardDetail(boardToEdit?.id ?? "");
+  const { data: boardDetail, isLoading } = useBoardDetail(boardToEdit?.id ?? "");
   const user = useAuthStore((state) => state.user);
 
   const modalRef = useRef<HTMLDivElement>(null);
@@ -239,7 +240,15 @@ export const CreateBoardModal = ({
       );
     }
   };
-
+  if (isLoading) {
+    return (
+      <LoadingModal
+        isOpen={isLoading}
+        message="Xin chờ trong giây lát"
+        blurBackground={true}
+      />
+    );
+  }
   return (
     <div
       onClick={handleBackdropClick}
