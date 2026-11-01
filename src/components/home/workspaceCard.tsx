@@ -21,7 +21,7 @@ interface Props {
 
 const WorkspaceCard = ({ ws, onDelete, onRename, onInviteMember }: Props) => {
   const setActiveWorkspace = useWorkspaceStore((state) => state.setActiveWorkspace);
-  const { mutateAsync: InviteMemberMutation } = useInviteMemberW();
+  const { mutateAsync: InviteMemberMutation, isError } = useInviteMemberW();
   const { mutateAsync: deleteWorkspaceMutation, isPending: isDeleteAPI } =
     useDeleteWorkspace();
   const clearWorkspace = useWorkspaceStore((state) => state.clearActiveWorkspace);
