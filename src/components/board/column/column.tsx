@@ -124,13 +124,14 @@ export function ColumnComponent({ column, isOverlay }: Props) {
     }); // Gọi API tạo cột mới
     setIsCreatingColumn(false);
   };
-  if (
+
+  const isAnyActionPending =
     isPendingCreateColumn ||
     isPendingCreateTask ||
     isPendingDeleteColumn ||
-    isPendingUpdateColumnClock
-  ) {
-    return <LoadingModal isOpen={isPendingCreateColumn} />;
+    isPendingUpdateColumnClock;
+  if (isAnyActionPending) {
+    return <LoadingModal isOpen={isAnyActionPending} />;
   }
 
   return (
