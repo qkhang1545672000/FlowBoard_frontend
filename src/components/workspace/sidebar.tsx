@@ -207,7 +207,7 @@ export function Sidebar({
                         className="flex items-center justify-between text-[11px] font-semibold uppercase text-slate-500 px-2 mt-4 mb-2 tracking-wider whitespace-nowrap cursor-pointer hover:text-slate-300 transition-colors select-none">
                         <div className="flex items-center gap-2">
                           <span>Workspaces join</span>
-                          <span className="flex items-center justify-center min-w-6 h-4 px-1 text-[10px] font-bold bg-orange-400 text-black rounded-full border border-slate-700/50">
+                          <span className="flex items-center justify-center min-w-6 h-4 px-1 text-[10px] font-bold bg-orange-400 text-black rounded-full border border-slate-700/50 ">
                             {joinedWorkspaces.length}
                           </span>
                         </div>
