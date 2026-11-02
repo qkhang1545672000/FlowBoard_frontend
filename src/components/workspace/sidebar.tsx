@@ -56,18 +56,10 @@ export function Sidebar({
 
   // Xử lý nút quay lại thông minh
   const handleBackAction = () => {
-    if (activeBoardId) {
-      // Nếu đang trong board, khi bấm quay lại sẽ clear board để hiện lại danh sách workspace
-      clearActiveBoard();
-      localStorage.removeItem("active-board-storage");
-      if (currentWorkspaceSlug) {
-        router.push(`/w/${currentWorkspaceSlug}`);
-      } else {
-        router.back();
-      }
+    if (isInBoard) {
+      router.push(`/w/${currentWorkspaceSlug}`);
     } else {
-      // Nếu đang ở workspace, quay lại bình thường
-      router.back();
+      router.push("/");
     }
   };
 
