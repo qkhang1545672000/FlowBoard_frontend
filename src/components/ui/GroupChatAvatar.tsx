@@ -2,7 +2,8 @@ import UserAvatar from "./UserAvatar";
 import { User } from "@/types/api.types";
 
 interface GroupChatAvatarProps {
-  participants: User[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  participants: any[];
   type: "chat" | "sidebar" | "min";
   maxVisible?: number; // Cho phép tùy chỉnh số avatar tối đa hiển thị (mặc định là 3)
 }

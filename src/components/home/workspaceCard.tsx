@@ -37,6 +37,7 @@ const WorkspaceCard = ({ ws, onDelete, onRename, onInviteMember }: Props) => {
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
