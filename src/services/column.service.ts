@@ -6,6 +6,11 @@ export interface UpdateColumnClockPayload {
   columnId: string;
   lock: ColumnLockType; // Hoặc clock tùy theo biến tên bạn muốn đặt
 }
+export interface MoveColumnPayload {
+  boardId: string;
+  columnId: string;
+  position: number;
+}
 export const columnService = {
   createColumn: async (dto: CreateColumn): Promise<Column> => {
     try {
@@ -43,6 +48,23 @@ export const columnService = {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error("Lỗi deleteColumn (Server):", error?.response?.data || error.message);
+      throw error;
+    }
+  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  moveColumn: async (data: MoveColumnPayload): Promise<any> => {
+    try {
+      console.log("ádfdasfsdfxvxs", data);
+      const response = await axiosInstance.patch(
+        `/api/v1/columns/${data.columnId}/move`,
+        {
+          position: data.position,
+        },
+      );
+      return response.data;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      console.error("Lỗi moveColumn (Server):", error?.response?.data || error.message);
       throw error;
     }
   },

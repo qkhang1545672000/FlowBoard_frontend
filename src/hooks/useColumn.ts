@@ -1,4 +1,8 @@
-import { columnService, UpdateColumnClockPayload } from "@/services/column.service";
+import {
+  columnService,
+  MoveColumnPayload,
+  UpdateColumnClockPayload,
+} from "@/services/column.service";
 
 import { Column, CreateColumn } from "@/types/column";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -73,6 +77,21 @@ export const useDeleteColumn = (boardId: string) => {
       } else {
         console.error("Socket chưa sẵn sàng hoặc thiếu boardId!", { socket, boardId });
       }
+    },
+  });
+};
+
+export const useMoveColumn = (boardId: string) => {
+  const queryClient = useQueryClient();
+  const socket = useSocket();
+
+  return useMutation({
+    mutationFn: (data: MoveColumnPayload) => columnService.moveColumn(data),
+    onSuccess: (_, variables) => {
+      // Refetch lại dữ liệu board cho người thực hiện thao tác
+      queryClient.invalidateQueries({
+        queryKey: ["board", boardId],
+      });
     },
   });
 };
