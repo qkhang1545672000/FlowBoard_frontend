@@ -43,24 +43,30 @@ export function Sidebar({
   const pathname = usePathname();
   const isInBoard = pathname ? pathname.includes("/b/") : false;
   const isInWorkspace = pathname ? pathname.includes("/w/") : false;
-
+  console.log("workspacesworkspaces", workspaces);
   // 🟢 TỰ ĐỘNG SUY DIỄN ID DỰA TRÊN URL (Chống lưu vết ID cũ gây lỗi 404)
   const parts = pathname ? pathname.split("/") : [];
   const wIndex = parts.indexOf("w");
   const workspaceSlugFromUrl = wIndex !== -1 ? parts[wIndex + 1] : null;
 
-  const ownedWorkspaces = workspaces.filter((workspace) =>
-    workspace.members.some(
-      (member) => member.id === currentUserId?.id && member.role === WorkspaceRole.OWNER,
-    ),
-  );
+  // 🛡️ AN TOÀN TRÊN PRODUCTION: Chỉ lọc khi currentUserId đã load xong
+  const userId = currentUserId?.id;
 
-  // Lọc danh sách các Workspace mà người dùng tham gia (không phải Owner)
-  const joinedWorkspaces = workspaces.filter((workspace) =>
-    workspace.members.some(
-      (member) => member.id === currentUserId?.id && member.role !== WorkspaceRole.OWNER,
-    ),
-  );
+  const ownedWorkspaces = userId
+    ? workspaces.filter((workspace) =>
+        workspace.members.some(
+          (member) => member.id === userId && member.role === WorkspaceRole.OWNER,
+        ),
+      )
+    : [];
+
+  const joinedWorkspaces = userId
+    ? workspaces.filter((workspace) =>
+        workspace.members.some(
+          (member) => member.id === userId && member.role !== WorkspaceRole.OWNER,
+        ),
+      )
+    : [];
 
   // Tìm workspace đang khớp với URL hoặc prop hiện tại
   const activeWorkspace = workspaces.find(
@@ -135,47 +141,54 @@ export function Sidebar({
             {isInWorkspace && (
               // Nhánh 1: Nếu thanh địa chỉ có "/w/" -> Hiển thị danh sách Workspace
               <>
-                {/* Tiêu đề Workspaces có thể bấm để thu gọn / tuôn ra */}
+                {/* 1. Nhóm Owned Workspaces (Chỉ hiện khi có dữ liệu) */}
+                {ownedWorkspaces.length > 0 && (
+                  <>
+                    {!isCollapsed && (
+                      <div
+                        onClick={() => setIsWorkspacesOpen(!isWorkspacesOpen)}
+                        className="flex items-center justify-between text-[11px] font-semibold uppercase text-slate-500 px-2 mb-2 tracking-wider whitespace-nowrap cursor-pointer hover:text-slate-300 transition-colors select-none">
+                        <span>Workspaces</span>
+                        <ChevronDown
+                          className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                            isWorkspacesOpen ? "" : "-rotate-90"
+                          }`}
+                        />
+                      </div>
+                    )}
 
-                {!isCollapsed && (
-                  <div
-                    onClick={() => setIsWorkspacesOpen(!isWorkspacesOpen)}
-                    className="flex items-center justify-between text-[11px] font-semibold uppercase text-slate-500 px-2 mb-2 tracking-wider whitespace-nowrap cursor-pointer hover:text-slate-300 transition-colors select-none">
-                    <span>Workspaces</span>
-                    <ChevronDown
-                      className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                        isWorkspacesOpen ? "" : "-rotate-90"
-                      }`}
-                    />
-                  </div>
+                    {/* Danh sách Workspace chính (Hiển thị khi mở) */}
+                    {isWorkspacesOpen &&
+                      ownedWorkspaces.map((ws) => {
+                        const isActive =
+                          currentWorkspaceSlug === ws.slug ||
+                          workspaceSlugFromUrl === ws.slug;
+                        return (
+                          <Link
+                            key={ws.id}
+                            onClick={() =>
+                              setActiveWorkspace({ id: ws.id, slug: ws.slug })
+                            }
+                            href={`/w/${ws.slug}`}
+                            title={ws.name}
+                            className={`flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-sm transition-all ${
+                              isActive
+                                ? "bg-indigo-600/20 text-indigo-400 font-medium border border-indigo-500/30"
+                                : "hover:bg-slate-800/80 text-slate-400 hover:text-slate-200"
+                            }`}>
+                            <FolderKanban className="w-4 h-4 shrink-0 text-indigo-400" />
+                            {!isCollapsed && (
+                              <span className="truncate whitespace-nowrap">
+                                {ws.name}
+                              </span>
+                            )}
+                          </Link>
+                        );
+                      })}
+                  </>
                 )}
 
-                {/* Danh sách Workspace chính (Hiển thị khi mở) */}
-                {isWorkspacesOpen &&
-                  ownedWorkspaces?.map((ws) => {
-                    const isActive =
-                      currentWorkspaceSlug === ws.slug ||
-                      workspaceSlugFromUrl === ws.slug;
-                    return (
-                      <Link
-                        key={ws.id}
-                        onClick={() => setActiveWorkspace({ id: ws.id, slug: ws.slug })}
-                        href={`/w/${ws.slug}`}
-                        title={ws.name}
-                        className={`flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-sm transition-all ${
-                          isActive
-                            ? "bg-indigo-600/20 text-indigo-400 font-medium border border-indigo-500/30"
-                            : "hover:bg-slate-800/80 text-slate-400 hover:text-slate-200"
-                        }`}>
-                        <FolderKanban className="w-4 h-4 shrink-0 text-indigo-400" />
-                        {!isCollapsed && (
-                          <span className="truncate whitespace-nowrap">{ws.name}</span>
-                        )}
-                      </Link>
-                    );
-                  })}
-
-                {/* Tiêu đề Workspaces join có thể bấm để thu gọn / tuôn ra */}
+                {/* 2. Nhóm Joined Workspaces (Chỉ hiện khi có dữ liệu) */}
                 {joinedWorkspaces.length > 0 && (
                   <>
                     {!isCollapsed && (
@@ -191,6 +204,7 @@ export function Sidebar({
                       </div>
                     )}
 
+                    {/* Danh sách Workspace join (Hiển thị khi mở) */}
                     {isJoinedOpen &&
                       joinedWorkspaces.map((ws) => {
                         const isActive =
