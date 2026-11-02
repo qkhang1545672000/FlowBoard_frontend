@@ -11,6 +11,7 @@ import {
 } from "@/hooks/useSubTask";
 import { useBoardStore } from "@/store/useBoardStore";
 import { Task } from "@/types/column";
+import { LoadingModal } from "@/components/ui/loading-modal";
 
 interface TaskChecklistTabProps {
   task: Task;
@@ -49,11 +50,7 @@ export function TaskChecklistTab({ task }: TaskChecklistTabProps) {
   const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   if (isLoading) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-4 text-xs text-slate-400">
-        Đang tải danh sách công việc...
-      </div>
-    );
+    return <LoadingModal isOpen={isLoading} />;
   }
 
   return (

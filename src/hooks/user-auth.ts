@@ -16,6 +16,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 // 👉 Import socket.io-client để emit sự kiện logout realtime
 import { useSocket } from "./useSocket";
+import { mutationErrorToast } from "@/lib/api/api-error";
 
 type AuthToastMessages = {
   success?: string;
@@ -59,21 +60,7 @@ export const useSignUp = (messages?: AuthToastMessages & { verifyEmail?: string 
       router.push("/auth/signin");
     },
 
-    onError: (error: unknown) => {
-      const message = (
-        error as {
-          response?: {
-            data?: {
-              message?: string;
-            };
-          };
-        }
-      )?.response?.data?.message;
-
-      toast.error(
-        typeof message === "string" ? message : (messages?.error ?? "Sign up failed"),
-      );
-    },
+    onError: mutationErrorToast(messages?.error ?? "Sign up failed"),
   });
 };
 
@@ -214,17 +201,7 @@ export const useSignOut = (messages?: AuthToastMessages, redirectTo?: string) =>
       router.push(redirectTo ?? "/auth/signin");
     },
 
-    onError: (error: unknown) => {
-      const message = (
-        error as {
-          response?: { data?: { message?: string } };
-        }
-      )?.response?.data?.message;
-
-      toast.error(
-        typeof message === "string" ? message : (messages?.error ?? "Sign out failed"),
-      );
-    },
+    onError: mutationErrorToast(messages?.error ?? "Sign up failed"),
   });
 };
 
@@ -236,16 +213,7 @@ export const useForgotPassword = (messages?: AuthToastMessages) => {
       toast.success(messages?.success ?? "Password reset email sent!");
     },
 
-    onError: (error: unknown) => {
-      const message = (error as { response?: { data?: { message?: string } } })?.response
-        ?.data?.message;
-
-      toast.error(
-        typeof message === "string"
-          ? message
-          : (messages?.error ?? "Failed to send reset email"),
-      );
-    },
+    onError: mutationErrorToast(messages?.error ?? "Failed to send reset email"),
   });
 };
 
@@ -259,16 +227,7 @@ export const useResetPassword = (messages?: AuthToastMessages) => {
       router.push("/auth/signin");
     },
 
-    onError: (error: unknown) => {
-      const message = (error as { response?: { data?: { message?: string } } })?.response
-        ?.data?.message;
-
-      toast.error(
-        typeof message === "string"
-          ? message
-          : (messages?.error ?? "Password reset failed"),
-      );
-    },
+    onError: mutationErrorToast(messages?.error ?? "Password reset failed"),
   });
 };
 

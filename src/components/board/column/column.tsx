@@ -41,9 +41,12 @@ export function ColumnComponent({ column, isOverlay }: Props) {
   const workspaceId = useWorkspaceStore((state) => state.activeWorkspaceId) ?? "";
 
   const { mutate: createTask, isPending: isPendingCreateTask } = useCreateTask(boardId);
-  const { mutate: updateColumnClock } = useUpdateColumnClock(boardId);
-  const { mutate: deleteColumn } = useDeleteColumn(boardId);
-  const { mutate: createColumn } = useCreateColumn(boardId);
+  const { mutate: updateColumnClock, isPending: isPendingUpdateColumnClock } =
+    useUpdateColumnClock(boardId);
+  const { mutate: deleteColumn, isPending: isPendingDeleteColumn } =
+    useDeleteColumn(boardId);
+  const { mutate: createColumn, isPending: isPendingCreateColumn } =
+    useCreateColumn(boardId);
 
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -111,15 +114,6 @@ export function ColumnComponent({ column, isOverlay }: Props) {
       setIsCreatingTask(false);
     }
   };
-  if (isPendingCreateTask) {
-    return (
-      <LoadingModal
-        isOpen={isPendingCreateTask}
-        message="Xin chờ trong giây lát"
-        blurBackground={true}
-      />
-    );
-  }
 
   // Hàm xử lý khi submit tạo cột mới từ CreateColumnInput
   const handleCreateColumnSubmit = (title: string) => {
@@ -130,6 +124,14 @@ export function ColumnComponent({ column, isOverlay }: Props) {
     }); // Gọi API tạo cột mới
     setIsCreatingColumn(false);
   };
+  if (
+    isPendingCreateColumn ||
+    isPendingCreateTask ||
+    isPendingDeleteColumn ||
+    isPendingUpdateColumnClock
+  ) {
+    return <LoadingModal isOpen={isPendingCreateColumn} />;
+  }
 
   return (
     // Bọc toàn bộ trong flex gap-3 để Cột và Ô tạo cột mới (nếu có) đứng cạnh nhau theo hàng ngang

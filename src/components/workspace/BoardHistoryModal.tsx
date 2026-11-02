@@ -5,6 +5,7 @@ import { X, Clock, User, Activity } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
 import { useActivityLogs } from "@/hooks/useActivityLog";
+import { LoadingModal } from "../ui/loading-modal";
 
 interface BoardHistoryModalProps {
   boardId: string;
@@ -50,9 +51,7 @@ export function BoardHistoryModal({
         {/* Content Body */}
         <div className="p-6 overflow-y-auto space-y-4 flex-1">
           {isLoading ? (
-            <div className="text-center py-8 text-slate-400 text-sm">
-              Đang tải lịch sử...
-            </div>
+            <LoadingModal isOpen={isLoading} />
           ) : logs.length === 0 ? (
             <div className="text-center py-8 text-slate-400 text-sm">
               Chưa có lịch sử hoạt động nào.

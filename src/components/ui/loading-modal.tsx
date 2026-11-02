@@ -12,7 +12,7 @@ interface LoadingModalProps {
 
 export const LoadingModal: React.FC<LoadingModalProps> = ({
   isOpen,
-  message = "Đang xử lý dữ liệu...",
+  message = "Xin chờ trong giấy lát",
   blurBackground = true,
 }) => {
   // Kiểm tra nếu modal đóng hoặc đang chạy ở môi trường SSR (Server-Side Rendering) thì không render
