@@ -55,7 +55,8 @@ export function Sidebar({
   const ownedWorkspaces = userId
     ? workspaces.filter((workspace) =>
         workspace.members.some(
-          (member) => member.id === userId && member.role === WorkspaceRole.OWNER,
+          (member) =>
+            member.id === userId && member.roleWorkspace === WorkspaceRole.OWNER,
         ),
       )
     : [];
@@ -63,7 +64,8 @@ export function Sidebar({
   const joinedWorkspaces = userId
     ? workspaces.filter((workspace) =>
         workspace.members.some(
-          (member) => member.id === userId && member.role !== WorkspaceRole.OWNER,
+          (member) =>
+            member.id === userId && member.roleWorkspace !== WorkspaceRole.OWNER,
         ),
       )
     : [];

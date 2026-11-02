@@ -18,7 +18,7 @@ export interface User {
 export interface MemberWorkspace extends Omit<User, "role"> {
   // Bạn có thể thêm các thuộc tính riêng của MemberWorkspace ở đây nếu cần, ví dụ:
 
-  role: WorkspaceRole;
+  roleWorkspace: WorkspaceRole;
 
   joinedAt: string;
 }
