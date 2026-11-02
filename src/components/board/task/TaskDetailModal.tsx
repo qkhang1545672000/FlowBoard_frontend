@@ -27,6 +27,7 @@ import { ChatScope } from "@/services/chat.service";
 import UserAvatar from "../../ui/UserAvatar";
 import { TaskChecklistTab } from "./TaskChecklistTab";
 import { useUpdateTask } from "@/hooks/useTask";
+import { LoadingModal } from "@/components/ui/loading-modal";
 
 interface TaskDetailModalProps {
   isOpen: boolean;
@@ -56,7 +57,7 @@ export function TaskDetailModal({
   const leader = task.members.find((i) => i.role === "TASK_LEADER");
 
   // 🟢 Tích hợp hook update task tổng quát
-  const { mutate: updateTask } = useUpdateTask(boardId);
+  const { mutate: updateTask, isPending: isPendingUpdateTask } = useUpdateTask(boardId);
 
   const [inputText, setInputText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -153,7 +154,9 @@ export function TaskDetailModal({
       setFiles([newFile, ...files]);
     }
   };
-
+  if (isPendingUpdateTask) {
+    return <LoadingModal isOpen={isPendingUpdateTask} />;
+  }
   return createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 overflow-y-auto"
