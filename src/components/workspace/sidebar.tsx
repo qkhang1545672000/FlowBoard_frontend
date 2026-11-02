@@ -135,7 +135,7 @@ export function Sidebar({
             {isInWorkspace && (
               // Nhánh 1: Nếu thanh địa chỉ có "/w/" -> Hiển thị danh sách Workspace
               <>
-                {/* Tiêu đề Workspaces có thể bấm để thu gọn / tuôn ra */}
+                {/* 1. Nhóm Owned Workspaces (Chỉ hiện khi có dữ liệu) */}
                 {ownedWorkspaces.length > 0 && (
                   <>
                     {!isCollapsed && (
@@ -153,7 +153,7 @@ export function Sidebar({
 
                     {/* Danh sách Workspace chính (Hiển thị khi mở) */}
                     {isWorkspacesOpen &&
-                      ownedWorkspaces?.map((ws) => {
+                      ownedWorkspaces.map((ws) => {
                         const isActive =
                           currentWorkspaceSlug === ws.slug ||
                           workspaceSlugFromUrl === ws.slug;
@@ -182,7 +182,7 @@ export function Sidebar({
                   </>
                 )}
 
-                {/* Tiêu đề Workspaces join có thể bấm để thu gọn / tuôn ra */}
+                {/* 2. Nhóm Joined Workspaces (Chỉ hiện khi có dữ liệu) */}
                 {joinedWorkspaces.length > 0 && (
                   <>
                     {!isCollapsed && (
@@ -198,6 +198,7 @@ export function Sidebar({
                       </div>
                     )}
 
+                    {/* Danh sách Workspace join (Hiển thị khi mở) */}
                     {isJoinedOpen &&
                       joinedWorkspaces.map((ws) => {
                         const isActive =
