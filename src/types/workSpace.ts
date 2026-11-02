@@ -1,5 +1,5 @@
 import { Participant, WorkspaceRole } from ".";
-import { User } from "./api.types";
+import { MemberWorkspace, User } from "./api.types";
 import { BoardOverview } from "./board";
 
 export interface Workspace {
@@ -13,10 +13,11 @@ export interface Workspace {
 export interface WorkspaceResponse {
   id: string;
   name: string;
+  role: string;
   slug: string;
   updatedAt: string;
   boardsCount: number;
-  members: User[];
+  members: MemberWorkspace[];
 }
 export interface Board {
   id: string;

@@ -1,4 +1,4 @@
-import { UserRole } from ".";
+import { UserRole, WorkspaceRole } from ".";
 
 export interface User {
   id: string;
@@ -14,6 +14,13 @@ export interface User {
   gender?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+export interface MemberWorkspace extends Omit<User, "role"> {
+  // Bạn có thể thêm các thuộc tính riêng của MemberWorkspace ở đây nếu cần, ví dụ:
+
+  role: WorkspaceRole;
+
+  joinedAt: string;
 }
 
 export interface ProfileAddress {

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import {
   Plus,
@@ -8,6 +8,7 @@ import {
   Kanban, // Icon cho Board
   ChevronLeft,
   ChevronRight,
+  ChevronDown, // Icon mũi tên chỉ xuống
   ArrowLeft,
 } from "lucide-react";
 import { WorkspaceResponse } from "@/types/workSpace";
@@ -15,6 +16,8 @@ import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { useBoardStore } from "@/store/useBoardStore";
 import { useWorkspaceDetail } from "@/hooks/useWorkSpace";
 import { usePathname, useRouter } from "next/navigation";
+import { WorkspaceRole } from "@/types";
+import { useAuthStore } from "@/store/useAuthStore";
 
 interface SidebarProps {
   workspaces: WorkspaceResponse[];
@@ -30,6 +33,7 @@ export function Sidebar({
   setIsCollapsed,
 }: SidebarProps) {
   const setActiveWorkspace = useWorkspaceStore((state) => state.setActiveWorkspace);
+  const currentUserId = useAuthStore((state) => state.user);
   const currentBoardSlug = useBoardStore((state) => state.activeBoardSlug);
   const activeBoardId = useBoardStore((state) => state.activeBoardId);
   const setBoardId = useBoardStore((state) => state.setActiveBoard);
@@ -45,6 +49,19 @@ export function Sidebar({
   const wIndex = parts.indexOf("w");
   const workspaceSlugFromUrl = wIndex !== -1 ? parts[wIndex + 1] : null;
 
+  const ownedWorkspaces = workspaces.filter((workspace) =>
+    workspace.members.some(
+      (member) => member.id === currentUserId?.id && member.role === WorkspaceRole.OWNER,
+    ),
+  );
+
+  // Lọc danh sách các Workspace mà người dùng tham gia (không phải Owner)
+  const joinedWorkspaces = workspaces.filter((workspace) =>
+    workspace.members.some(
+      (member) => member.id === currentUserId?.id && member.role !== WorkspaceRole.OWNER,
+    ),
+  );
+
   // Tìm workspace đang khớp với URL hoặc prop hiện tại
   const activeWorkspace = workspaces.find(
     (ws) => ws.slug === workspaceSlugFromUrl || ws.slug === currentWorkspaceSlug,
@@ -53,6 +70,10 @@ export function Sidebar({
 
   const { data: workSpaceDetail } = useWorkspaceDetail(activeWorkspaceId);
   const router = useRouter();
+
+  // 🎯 State quản lý đóng/mở cho nhóm "Workspaces" và "Workspaces join"
+  const [isWorkspacesOpen, setIsWorkspacesOpen] = useState(true);
+  const [isJoinedOpen, setIsJoinedOpen] = useState(true);
 
   // Xử lý nút quay lại thông minh
   const handleBackAction = () => {
@@ -114,33 +135,90 @@ export function Sidebar({
             {isInWorkspace && (
               // Nhánh 1: Nếu thanh địa chỉ có "/w/" -> Hiển thị danh sách Workspace
               <>
+                {/* Tiêu đề Workspaces có thể bấm để thu gọn / tuôn ra */}
                 {!isCollapsed && (
-                  <div className="text-[11px] font-semibold uppercase text-slate-500 px-2 mb-2 tracking-wider whitespace-nowrap">
-                    Workspaces
+                  <div
+                    onClick={() => setIsWorkspacesOpen(!isWorkspacesOpen)}
+                    className="flex items-center justify-between text-[11px] font-semibold uppercase text-slate-500 px-2 mb-2 tracking-wider whitespace-nowrap cursor-pointer hover:text-slate-300 transition-colors select-none">
+                    <span>Workspaces</span>
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                        isWorkspacesOpen ? "" : "-rotate-90"
+                      }`}
+                    />
                   </div>
                 )}
-                {workspaces?.map((ws) => {
-                  const isActive =
-                    currentWorkspaceSlug === ws.slug || workspaceSlugFromUrl === ws.slug;
-                  return (
-                    <Link
-                      key={ws.id}
-                      onClick={() => setActiveWorkspace({ id: ws.id, slug: ws.slug })}
-                      href={`/w/${ws.slug}`}
-                      title={ws.name}
-                      className={`flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-sm transition-all ${
-                        isActive
-                          ? "bg-indigo-600/20 text-indigo-400 font-medium border border-indigo-500/30"
-                          : "hover:bg-slate-800/80 text-slate-400 hover:text-slate-200"
-                      }`}>
-                      {/* Dùng icon FolderKanban biểu trưng cho Workspace */}
-                      <FolderKanban className="w-4 h-4 shrink-0 text-indigo-400" />
-                      {!isCollapsed && (
-                        <span className="truncate whitespace-nowrap">{ws.name}</span>
-                      )}
-                    </Link>
-                  );
-                })}
+
+                {/* Danh sách Workspace chính (Hiển thị khi mở) */}
+                {isWorkspacesOpen &&
+                  ownedWorkspaces?.map((ws) => {
+                    const isActive =
+                      currentWorkspaceSlug === ws.slug ||
+                      workspaceSlugFromUrl === ws.slug;
+                    return (
+                      <Link
+                        key={ws.id}
+                        onClick={() => setActiveWorkspace({ id: ws.id, slug: ws.slug })}
+                        href={`/w/${ws.slug}`}
+                        title={ws.name}
+                        className={`flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-sm transition-all ${
+                          isActive
+                            ? "bg-indigo-600/20 text-indigo-400 font-medium border border-indigo-500/30"
+                            : "hover:bg-slate-800/80 text-slate-400 hover:text-slate-200"
+                        }`}>
+                        <FolderKanban className="w-4 h-4 shrink-0 text-indigo-400" />
+                        {!isCollapsed && (
+                          <span className="truncate whitespace-nowrap">{ws.name}</span>
+                        )}
+                      </Link>
+                    );
+                  })}
+
+                {/* Tiêu đề Workspaces join có thể bấm để thu gọn / tuôn ra */}
+                {joinedWorkspaces.length > 0 && (
+                  <>
+                    {!isCollapsed && (
+                      <div
+                        onClick={() => setIsJoinedOpen(!isJoinedOpen)}
+                        className="flex items-center justify-between text-[11px] font-semibold uppercase text-slate-500 px-2 mt-4 mb-2 tracking-wider whitespace-nowrap cursor-pointer hover:text-slate-300 transition-colors select-none">
+                        <span>Workspaces join</span>
+                        <ChevronDown
+                          className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                            isJoinedOpen ? "" : "-rotate-90"
+                          }`}
+                        />
+                      </div>
+                    )}
+
+                    {isJoinedOpen &&
+                      joinedWorkspaces.map((ws) => {
+                        const isActive =
+                          currentWorkspaceSlug === ws.slug ||
+                          workspaceSlugFromUrl === ws.slug;
+                        return (
+                          <Link
+                            key={ws.id}
+                            onClick={() =>
+                              setActiveWorkspace({ id: ws.id, slug: ws.slug })
+                            }
+                            href={`/w/${ws.slug}`}
+                            title={ws.name}
+                            className={`flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-sm transition-all ${
+                              isActive
+                                ? "bg-indigo-600/20 text-indigo-400 font-medium border border-indigo-500/30"
+                                : "hover:bg-slate-800/80 text-slate-400 hover:text-slate-200"
+                            }`}>
+                            <FolderKanban className="w-4 h-4 shrink-0 text-indigo-400" />
+                            {!isCollapsed && (
+                              <span className="truncate whitespace-nowrap">
+                                {ws.name}
+                              </span>
+                            )}
+                          </Link>
+                        );
+                      })}
+                  </>
+                )}
               </>
             )}
 
