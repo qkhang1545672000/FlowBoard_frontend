@@ -172,7 +172,9 @@ export function ColumnComponent({ column, isOverlay }: Props) {
               currentLockType={column.lock_type}
               onSelectLockType={(lockType) => {
                 setIsLockMenuOpen(false);
-                updateColumnClock({ boardId, columnId: column.id, lock: lockType });
+                if (column.lock_type !== lockType) {
+                  updateColumnClock({ boardId, columnId: column.id, lock: lockType });
+                }
               }}
               canEdit={Boolean(isOwn || isOwnWorkspace)}
             />
