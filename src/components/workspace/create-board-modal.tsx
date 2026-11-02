@@ -58,9 +58,11 @@ export const CreateBoardModal = ({
     workspaceId,
     boardToEdit?.id,
   );
-  const { data: boardDetail, isLoading } = useBoardDetail(boardToEdit?.id ?? "");
+  const { data: boardDetail, isLoading: isLoadingBoarDetail } = useBoardDetail(
+    boardToEdit?.id ?? "",
+  );
   const user = useAuthStore((state) => state.user);
-
+  const isLoading = isCreating || isUpdating || isLoadingBoarDetail;
   const modalRef = useRef<HTMLDivElement>(null);
 
   const isEditing = Boolean(boardToEdit);
@@ -107,6 +109,7 @@ export const CreateBoardModal = ({
   useEffect(() => {
     if (isOpen) {
       if (isEditing && boardToEdit) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setTitle(boardDetail?.title || boardToEdit.title || "");
         setDescription(boardDetail?.description || boardToEdit.description || "");
 
