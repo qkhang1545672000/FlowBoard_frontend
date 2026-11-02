@@ -49,18 +49,24 @@ export function Sidebar({
   const wIndex = parts.indexOf("w");
   const workspaceSlugFromUrl = wIndex !== -1 ? parts[wIndex + 1] : null;
 
-  const ownedWorkspaces = workspaces.filter((workspace) =>
-    workspace.members.some(
-      (member) => member.id === currentUserId?.id && member.role === WorkspaceRole.OWNER,
-    ),
-  );
+  // 🛡️ AN TOÀN TRÊN PRODUCTION: Chỉ lọc khi currentUserId đã load xong
+  const userId = currentUserId?.id;
 
-  // Lọc danh sách các Workspace mà người dùng tham gia (không phải Owner)
-  const joinedWorkspaces = workspaces.filter((workspace) =>
-    workspace.members.some(
-      (member) => member.id === currentUserId?.id && member.role !== WorkspaceRole.OWNER,
-    ),
-  );
+  const ownedWorkspaces = userId
+    ? workspaces.filter((workspace) =>
+        workspace.members.some(
+          (member) => member.id === userId && member.role === WorkspaceRole.OWNER,
+        ),
+      )
+    : [];
+
+  const joinedWorkspaces = userId
+    ? workspaces.filter((workspace) =>
+        workspace.members.some(
+          (member) => member.id === userId && member.role !== WorkspaceRole.OWNER,
+        ),
+      )
+    : [];
 
   // Tìm workspace đang khớp với URL hoặc prop hiện tại
   const activeWorkspace = workspaces.find(
