@@ -33,9 +33,16 @@ interface EditProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   user: UserData;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onSave?: (updatedData: any) => void;
 }
 
-export const EditProfileModal = ({ isOpen, onClose, user }: EditProfileModalProps) => {
+export const EditProfileModal = ({
+  isOpen,
+  onClose,
+  user,
+  onSave,
+}: EditProfileModalProps) => {
   const currentUser = useAuthStore((state) => state.user);
 
   // 👉 Gọi mutation hook
