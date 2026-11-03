@@ -1,12 +1,25 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   reactCompiler: true,
   cacheComponents: true,
   reactStrictMode: false,
 
-  // Thêm đoạn rewrites này để proxy mọi request /api/v1 từ Vercel sang Render
+  // 👉 Khai báo nguồn domain ảnh bên ngoài tại đây
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com", // Nếu bạn dùng Cloudinary (khớp với CLOUD_NAME trong .env)
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com", // Nếu dùng ảnh avatar từ Google OAuth
+        pathname: "/**",
+      },
+    ],
+  },
 };
 
 export default nextConfig;

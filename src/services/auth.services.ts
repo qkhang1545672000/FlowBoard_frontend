@@ -1,4 +1,5 @@
 import { getAuthClient } from "@/lib/auth/auth-client";
+import axiosInstance from "@/lib/axios";
 import { UserRole } from "@/types";
 
 import {
@@ -18,6 +19,9 @@ function mapAuthUser(u: {
   name: string;
   image?: string | null;
   emailVerified: boolean;
+  gender: string | null;
+  birthday: Date | null;
+  phone: string | null;
   isOnline: boolean;
   role?: UserRole;
   createdAt: Date;
@@ -27,6 +31,8 @@ function mapAuthUser(u: {
     id: u.id,
     email: u.email,
     name: u.name,
+    gender: u.gender ?? undefined,
+    birthday: u.birthday instanceof Date ? u.birthday.toISOString() : String(u.birthday),
     image: u.image ?? undefined,
     role: u.role || UserRole.CUSTOMER,
     emailVerified: u.emailVerified,
@@ -207,23 +213,34 @@ export const authService = {
       window.location.href = res.data.url;
     }
   },
-  // getMe: async (): Promise<any> => {
-  //   try {
-  //     // Lấy toàn bộ headers/cookies từ Request gửi đến Next.js Server
-  //     const reqHeaders = await headers();
+  getMe: async (): Promise<User> => {
+    try {
+      const response = await axiosInstance.get("api/v1/auth/me");
 
-  //     const response = await axios.get("http://localhost:8080/api/v1/auth/me", {
-  //       headers: {
-  //         // Chuyển tiếp cookie và authorization header sang Backend
-  //         cookie: reqHeaders.get("cookie") || "",
-  //         authorization: reqHeaders.get("authorization") || "",
-  //       },
-  //     });
+      return response.data;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      console.error("Lỗi get me(Server):", error?.response?.data || error.message);
+      throw error;
+    }
+  },
 
-  //     return response.data;
-  //   } catch (error: any) {
-  //     console.error("Lỗi getMeServer (Server):", error?.response?.data || error.message);
-  //     return null;
-  //   }
-  // },
+  updateProfile: async (id: string, formData: FormData) => {
+    try {
+      const { data } = await axiosInstance.patch(`/api/v1/auth`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      console.log("sdfasdfsd", data);
+      return data;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      console.error(
+        "Lỗi updateProfile (Server):",
+        error?.response?.data || error.message,
+      );
+      throw error;
+    }
+  },
 };

@@ -252,3 +252,66 @@ export const useGoogleSignIn = (messages?: { error?: string }) => {
 
   return { signInWithGoogle, isLoading };
 };
+
+export const useUpdateProfile = (messages?: AuthToastMessages) => {
+  const queryClient = useQueryClient();
+  const setUser = useAuthStore((state) => state.setUser);
+  const currentUser = useAuthStore((state) => state.user);
+
+  return useMutation({
+    mutationFn: async (values: {
+      name?: string;
+      phone?: string | null;
+      birthday?: Date | null;
+      gender?: string | null;
+      imageFile?: File | null;
+    }) => {
+      if (!currentUser?.id) throw new Error("Unauthorized");
+
+      // Tạo FormData để đóng gói cả text và file ảnh gửi lên backend
+      const formData = new FormData();
+      if (values.name) formData.append("name", values.name);
+      if (values.phone !== undefined) formData.append("phone", values.phone ?? "");
+      if (values.birthday) formData.append("birthday", values.birthday.toISOString());
+      if (values.gender) formData.append("gender", values.gender);
+
+      // Nếu có chọn file ảnh mới thì đính kèm vào key "file" (hoặc "image" tùy backend của bạn)
+      if (values.imageFile) {
+        formData.append("file", values.imageFile);
+      }
+
+      return await authService.updateProfile(currentUser.id, formData);
+    },
+
+    onSuccess: (response) => {
+      // 1. Cập nhật dữ liệu mới vào Zustand Store
+      // (Giả sử response trả về user object đã cập nhật hoặc response.user)
+      const updatedUser = response.user || response;
+
+      setUser(updatedUser as User);
+      queryClient.invalidateQueries({ queryKey: ["workspace"] });
+      // 2. Cập nhật TanStack Query cache session nếu có
+      queryClient.setQueryData(["auth", "session"], (oldData: any) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          user: updatedUser,
+        };
+      });
+
+      toast.success(messages?.success ?? "Cập nhật thông tin thành công!");
+    },
+
+    onError: (error: unknown) => {
+      const message = (
+        error as {
+          response?: { data?: { message?: string } };
+        }
+      )?.response?.data?.message;
+
+      toast.error(
+        typeof message === "string" ? message : (messages?.error ?? "Cập nhật thất bại!"),
+      );
+    },
+  });
+};
