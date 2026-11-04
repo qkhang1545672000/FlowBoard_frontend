@@ -9,7 +9,7 @@ export const notificationService = {
       const response = await axiosInstance.get<NotificationItem[]>(
         "/api/v1/notifications",
       );
-      console.log("ddddddđcx", response.data);
+
       return response.data;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {

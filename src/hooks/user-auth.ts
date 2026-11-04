@@ -276,6 +276,7 @@ export const useUpdateProfile = (messages?: AuthToastMessages) => {
       if (values.gender) formData.append("gender", values.gender);
 
       // Nếu có chọn file ảnh mới thì đính kèm vào key "file" (hoặc "image" tùy backend của bạn)
+
       if (values.imageFile) {
         formData.append("file", values.imageFile);
       }
@@ -290,6 +291,7 @@ export const useUpdateProfile = (messages?: AuthToastMessages) => {
 
       setUser(updatedUser as User);
       queryClient.invalidateQueries({ queryKey: ["workspace"] });
+      queryClient.invalidateQueries({ queryKey: ["board"] });
       // 2. Cập nhật TanStack Query cache session nếu có
       queryClient.setQueryData(["auth", "session"], (oldData: any) => {
         if (!oldData) return oldData;

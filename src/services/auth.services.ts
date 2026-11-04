@@ -227,12 +227,13 @@ export const authService = {
 
   updateProfile: async (id: string, formData: FormData) => {
     try {
+      console.log("sdfasdfsd", formData);
       const { data } = await axiosInstance.patch(`/api/v1/auth`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
       });
-      console.log("sdfasdfsd", data);
+
       return data;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
