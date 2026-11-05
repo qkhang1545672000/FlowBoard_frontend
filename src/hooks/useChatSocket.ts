@@ -29,6 +29,7 @@ export const useChatSocket = (scope: ChatScope, targetId: string) => {
 
     // 2. Lắng nghe tin nhắn mới phát ra từ Gateway
     socket.on("new-message", (newMessage: ChatMessage) => {
+      console.log("nnnnnewmanga", newMessage);
       queryClient.setQueryData(
         queryKey,
         (
@@ -57,6 +58,9 @@ export const useChatSocket = (scope: ChatScope, targetId: string) => {
           };
         },
       );
+    });
+    socket.on("new-workspace-chat-notification", (data: any) => {
+      console.log("llllongffff", data);
     });
 
     // 3. Cleanup khi unmount hoặc đổi targetId/scope

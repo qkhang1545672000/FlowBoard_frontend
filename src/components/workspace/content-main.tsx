@@ -81,20 +81,21 @@ const ContentMain = ({
     <div className="flex-1 flex min-h-0 overflow-hidden relative">
       {/* MAIN BODY AREA */}
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto p-6 space-y-6 text-slate-200">
-        <WorkspaceHeader
-          name={workspaceDetail?.name}
-          description={workspaceDetail?.description || ""}
-          activeMainTab={activeMainTab}
-          isOwn={isOwn}
-          onCreateBoardClick={() => setIsModalOpen(true)}
-        />
-
         {/* VIEW 1: BOARDS */}
         {activeMainTab === "boards" && (
-          <BoardsView
-            boards={workspaceDetail?.boards}
-            members={workspaceDetail?.members ?? []}
-          />
+          <>
+            <WorkspaceHeader
+              name={workspaceDetail?.name}
+              description={workspaceDetail?.description || ""}
+              activeMainTab={activeMainTab}
+              isOwn={isOwn}
+              onCreateBoardClick={() => setIsModalOpen(true)}
+            />
+            <BoardsView
+              boards={workspaceDetail?.boards}
+              members={workspaceDetail?.members ?? []}
+            />
+          </>
         )}
 
         {/* VIEW 2: CHAT */}
@@ -112,7 +113,6 @@ const ContentMain = ({
           workspaceMembers={membersList}
         />
       </main>
-
       {/* RIGHT SIDEBAR MEMBERS */}
       <MemberSidebar
         isOpen={isMemberSidebarOpen}

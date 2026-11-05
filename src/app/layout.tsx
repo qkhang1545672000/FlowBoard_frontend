@@ -4,6 +4,7 @@ import "./globals.css";
 import QueryProvider from "@/providers/query-provider";
 import { Toaster } from "sonner";
 import { PresenceProvider } from "@/components/home/PresenceProvider"; // 👉 Import component vừa tạo
+import { GlobalChatListener } from "@/components/home/GlobalChatListener";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -32,7 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <QueryProvider>
           {/* 👉 Đặt PresenceProvider ở đây để chạy ngầm toàn hệ thống */}
           <PresenceProvider />
-
+          <GlobalChatListener />
           {children}
 
           <Toaster position="top-right" richColors closeButton />

@@ -18,6 +18,7 @@ import { useWorkspaceDetail } from "@/hooks/useWorkSpace";
 import { usePathname, useRouter } from "next/navigation";
 import { WorkspaceRole } from "@/types";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useChatSocketStore } from "@/store/useChatSocketStore";
 
 interface SidebarProps {
   workspaces: WorkspaceResponse[];
@@ -35,15 +36,15 @@ export function Sidebar({
   const setActiveWorkspace = useWorkspaceStore((state) => state.setActiveWorkspace);
   const currentUserId = useAuthStore((state) => state.user);
   const currentBoardSlug = useBoardStore((state) => state.activeBoardSlug);
-  const activeBoardId = useBoardStore((state) => state.activeBoardId);
+
   const setBoardId = useBoardStore((state) => state.setActiveBoard);
-  const clearActiveBoard = useBoardStore((state) => state.clearActiveBoard);
+  const unRead = useChatSocketStore((state) => state.unreadWorkspaceIds);
 
   // Khai báo kiểm tra thanh địa chỉ (URL)
   const pathname = usePathname();
   const isInBoard = pathname ? pathname.includes("/b/") : false;
   const isInWorkspace = pathname ? pathname.includes("/w/") : false;
-  console.log("workspacesworkspaces", workspaces);
+
   // 🟢 TỰ ĐỘNG SUY DIỄN ID DỰA TRÊN URL (Chống lưu vết ID cũ gây lỗi 404)
   const parts = pathname ? pathname.split("/") : [];
   const wIndex = parts.indexOf("w");
@@ -173,12 +174,13 @@ export function Sidebar({
                         const isActive =
                           currentWorkspaceSlug === ws.slug ||
                           workspaceSlugFromUrl === ws.slug;
+                        const hasUnreadChat = unRead.has(ws.id);
                         return (
                           <Link
                             key={ws.id}
-                            onClick={() =>
-                              setActiveWorkspace({ id: ws.id, slug: ws.slug })
-                            }
+                            onClick={() => {
+                              setActiveWorkspace({ id: ws.id, slug: ws.slug });
+                            }}
                             href={`/w/${ws.slug}`}
                             title={ws.name}
                             className={`flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-sm transition-all ${
@@ -187,10 +189,23 @@ export function Sidebar({
                                 : "hover:bg-slate-800/80 text-slate-400 hover:text-slate-200"
                             }`}>
                             <FolderKanban className="w-4 h-4 shrink-0 text-indigo-400" />
+
                             {!isCollapsed && (
-                              <span className="truncate whitespace-nowrap">
-                                {ws.name}
-                              </span>
+                              /* 💡 Dùng flex items-center justify-between và w-full để đẩy tên sang trái, dấu ! sang phải */
+                              <div className="flex items-center justify-between w-full">
+                                <span className="truncate whitespace-nowrap">
+                                  {ws.name}
+                                </span>
+
+                                {hasUnreadChat && (
+                                  <span className="relative flex h-3.5 w-3.5 shrink-0 ml-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-500 text-[9px] font-bold text-white items-center justify-center">
+                                      !
+                                    </span>
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </Link>
                         );
@@ -225,12 +240,18 @@ export function Sidebar({
                         const isActive =
                           currentWorkspaceSlug === ws.slug ||
                           workspaceSlugFromUrl === ws.slug;
+                        const hasUnreadChat = unRead
+                          ? Array.from(unRead).some(
+                              (id) => String(id).trim() === String(ws.id).trim(),
+                            )
+                          : false;
+
                         return (
                           <Link
                             key={ws.id}
-                            onClick={() =>
-                              setActiveWorkspace({ id: ws.id, slug: ws.slug })
-                            }
+                            onClick={() => {
+                              setActiveWorkspace({ id: ws.id, slug: ws.slug });
+                            }}
                             href={`/w/${ws.slug}`}
                             title={ws.name}
                             className={`flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-sm transition-all ${
@@ -240,9 +261,20 @@ export function Sidebar({
                             }`}>
                             <FolderKanban className="w-4 h-4 shrink-0 text-indigo-400" />
                             {!isCollapsed && (
-                              <span className="truncate whitespace-nowrap">
-                                {ws.name}
-                              </span>
+                              <div className="flex items-center justify-between w-full">
+                                <span className="truncate whitespace-nowrap">
+                                  {ws.name}
+                                </span>
+
+                                {hasUnreadChat && (
+                                  <span className="relative flex h-3.5 w-3.5 shrink-0 ml-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-500 text-[9px] font-bold text-white items-center justify-center">
+                                      !
+                                    </span>
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </Link>
                         );
