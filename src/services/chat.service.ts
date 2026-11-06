@@ -49,10 +49,8 @@ export interface QueryMessageParams {
 
 export interface PaginatedMessagesResponse {
   items: ChatMessage[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
+  nextCursor?: string | null;
+  hasMore: boolean;
 }
 
 export const chatService = {
