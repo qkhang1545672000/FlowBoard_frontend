@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useChatSocketStore } from "@/store/useChatSocketStore";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
+import { useUnreadWorkspaces, useUpdateLastRead } from "@/hooks/useWorkSpace";
 
 interface HeaderProps {
   activeMainTab?: "boards" | "chat";
@@ -35,11 +36,13 @@ export function Header({
   const w = useWorkspaceStore((state) => state.activeWorkspaceId) ?? "";
   const unRead = useChatSocketStore((state) => state.unreadWorkspaceIds);
   const resetUnread = useChatSocketStore((state) => state.resetUnreadChat);
-  const isUnRead = unRead.has(w);
+  const { data: dataUnreadWorkspace } = useUnreadWorkspaces();
+  const isUnRead = unRead.has(w) || dataUnreadWorkspace?.unreadWorkspaceIds.includes(w);
+  const { mutate: updateLastRead } = useUpdateLastRead();
+
   useEffect(() => {
     if (activeMainTab == "chat") {
       resetUnread(w);
-      console.log("dsfsdfs22gfff", activeMainTab);
     }
   }, [activeMainTab, w, isUnRead, resetUnread]);
 
@@ -63,6 +66,9 @@ export function Header({
             onClick={() => {
               setActiveMainTab("chat");
               resetUnread(w);
+              if (isUnRead) {
+                updateLastRead(w);
+              }
             }}
             className={`relative flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
               activeMainTab === "chat"

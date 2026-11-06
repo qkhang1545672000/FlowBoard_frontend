@@ -257,3 +257,32 @@ export const useUpdateRoleForWorkspaceMember = (workspaceId: string) => {
     },
   });
 };
+
+// 1. Hook lấy danh sách workspace chưa đọc (dùng khi load trang / đăng nhập)
+export const useUnreadWorkspaces = () => {
+  const user = useAuthStore((state) => state.user);
+
+  return useQuery({
+    queryKey: ["workspaces", "unread-status"],
+    queryFn: () => workSpaceService.getUnreadWorkspaces(),
+    enabled: !!user?.id, // Chỉ gọi khi đã đăng nhập
+    staleTime: 1000 * 60 * 2, // Cache trong 2 phút
+  });
+};
+
+// 2. Hook mutation để đánh dấu đã đọc khi người dùng click vào workspace
+export const useUpdateLastRead = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (workspaceId: string) => workSpaceService.updateLastRead(workspaceId),
+    onSuccess: () => {
+      // Làm mới lại query unread-status để xóa dấu chấm ! trên giao diện
+      queryClient.invalidateQueries({ queryKey: ["workspaces", "unread-status"] });
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onError: (error: any) => {
+      console.error("Lỗi cập nhật trạng thái đã đọc:", error);
+    },
+  });
+};

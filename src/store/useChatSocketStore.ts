@@ -19,17 +19,21 @@ export const useChatSocketStore = create<ChatSocketState>((set, get) => ({
   unreadWorkspaceIds: new Set(),
 
   connectSocket: (userId: string) => {
+    console.log("222222222222222", userId);
     if (!userId) {
       console.log("⚠️ Chưa có userId, bỏ qua kết nối socket.");
       return;
     }
     const existingSocket = get().socket;
-    if (existingSocket) return; // Tránh tạo nhiều kết nối trùng lặp
+    if (existingSocket) {
+      existingSocket.disconnect();
+    }
 
     const socket = io(`${SOCKET_URL}/chat`, {
       transports: ["websocket"],
       withCredentials: true,
       query: { userId },
+      forceNew: true,
     });
 
     set({ socket });

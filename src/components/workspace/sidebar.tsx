@@ -14,7 +14,7 @@ import {
 import { WorkspaceResponse } from "@/types/workSpace";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { useBoardStore } from "@/store/useBoardStore";
-import { useWorkspaceDetail } from "@/hooks/useWorkSpace";
+import { useUnreadWorkspaces, useWorkspaceDetail } from "@/hooks/useWorkSpace";
 import { usePathname, useRouter } from "next/navigation";
 import { WorkspaceRole } from "@/types";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -36,7 +36,7 @@ export function Sidebar({
   const setActiveWorkspace = useWorkspaceStore((state) => state.setActiveWorkspace);
   const currentUserId = useAuthStore((state) => state.user);
   const currentBoardSlug = useBoardStore((state) => state.activeBoardSlug);
-
+  const { data: dataUnreadWorkspace } = useUnreadWorkspaces();
   const setBoardId = useBoardStore((state) => state.setActiveBoard);
   const unRead = useChatSocketStore((state) => state.unreadWorkspaceIds);
 
@@ -174,7 +174,9 @@ export function Sidebar({
                         const isActive =
                           currentWorkspaceSlug === ws.slug ||
                           workspaceSlugFromUrl === ws.slug;
-                        const hasUnreadChat = unRead.has(ws.id);
+                        const hasUnreadChat =
+                          unRead.has(ws.id) ||
+                          dataUnreadWorkspace?.unreadWorkspaceIds.includes(ws.id);
                         return (
                           <Link
                             key={ws.id}
@@ -240,11 +242,9 @@ export function Sidebar({
                         const isActive =
                           currentWorkspaceSlug === ws.slug ||
                           workspaceSlugFromUrl === ws.slug;
-                        const hasUnreadChat = unRead
-                          ? Array.from(unRead).some(
-                              (id) => String(id).trim() === String(ws.id).trim(),
-                            )
-                          : false;
+                        const hasUnreadChat =
+                          unRead.has(ws.id) ||
+                          dataUnreadWorkspace?.unreadWorkspaceIds.includes(ws.id);
 
                         return (
                           <Link

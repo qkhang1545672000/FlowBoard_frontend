@@ -194,4 +194,40 @@ export const workSpaceService = {
       throw error;
     }
   },
+
+  // 1. Lấy danh sách ID các workspace có tin nhắn chưa đọc
+  getUnreadWorkspaces: async (): Promise<{ unreadWorkspaceIds: string[] }> => {
+    try {
+      const currentUser = useAuthStore.getState().user;
+      if (!currentUser) {
+        return { unreadWorkspaceIds: [] };
+      }
+
+      const response = await axiosInstance.get<{ unreadWorkspaceIds: string[] }>(
+        "/api/v1/workspaces/unread-status",
+      );
+
+      return response.data;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      console.error("Lỗi getUnreadWorkspaces:", error?.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  // 2. Cập nhật mốc thời gian đọc cuối cùng cho Workspace
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  updateLastRead: async (workspaceId: string): Promise<any> => {
+    try {
+      const response = await axiosInstance.patch(
+        `/api/v1/workspaces/${workspaceId}/read`,
+      );
+
+      return response.data;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      console.error("Lỗi updateLastRead:", error?.response?.data || error.message);
+      throw error;
+    }
+  },
 };
