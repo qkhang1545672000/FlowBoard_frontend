@@ -43,7 +43,7 @@ export interface CreateMessageDto {
 export interface QueryMessageParams {
   scope: ChatScope;
   targetId: string;
-  page?: number;
+  cursor?: string; // Thay thế page thành cursor
   limit?: number;
 }
 

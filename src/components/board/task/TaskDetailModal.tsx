@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import InfiniteScroll from "react-infinite-scroll-component";
 import {
   X,
   Paperclip,
@@ -60,34 +61,85 @@ export function TaskDetailModal({
   const { mutate: updateTask, isPending: isPendingUpdateTask } = useUpdateTask(boardId);
 
   const [inputText, setInputText] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // State quản lý Tab đang active ("discussion" hoặc "checklist")
   const [activeTab, setActiveTab] = useState<"discussion" | "checklist">("discussion");
-
-  // State quản lý trạng thái hoàn thành của task
 
   // 1. Tránh SSR Mismatch khi render React Portal
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Cập nhật lại state khi task thay đổi
-
   // 2. Kết nối Socket Realtime theo scope TASK
   const { emitSendMessage } = useChatSocket(ChatScope.TASK, task?.id || "");
 
-  // 3. Tích hợp React Query cho chat
-  const { data: messagesData, isLoading: isLoadingMessages } = useGetMessages(
-    ChatScope.TASK,
-    task?.id || "",
-  );
+  // 3. Tích hợp React Query cho chat (dùng useInfiniteQuery)
+  const {
+    data: messagesData,
+    isLoading: isLoadingMessages,
+    fetchNextPage,
+    hasNextPage,
+  } = useGetMessages(ChatScope.TASK, task?.id || "");
   const sendMessageMutation = useSendMessage();
 
-  const messages = messagesData?.items || [];
+  // Gộp tất cả các trang tin nhắn lại (đảo ngược các trang pages để trang cũ lên trên, mới xuống dưới, sau đó flatMap và đảo ngược mảng items để tin mới nhất nằm ở đáy)
+  const messages = messagesData?.pages
+    ? [...messagesData.pages]
+        .reverse()
+        .flatMap((page) => page.items || [])
+        .reverse()
+    : [];
 
   // Lấy ID của người dùng hiện tại (hỗ trợ cả id lẫn _id)
   const currentUserId = String(user?.id || (user as any)?._id || "");
+
+  // Tạo key duy nhất để lưu vị trí cuộn (Scroll Position) vào sessionStorage cho task này
+  const scrollStorageKey = `chat-scroll-task-${task?.id}`;
+
+  // REFS: Dùng để tham chiếu đến các thẻ HTML DOM
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Tự động cuộn xuống đáy khi mở modal hoặc chuyển sang tab discussion
+   */
+  useLayoutEffect(() => {
+    if (isOpen && activeTab === "discussion" && messagesEndRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+  }, [isOpen, activeTab, task?.id]);
+
+  /**
+   * Hàm lưu vị trí cuộn hiện tại vào sessionStorage
+   */
+  const handleScrollSave = () => {
+    const container = containerRef.current;
+    if (!container || !task?.id) return;
+
+    sessionStorage.setItem(
+      scrollStorageKey,
+      JSON.stringify({
+        scrollTop: container.scrollTop,
+        scrollHeight: container.scrollHeight,
+      }),
+    );
+  };
+
+  /**
+   * Khôi phục vị trí cuộn sau khi tải thêm tin nhắn cũ để không bị giật màn hình
+   */
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const item = sessionStorage.getItem(scrollStorageKey);
+    if (item) {
+      const { scrollTop } = JSON.parse(item);
+      requestAnimationFrame(() => {
+        container.scrollTop = scrollTop;
+      });
+    }
+  }, [messages.length, scrollStorageKey]);
 
   // Mockup tài liệu đính kèm bên cột phải
   const [files, setFiles] = useState<UploadedFile[]>([
@@ -100,16 +152,9 @@ export function TaskDetailModal({
     },
   ]);
 
-  // Tự động cuộn xuống tin nhắn mới nhất
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
-
-  useEffect(() => {
-    if (isOpen && messages.length > 0 && activeTab === "discussion") {
-      scrollToBottom();
-    }
-  }, [messages, isOpen, activeTab]);
 
   if (!isOpen || !mounted || !task) return null;
 
@@ -135,6 +180,7 @@ export function TaskDetailModal({
         await sendMessageMutation.mutateAsync(payload);
       }
       setInputText("");
+      setTimeout(scrollToBottom, 100);
     } catch (error) {
       console.error("Lỗi gửi tin nhắn:", error);
     }
@@ -154,9 +200,11 @@ export function TaskDetailModal({
       setFiles([newFile, ...files]);
     }
   };
+
   if (isPendingUpdateTask) {
     return <LoadingModal isOpen={isPendingUpdateTask} />;
   }
+
   return createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 overflow-y-auto"
@@ -183,11 +231,13 @@ export function TaskDetailModal({
             <button
               type="button"
               onClick={() => {
-                // 🟢 Gọi API update lên server thông qua hook tổng quát
                 updateTask({
                   taskId: task.id,
                   isCompleted: !task.isCompleted,
                 });
+                if (onComplete) {
+                  onComplete(!task.isCompleted);
+                }
               }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shadow-sm cursor-pointer shrink-0 ${
                 task.isCompleted
@@ -246,90 +296,114 @@ export function TaskDetailModal({
             {activeTab === "discussion" && (
               <>
                 {/* Khung tin nhắn */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
-                  {isLoadingMessages ? (
-                    <div className="flex h-full items-center justify-center text-slate-400 gap-2">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span className="text-xs">Đang tải tin nhắn...</span>
-                    </div>
-                  ) : messages.length === 0 ? (
-                    <div className="flex h-full flex-col items-center justify-center text-slate-500 text-xs">
-                      Chưa có tin nhắn nào trong công việc này.
-                    </div>
-                  ) : (
-                    messages.map((msg) => {
-                      const senderId = String(
-                        msg.sender?.id || msg.sender?.id || (msg as any).senderId || "",
-                      );
-                      const isMe = Boolean(currentUserId && senderId === currentUserId);
-                      const senderName = msg.sender?.name || "Người dùng";
+                {isLoadingMessages ? (
+                  <div className="flex h-full items-center justify-center text-slate-400 gap-2 flex-1">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span className="text-xs">Đang tải tin nhắn...</span>
+                  </div>
+                ) : messages.length === 0 ? (
+                  <div className="flex h-full flex-col items-center justify-center text-slate-500 text-xs flex-1">
+                    Chưa có tin nhắn nào trong công việc này.
+                  </div>
+                ) : (
+                  <div
+                    id="taskScrollableDiv"
+                    ref={containerRef}
+                    onScroll={handleScrollSave}
+                    className="flex-1 overflow-y-auto overflow-x-hidden p-4 flex flex-col-reverse relative beautiful-scrollbar">
+                    {/* Thẻ div rỗng nằm ở dưới cùng để làm mốc cuộn */}
+                    <div ref={messagesEndRef} />
 
-                      return (
-                        <div
-                          key={msg.id}
-                          className={`flex items-end gap-2 ${
-                            isMe ? "flex-row-reverse" : "flex-row"
-                          }`}>
-                          {!isMe && (
-                            <UserAvatar
-                              name={senderName}
-                              avatarUrl={msg.sender?.image}
-                              type="chat"
-                              fallbackClassName="bg-indigo-600 text-xs shrink-0"
-                            />
-                          )}
+                    {/* Component hỗ trợ cuộn vô tận (Infinite Scroll) */}
+                    <InfiniteScroll
+                      dataLength={messages.length}
+                      next={fetchNextPage}
+                      hasMore={hasNextPage ?? false}
+                      scrollableTarget="taskScrollableDiv"
+                      loader={
+                        <p className="text-center text-xs py-2 text-slate-400">
+                          Đang tải thêm tin nhắn cũ...
+                        </p>
+                      }
+                      inverse={true}
+                      style={{
+                        display: "flex",
+                        flexDirection: "column-reverse",
+                        overflow: "visible",
+                      }}>
+                      {messages.map((msg, index) => {
+                        const senderId = String(
+                          msg.sender?.id || (msg as any).senderId || "",
+                        );
+                        const isMe = Boolean(currentUserId && senderId === currentUserId);
+                        const senderName = msg.sender?.name || "Người dùng";
 
+                        return (
                           <div
-                            className={`flex flex-col max-w-[80%] ${
-                              isMe ? "items-end" : "items-start"
+                            key={msg.id || index}
+                            className={`flex items-end gap-2 mb-3 ${
+                              isMe ? "flex-row-reverse" : "flex-row"
                             }`}>
                             {!isMe && (
-                              <span className="text-[10px] text-slate-400 mb-1 ml-1">
-                                {senderName}
-                              </span>
+                              <UserAvatar
+                                name={senderName}
+                                avatarUrl={msg.sender?.image}
+                                type="chat"
+                                fallbackClassName="bg-indigo-600 text-xs shrink-0"
+                              />
                             )}
 
                             <div
-                              className={`px-3.5 py-2 rounded-2xl text-xs sm:text-sm leading-relaxed break-words max-w-full ${
-                                isMe
-                                  ? "bg-blue-600 text-white rounded-br-xs shadow-md"
-                                  : "bg-slate-800 text-slate-100 rounded-bl-xs border border-slate-700/60"
+                              className={`flex flex-col max-w-[80%] ${
+                                isMe ? "items-end" : "items-start"
                               }`}>
-                              {msg.content}
-
-                              {msg.attachments && msg.attachments.length > 0 && (
-                                <div className="mt-2 space-y-1.5">
-                                  {msg.attachments.map((att, idx) => (
-                                    <div
-                                      key={idx}
-                                      className={`flex items-center gap-2 p-2 rounded-lg text-xs ${
-                                        isMe
-                                          ? "bg-blue-700/60 text-white"
-                                          : "bg-slate-900/80 text-slate-200"
-                                      }`}>
-                                      <FileText className="w-4 h-4 shrink-0 text-amber-400" />
-                                      <span className="truncate font-medium">
-                                        {att.name || "Tập tin đính kèm"}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
+                              {!isMe && (
+                                <span className="text-[10px] text-slate-400 mb-1 ml-1">
+                                  {senderName}
+                                </span>
                               )}
-                            </div>
 
-                            <span className="text-[9px] text-slate-500 mt-1 px-1">
-                              {new Date(msg.createdAt).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </span>
+                              <div
+                                className={`px-3.5 py-2 rounded-2xl text-xs sm:text-sm leading-relaxed break-words max-w-full ${
+                                  isMe
+                                    ? "bg-blue-600 text-white rounded-br-xs shadow-md"
+                                    : "bg-slate-800 text-slate-100 rounded-bl-xs border border-slate-700/60"
+                                }`}>
+                                {msg.content}
+
+                                {msg.attachments && msg.attachments.length > 0 && (
+                                  <div className="mt-2 space-y-1.5">
+                                    {msg.attachments.map((att, idx) => (
+                                      <div
+                                        key={idx}
+                                        className={`flex items-center gap-2 p-2 rounded-lg text-xs ${
+                                          isMe
+                                            ? "bg-blue-700/60 text-white"
+                                            : "bg-slate-900/80 text-slate-200"
+                                        }`}>
+                                        <FileText className="w-4 h-4 shrink-0 text-amber-400" />
+                                        <span className="truncate font-medium">
+                                          {att.name || "Tập tin đính kèm"}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              <span className="text-[9px] text-slate-500 mt-1 px-1">
+                                {new Date(msg.createdAt).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })
-                  )}
-                  <div ref={messagesEndRef} />
-                </div>
+                        );
+                      })}
+                    </InfiniteScroll>
+                  </div>
+                )}
 
                 {/* Form Soạn Tin nhắn */}
                 <form

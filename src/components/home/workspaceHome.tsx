@@ -20,9 +20,7 @@ import { WorkspaceFilterType } from "@/services/workspace.service";
 const WorkspaceHome = () => {
   const [activeTab, setActiveTab] = useState<WorkspaceFilterType>("owned");
   const { data: dataUnreadWorkspace } = useUnreadWorkspaces();
-  const unreadIds = dataUnreadWorkspace?.unreadWorkspaceIds || [];
 
-  console.log("fssadfasdfasdf", unreadIds);
   // Lấy dữ liệu phân trang cho Tab hiện tại
   const { data, isPending, isError, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useWorkSpace(10, activeTab);

@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { Send, Hash, Smile, Paperclip, Loader2, ShieldCheck, Crown } from "lucide-react";
+import InfiniteScroll from "react-infinite-scroll-component";
 import UserAvatar from "../ui/UserAvatar";
 import { ChatScope, ChatMessage } from "@/services/chat.service";
 import { useGetMessages, useSendMessage } from "@/hooks/useChat";
@@ -26,11 +27,23 @@ export const WorkspaceChat = ({
   const scope = ChatScope.WORKSPACE;
   const targetId = workspaceId;
 
-  // 1. Lấy danh sách tin nhắn qua REST API
-  const { data: messagesData, isLoading: isMessagesLoading } = useGetMessages(
-    scope,
-    targetId,
-  );
+  // 1. Lấy danh sách tin nhắn qua Infinite Query
+  const {
+    data: messagesData,
+    isLoading: isMessagesLoading,
+    fetchNextPage,
+    hasNextPage,
+  } = useGetMessages(scope, targetId);
+
+  // Gộp tất cả các trang tin nhắn lại từ infinite query
+  const messages = messagesData?.pages.flatMap((page) => page.items || []) || [];
+
+  /**
+   * Đảo ngược mảng tin nhắn:
+   * Vì API trả về tin nhắn theo thứ tự Mới -> Cũ, nhưng khi render giao diện với Flexbox 'flex-col-reverse'
+   * ta cần đảo mảng lại để tin nhắn mới nhất nằm ở đáy màn hình.
+   */
+  const reversedMessages = [...messages].reverse();
 
   // 2. Hook gửi tin nhắn (Mutation)
   const { mutate: sendMessageMutation, isPending: isSending } = useSendMessage();
@@ -38,16 +51,56 @@ export const WorkspaceChat = ({
   // 3. Kết nối WebSocket Real-time
   const { emitSendMessage } = useChatSocket(scope, targetId);
 
-  // Ref để tự động cuộn xuống tin nhắn mới nhất
+  // Tạo key duy nhất để lưu vị trí cuộn vào sessionStorage cho workspace này
+  const scrollStorageKey = `chat-scroll-workspace-${targetId}`;
+
+  // REFS: Dùng để tham chiếu đến các thẻ HTML DOM
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Tự động cuộn xuống đáy khi mở lần đầu hoặc đổi workspace
+   */
+  useLayoutEffect(() => {
+    if (!messagesEndRef.current) return;
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [targetId]);
+
+  /**
+   * Lưu vị trí cuộn hiện tại vào sessionStorage khi người dùng cuộn
+   */
+  const handleScrollSave = () => {
+    const container = containerRef.current;
+    if (!container || !targetId) return;
+
+    sessionStorage.setItem(
+      scrollStorageKey,
+      JSON.stringify({
+        scrollTop: container.scrollTop,
+        scrollHeight: container.scrollHeight,
+      }),
+    );
+  };
+
+  /**
+   * Khôi phục vị trí cuộn sau khi tải thêm tin nhắn cũ để không bị giật màn hình
+   */
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const item = sessionStorage.getItem(scrollStorageKey);
+    if (item) {
+      const { scrollTop } = JSON.parse(item);
+      requestAnimationFrame(() => {
+        container.scrollTop = scrollTop;
+      });
+    }
+  }, [messages.length, scrollStorageKey]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messagesData]);
 
   // Xử lý gửi tin nhắn
   const handleSendChat = (e?: React.FormEvent) => {
@@ -67,12 +120,13 @@ export const WorkspaceChat = ({
     }
 
     setChatMessage("");
+    setTimeout(scrollToBottom, 100);
   };
 
   return (
     <div className="flex-1 flex flex-col bg-slate-900/40 border border-slate-800 rounded-2xl overflow-hidden min-h-[500px]">
       {/* Header kênh chat */}
-      <div className="px-5 py-3 border-b border-slate-800 bg-slate-900/80 flex items-center gap-2">
+      <div className="px-5 py-3 border-b border-slate-800 bg-slate-900/80 flex items-center gap-2 shrink-0">
         <Hash className="w-5 h-5 text-indigo-400" />
         <span className="font-semibold text-white">thông-báo-workspace</span>
         <span className="text-xs text-slate-500 border-l border-slate-700 pl-2 ml-1">
@@ -80,32 +134,62 @@ export const WorkspaceChat = ({
         </span>
       </div>
 
-      {/* Danh sách tin nhắn */}
-      <div className="flex-1 p-5 space-y-4 overflow-y-auto">
-        <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl space-y-1">
-          <h3 className="text-indigo-300 font-semibold text-base flex items-center gap-2">
-            <Hash className="w-5 h-5" /> Chào mừng bạn đến với kênh chat Workspace!
-          </h3>
-          <p className="text-xs text-slate-400">
-            Đây là không gian trao đổi thông tin chính thức của toàn bộ thành viên trong
-            workspace này.
-          </p>
+      {/* Danh sách tin nhắn / Màn hình chờ */}
+      {isMessagesLoading ? (
+        <div className="flex justify-center items-center py-10 flex-1">
+          <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
         </div>
-
-        {isMessagesLoading ? (
-          <div className="flex justify-center items-center py-10">
-            <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+      ) : messages.length === 0 ? (
+        <div className="flex-1 flex flex-col p-5 overflow-y-auto">
+          <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl space-y-1 shrink-0 mb-4">
+            <h3 className="text-indigo-300 font-semibold text-base flex items-center gap-2">
+              <Hash className="w-5 h-5" /> Chào mừng bạn đến với kênh chat Workspace!
+            </h3>
+            <p className="text-xs text-slate-400">
+              Đây là không gian trao đổi thông tin chính thức của toàn bộ thành viên trong
+              workspace này.
+            </p>
           </div>
-        ) : messagesData?.items && messagesData.items.length > 0 ? (
-          <div className="space-y-4 pt-2">
-            {messagesData.items.map((msg: ChatMessage) => {
+          <div className="text-center py-12 text-slate-500 text-xs flex-1 flex items-center justify-center">
+            Chưa có tin nhắn nào trong workspace này. Hãy bắt đầu trò chuyện!
+          </div>
+        </div>
+      ) : (
+        /* Khung chứa danh sách cuộn chính */
+        <div
+          id="workspaceScrollableDiv"
+          ref={containerRef}
+          onScroll={handleScrollSave}
+          className="flex-1 p-5 overflow-y-auto overflow-x-hidden flex flex-col-reverse relative beautiful-scrollbar">
+          {/* Thông báo chào mừng */}
+
+          {/* Thẻ div rỗng nằm ở dưới cùng để làm mốc cuộn */}
+          <div ref={messagesEndRef} />
+
+          {/* Component hỗ trợ cuộn vô tận (Infinite Scroll) */}
+          <InfiniteScroll
+            dataLength={messages.length}
+            next={fetchNextPage}
+            hasMore={hasNextPage ?? false}
+            scrollableTarget="workspaceScrollableDiv"
+            loader={
+              <p className="text-center text-xs py-2 text-slate-400">
+                Đang tải thêm tin nhắn cũ...
+              </p>
+            }
+            inverse={true}
+            style={{
+              display: "flex",
+              flexDirection: "column-reverse",
+              overflow: "visible",
+            }}>
+            {reversedMessages.map((msg: ChatMessage, index: number) => {
               const isMe = msg.sender?.id === userId;
               const timeString = new Date(msg.createdAt).toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
               });
 
-              // Tìm thông tin role của người gửi trong workspace members
               const senderMember = workspaceMembers.find(
                 (m) => m.user?.id === msg.sender?.id,
               );
@@ -114,11 +198,10 @@ export const WorkspaceChat = ({
 
               return (
                 <div
-                  key={msg.id}
-                  className={`flex items-start gap-3 ${
+                  key={msg.id || index}
+                  className={`flex items-start gap-3 mb-4 ${
                     isMe ? "justify-end" : "justify-start"
                   }`}>
-                  {/* Nếu không phải là mình thì hiển thị Avatar bên trái */}
                   {!isMe && (
                     <div
                       className={`relative shrink-0 rounded-full p-0.5 ${
@@ -138,17 +221,15 @@ export const WorkspaceChat = ({
                     </div>
                   )}
 
-                  {/* Khối chứa tên và nội dung tin nhắn */}
                   <div
                     className={`space-y-1 max-w-xl flex flex-col ${
                       isMe ? "items-end" : "items-start"
                     }`}>
-                    {/* Dòng Header: Tên, Badge, Thời gian */}
                     <div className="flex items-center gap-2">
                       {isMe ? (
                         <>
                           <span className="text-[10px] text-slate-500">{timeString}</span>
-                          <span className="px-1.5 py-0.2 bg-indigo-600/30 text-indigo-200 border border-indigo-500/40 text-[10px] font-semibold rounded-md">
+                          <span className="px-1.5 py-0.5 bg-indigo-600/30 text-indigo-200 border border-indigo-500/40 text-[10px] font-semibold rounded-md">
                             Bạn
                           </span>
                           <span className="font-medium text-sm text-white">
@@ -161,12 +242,12 @@ export const WorkspaceChat = ({
                             {msg.sender?.name || "Thành viên"}
                           </span>
                           {isOwner && (
-                            <span className="text-[9px] font-medium px-1.5 py-0.2 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded flex items-center gap-0.5">
+                            <span className="text-[9px] font-medium px-1.5 py-0.5 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded flex items-center gap-0.5">
                               <ShieldCheck className="w-2.5 h-2.5" /> Owner
                             </span>
                           )}
                           {isLeader && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.2 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded flex items-center gap-0.5">
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded flex items-center gap-0.5">
                               <Crown className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />{" "}
                               Leader
                             </span>
@@ -177,7 +258,6 @@ export const WorkspaceChat = ({
                       )}
                     </div>
 
-                    {/* Bong bóng nội dung tin nhắn */}
                     <p
                       className={`text-sm p-3 rounded-2xl border break-words inline-block ${
                         isMe
@@ -187,13 +267,12 @@ export const WorkspaceChat = ({
                       {msg.content}
                     </p>
 
-                    {/* Tệp đính kèm nếu có */}
                     {msg.attachments && msg.attachments.length > 0 && (
                       <div
                         className={`flex flex-wrap gap-2 mt-2 ${
                           isMe ? "justify-end" : "justify-start"
                         }`}>
-                        {msg.attachments.map((att, idx) => (
+                        {msg.attachments.map((att: any, idx: number) => (
                           <a
                             key={idx}
                             href={att.url}
@@ -207,7 +286,6 @@ export const WorkspaceChat = ({
                     )}
                   </div>
 
-                  {/* Nếu là mình thì hiển thị Avatar ở bên phải */}
                   {isMe && (
                     <div
                       className={`relative shrink-0 rounded-full p-0.5 ${
@@ -232,19 +310,14 @@ export const WorkspaceChat = ({
                 </div>
               );
             })}
-            <div ref={messagesEndRef} />
-          </div>
-        ) : (
-          <div className="text-center py-12 text-slate-500 text-xs">
-            Chưa có tin nhắn nào trong workspace này. Hãy bắt đầu trò chuyện!
-          </div>
-        )}
-      </div>
+          </InfiniteScroll>
+        </div>
+      )}
 
       {/* Khung nhập tin nhắn */}
       <form
         onSubmit={handleSendChat}
-        className="p-4 border-t border-slate-800 bg-slate-900/60">
+        className="p-4 border-t border-slate-800 bg-slate-900/60 shrink-0">
         <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 focus-within:border-indigo-500 transition-all">
           <button
             type="button"

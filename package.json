@@ -30,6 +30,7 @@
     "react-day-picker": "^10.0.2",
     "react-dom": "19.2.8",
     "react-hook-form": "^7.87.0",
+    "react-infinite-scroll-component": "^7.2.1",
     "server-only": "^0.0.1",
     "shadcn": "^4.16.1",
     "socket.io-client": "^4.8.4",

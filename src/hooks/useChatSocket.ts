@@ -5,6 +5,15 @@ import { ChatScope, ChatMessage, CreateMessageDto } from "@/services/chat.servic
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3000";
 
+interface InfiniteChatData {
+  pages: {
+    items: ChatMessage[];
+    nextCursor: string | null;
+    hasMore: boolean;
+  }[];
+  pageParams: (string | undefined)[];
+}
+
 export const useChatSocket = (scope: ChatScope, targetId: string) => {
   const socketRef = useRef<Socket | null>(null);
   const queryClient = useQueryClient();
@@ -30,34 +39,43 @@ export const useChatSocket = (scope: ChatScope, targetId: string) => {
     // 2. Lắng nghe tin nhắn mới phát ra từ Gateway
     socket.on("new-message", (newMessage: ChatMessage) => {
       console.log("nnnnnewmanga", newMessage);
-      queryClient.setQueryData(
-        queryKey,
-        (
-          oldData:
-            | { items: ChatMessage[]; total: number; page: number; limit: number }
-            | undefined,
-        ) => {
-          if (!oldData) {
-            return {
-              items: [newMessage],
-              total: 1,
-              page: 1,
-              limit: 20,
-            };
-          }
 
-          // Tránh ghi trùng tin nhắn đã có trong danh sách
-          if (oldData.items.some((msg) => msg.id === newMessage.id)) {
-            return oldData;
-          }
-
+      queryClient.setQueryData(queryKey, (oldData: InfiniteChatData | undefined) => {
+        if (!oldData || !oldData.pages || oldData.pages.length === 0) {
           return {
-            ...oldData,
-            items: [...oldData.items, newMessage],
-            total: oldData.total + 1,
+            pages: [
+              {
+                items: [newMessage],
+                nextCursor: null,
+                hasMore: false,
+              },
+            ],
+            pageParams: [undefined],
           };
-        },
-      );
+        }
+
+        // Kiểm tra an toàn chống lỗi undefined (reading 'some') bằng ?. và || []
+        const allItems = oldData.pages.flatMap((page) => page.items || []);
+        const isDuplicated = allItems.some((msg) => msg?.id === newMessage.id);
+
+        if (isDuplicated) {
+          return oldData;
+        }
+
+        // Thêm tin nhắn mới vào trang cuối cùng (hoặc trang đầu tiên tùy thuộc vào cách bạn append)
+        const newPages = [...oldData.pages];
+        const lastPageIndex = newPages.length - 1;
+
+        newPages[lastPageIndex] = {
+          ...newPages[lastPageIndex],
+          items: [...(newPages[lastPageIndex].items || []), newMessage],
+        };
+
+        return {
+          ...oldData,
+          pages: newPages,
+        };
+      });
     });
 
     // 3. Cleanup khi unmount hoặc đổi targetId/scope
@@ -67,7 +85,7 @@ export const useChatSocket = (scope: ChatScope, targetId: string) => {
         socket.disconnect();
       }
     };
-  }, [scope, targetId, queryClient]);
+  }, [scope, targetId, queryClient, queryKey]);
 
   // Hàm hỗ trợ phát sự kiện 'send-message' trực tiếp qua Socket
   const emitSendMessage = (senderId: string, dto: CreateMessageDto) => {
