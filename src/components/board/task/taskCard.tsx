@@ -32,12 +32,108 @@ interface Props {
   onUpdatePriority?: (taskId: string, priority: TaskPriority) => void;
   onUpdateDueDate?: (taskId: string, date: string) => void;
 }
+
 const priorityColorMap = {
   [TaskPriority.URGENT]: "bg-red-500 shadow-sm shadow-red-500/50",
   [TaskPriority.HIGH]: "bg-orange-500 shadow-sm shadow-orange-500/50",
   [TaskPriority.MEDIUM]: "bg-amber-500 shadow-sm shadow-amber-500/50",
   [TaskPriority.LOW]: "bg-slate-600",
 };
+
+// 🟢 Custom hook tính toán tiến độ và thời gian thực từng giây
+function useRealtimeProgress(task: Task) {
+  const [progress, setProgress] = useState<number>(() => {
+    if (task.isCompleted) return 100;
+    if (!task.startDate || !task.dueDate) return Math.round(task.progress ?? 0);
+    const start = new Date(task.startDate).getTime();
+    const end = new Date(task.dueDate).getTime();
+    const now = Date.now();
+    if (start >= end) return 100;
+    if (now <= start) return 0;
+    if (now >= end) return 100;
+    return Math.min(Math.max(((now - start) / (end - start)) * 100, 0), 100);
+  });
+
+  const [timeRemaining, setTimeRemaining] = useState<string>(task.timeRemaining || "");
+
+  useEffect(() => {
+    if (task.isCompleted || !task.startDate || !task.dueDate) {
+      setProgress(task.isCompleted ? 100 : Math.round(task.progress ?? 0));
+      setTimeRemaining(task.timeRemaining || "");
+      return;
+    }
+
+    const start = new Date(task.startDate).getTime();
+    const end = new Date(task.dueDate).getTime();
+
+    const calculate = () => {
+      const now = Date.now();
+
+      // 🟢 Nếu start >= end hoặc now >= end -> Đã quá hạn / Lỗi mốc thời gian -> Full 100% thanh đỏ
+      if (start >= end || now >= end) {
+        setProgress(100);
+        setTimeRemaining("Đã quá hạn");
+        return;
+      }
+
+      // Nếu chưa tới thời gian bắt đầu -> Đếm ngược đến lúc bắt đầu
+      if (now <= start) {
+        setProgress(0);
+        const diffToStart = start - now;
+        const days = Math.floor(diffToStart / (1000 * 60 * 60 * 24));
+        const hours = Math.floor(
+          (diffToStart % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
+        );
+        const mins = Math.floor((diffToStart % (1000 * 60 * 60)) / (1000 * 60));
+        const secs = Math.floor((diffToStart % (1000 * 60)) / 1000);
+
+        if (days > 0) {
+          setTimeRemaining(`Bắt đầu sau ${days} ngày`);
+        } else if (hours > 0) {
+          setTimeRemaining(`Bắt đầu sau ${hours}h ${mins}p`);
+        } else {
+          setTimeRemaining(`Bắt đầu sau ${mins}p ${secs}s`);
+        }
+        return;
+      }
+
+      // Đang trong thời gian diễn ra task
+      const total = end - start;
+      const current = now - start;
+      setProgress(Math.min(Math.max((current / total) * 100, 0), 100));
+
+      const diff = end - now;
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+      if (days > 0) {
+        setTimeRemaining(`Còn ${days} ngày`);
+      } else if (hours > 0) {
+        setTimeRemaining(`Còn ${hours}h ${mins}p`);
+      } else {
+        setTimeRemaining(`Còn ${mins}p ${secs}s`);
+      }
+    };
+
+    calculate();
+    const interval = setInterval(calculate, 1000);
+    return () => clearInterval(interval);
+  }, [task.startDate, task.dueDate, task.isCompleted, task.progress, task.timeRemaining]);
+
+  const isOverdue =
+    (task.startDate &&
+      task.dueDate &&
+      new Date(task.startDate).getTime() >= new Date(task.dueDate).getTime()) ||
+    (task.dueDate && Date.now() >= new Date(task.dueDate).getTime());
+
+  return {
+    progress: task.isCompleted ? 100 : Math.round(progress),
+    timeRemaining,
+    isOverdue,
+  };
+}
 
 export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props) {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -48,12 +144,9 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
   const [isPriorityOpen, setIsPriorityOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
-  // Cập nhật lại state khi task thay đổi từ props
-
   const enterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const leaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
-
   const menuRef = useRef<HTMLDivElement>(null);
 
   const boardId = useBoardStore((state) => state.activeBoardId) ?? "";
@@ -69,6 +162,8 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
   const canDrag = isAssignee && !isLockedByOther;
 
   const memberTask = task.members.map((t) => t.user);
+
+  const { progress: progressValue, timeRemaining, isOverdue } = useRealtimeProgress(task);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -122,9 +217,6 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
     transform: CSS.Translate.toString(transform),
   };
 
-  // 🟢 Nếu hoàn thành thì ép tiến độ thành 100%, ngược lại lấy giá trị gốc của task
-  const progressValue = task.isCompleted ? 100 : Math.round(task.progress ?? 0);
-
   const isExpanded =
     isHovered ||
     isMenuOpen ||
@@ -158,15 +250,17 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
       leaveTimeoutRef.current = null;
     }, 200);
   };
+
   if (isPedingDeleteTask) {
     return (
       <LoadingModal
         isOpen={isPedingDeleteTask}
-        message="Xin chờ trong giấy lát"
+        message="Xin chờ trong giây lát"
         blurBackground={true}
       />
     );
   }
+
   return (
     <>
       <div
@@ -203,12 +297,11 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
                   className={`w-6 h-2 rounded-sm shrink-0 ${priorityColorMap[task.priority] || "bg-slate-600"}`}
                   title={`Priority: ${task.priority}`}
                 />
-                {/* 🟢 Dùng truncate kết hợp min-w-0 để tự động ... khi dài quá */}
                 <h4 className="text-xs font-medium text-slate-100 truncate line-clamp-5 max-w-[100px]">
                   {task.title}
                 </h4>
                 <div className="flex justify-between items-center text-[10px] text-slate-400">
-                  ({task.timeRemaining})
+                  ({task.isCompleted ? "Hoàn thành" : timeRemaining})
                 </div>
               </div>
               <div
@@ -235,13 +328,15 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
                 className={`h-full rounded-full transition-all duration-300 ${
                   task.isCompleted
                     ? "bg-emerald-500 shadow-sm shadow-emerald-500/50"
-                    : progressValue >= 70
+                    : isOverdue
                       ? "bg-red-600 shadow-sm shadow-red-500/50"
-                      : progressValue >= 50
-                        ? "bg-amber-500"
-                        : progressValue >= 30
+                      : progressValue >= 70
+                        ? "bg-red-600 shadow-sm shadow-red-500/50"
+                        : progressValue >= 50
                           ? "bg-amber-500"
-                          : "bg-sky-500"
+                          : progressValue >= 30
+                            ? "bg-amber-500"
+                            : "bg-sky-500"
                 }`}
                 style={{ width: `${Math.max(progressValue, 4)}%` }}
               />
@@ -313,7 +408,7 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
 
             <div className="space-y-1 pt-1">
               <div className="flex justify-between items-center text-[10px] text-slate-400">
-                <span>Tiến độ ({task.timeRemaining})</span>
+                <span>Tiến độ ({task.isCompleted ? "Hoàn thành" : timeRemaining})</span>
                 <div className="flex items-center gap-1.5">
                   <span className="font-semibold text-slate-300">{progressValue}%</span>
 
@@ -344,13 +439,15 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
                   className={`h-full rounded-full transition-all duration-300 ${
                     task.isCompleted
                       ? "bg-emerald-500 shadow-sm shadow-emerald-500/50"
-                      : progressValue >= 70
+                      : isOverdue
                         ? "bg-red-600 shadow-sm shadow-red-500/50"
-                        : progressValue >= 50
-                          ? "bg-amber-500"
-                          : progressValue >= 30
+                        : progressValue >= 70
+                          ? "bg-red-600 shadow-sm shadow-red-500/50"
+                          : progressValue >= 50
                             ? "bg-amber-500"
-                            : "bg-sky-500"
+                            : progressValue >= 30
+                              ? "bg-amber-500"
+                              : "bg-sky-500"
                   }`}
                   style={{ width: `${Math.max(progressValue, 4)}%` }}
                 />
