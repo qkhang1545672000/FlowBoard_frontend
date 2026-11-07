@@ -19,6 +19,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { WorkspaceRole } from "@/types";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useChatSocketStore } from "@/store/useChatSocketStore";
+import { TaskTooltipTitle } from "../ui/TaskTooltipTitle";
 
 interface SidebarProps {
   workspaces: WorkspaceResponse[];
@@ -196,9 +197,14 @@ export function Sidebar({
                             {!isCollapsed && (
                               /* 💡 Dùng flex items-center justify-between và w-full để đẩy tên sang trái, dấu ! sang phải */
                               <div className="flex items-center justify-between w-full">
-                                <span className="truncate whitespace-nowrap">
-                                  {ws.name}
-                                </span>
+                                <TaskTooltipTitle
+                                  title={
+                                    <span className="truncate whitespace-nowrap">
+                                      {ws.name}
+                                    </span>
+                                  }
+                                  className="max-w-[100px]"
+                                />
 
                                 {hasUnreadChat && (
                                   <span className="relative flex h-3.5 w-3.5 shrink-0 ml-2">
@@ -263,9 +269,14 @@ export function Sidebar({
                             <FolderKanban className="w-4 h-4 shrink-0 text-indigo-400" />
                             {!isCollapsed && (
                               <div className="flex items-center justify-between w-full">
-                                <span className="truncate whitespace-nowrap">
-                                  {ws.name}
-                                </span>
+                                <TaskTooltipTitle
+                                  title={
+                                    <span className="truncate whitespace-nowrap">
+                                      {ws.name}
+                                    </span>
+                                  }
+                                  className="max-w-[100px]"
+                                />
 
                                 {hasUnreadChat && (
                                   <span className="relative flex h-3.5 w-3.5 shrink-0 ml-2">

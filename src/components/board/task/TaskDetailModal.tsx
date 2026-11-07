@@ -221,7 +221,7 @@ export function TaskDetailModal({
             </span>
             <div className="truncate">
               <h2 className="text-base font-semibold text-slate-100 truncate">
-                <TaskTooltipTitle title={task.title} className="max-w-[100px]" />
+                <TaskTooltipTitle title={task.title} className="max-w-[200px]" />
               </h2>
               <p className="text-[11px] text-slate-400">Chi tiết công việc & Thảo luận</p>
             </div>

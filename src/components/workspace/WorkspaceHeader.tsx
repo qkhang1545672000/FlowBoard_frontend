@@ -25,7 +25,7 @@ export const WorkspaceHeader = ({
               {name || "Workspace"}
             </h1>
           }
-          className="max-w-[100px]"
+          className="max-w-[200px]"
         />
         <TaskTooltipTitle
           title={

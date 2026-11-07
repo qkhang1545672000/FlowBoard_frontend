@@ -70,10 +70,10 @@ export function TaskChecklistItem({
           }`}>
           {item.completed && <Check className="w-3 h-3" />}
         </button>
-        <span className="text-xs font-medium truncate">
+        <span className="text-xs font-medium truncate w-max-[400px]">
           <TaskTooltipTitle
             title={`${index + 1}. ${item.title}`}
-            className="max-w-[100px]"
+            className="max-w-[200px]"
           />
         </span>
       </div>

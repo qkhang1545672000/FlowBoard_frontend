@@ -461,7 +461,7 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
               </div>
             ) : (
               <h4 className="text-xs font-medium text-slate-100  pr-6">
-                <TaskTooltipTitle title={task.title} className="max-w-[100px]" />
+                <TaskTooltipTitle title={task.title} className="max-w-[200px]" />
               </h4>
             )}
 
