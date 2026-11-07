@@ -12,6 +12,7 @@ import { useBoardStore } from "@/store/useBoardStore";
 import { useBoardPermission } from "../useBoardPermission";
 import { useWorkspacePermission } from "@/components/workspace/useWorkspacePermission";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
+import { TaskTooltipTitle } from "@/components/ui/TaskTooltipTitle";
 
 interface TaskChecklistItemProps {
   item: SubTask;
@@ -70,7 +71,10 @@ export function TaskChecklistItem({
           {item.completed && <Check className="w-3 h-3" />}
         </button>
         <span className="text-xs font-medium truncate">
-          {index + 1}. {item.title}
+          <TaskTooltipTitle
+            title={`${index + 1}. ${task.title}`}
+            className="max-w-[100px]"
+          />
         </span>
       </div>
 

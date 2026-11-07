@@ -13,7 +13,7 @@ export const boardService = {
     }
   },
 
-  deteleBoard: async (boardId: string): Promise<Board> => {
+  deteleBoard: async (boardId: string, workspaceId: string): Promise<Board> => {
     try {
       const response = await axiosInstance.delete<Board>(`/api/v1/boards/${boardId}`);
       return response.data;
@@ -48,7 +48,7 @@ export const boardService = {
   }): Promise<Board> => {
     try {
       const response = await axiosInstance.patch<Board>(`/api/v1/boards/${id}`, dto);
-      console.log("ressss", response.data);
+
       return response.data;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {

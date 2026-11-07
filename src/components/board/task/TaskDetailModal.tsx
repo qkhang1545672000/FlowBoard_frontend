@@ -29,6 +29,7 @@ import UserAvatar from "../../ui/UserAvatar";
 import { TaskChecklistTab } from "./TaskChecklistTab";
 import { useUpdateTask } from "@/hooks/useTask";
 import { LoadingModal } from "@/components/ui/loading-modal";
+import { TaskTooltipTitle } from "@/components/ui/TaskTooltipTitle";
 
 interface TaskDetailModalProps {
   isOpen: boolean;
@@ -220,7 +221,7 @@ export function TaskDetailModal({
             </span>
             <div className="truncate">
               <h2 className="text-base font-semibold text-slate-100 truncate">
-                {task.title}
+                <TaskTooltipTitle title={task.title} className="max-w-[100px]" />
               </h2>
               <p className="text-[11px] text-slate-400">Chi tiết công việc & Thảo luận</p>
             </div>

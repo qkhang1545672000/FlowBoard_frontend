@@ -7,6 +7,7 @@ import {
 import { Column, CreateColumn } from "@/types/column";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSocket } from "./useSocket";
+import { useBoardStore } from "@/store/useBoardStore";
 
 export const useCreateColumn = (boardId: string) => {
   const socket = useSocket();
@@ -92,6 +93,30 @@ export const useMoveColumn = (boardId: string) => {
       queryClient.invalidateQueries({
         queryKey: ["board", boardId],
       });
+    },
+  });
+};
+
+export const useUpdateColumn = (boardId: string) => {
+  const socket = useSocket();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: Partial<Column> & { id: string }) =>
+      columnService.updateColumn(data, boardId), // 🟢 Truyền data trước, rồi đến boardId đúng với thứ tự service
+    onSuccess: (updatedColumn: Column) => {
+      // A. Refetch lại dữ liệu board cho người thực hiện thao tác
+      queryClient.invalidateQueries({
+        queryKey: ["board", boardId],
+      });
+
+      // B. Phát Socket báo cho các máy khác đang ở cùng Bảng (Room)
+      if (socket && boardId) {
+        socket.emit("update-column", {
+          boardId,
+          updatedColumn,
+        });
+      }
     },
   });
 };

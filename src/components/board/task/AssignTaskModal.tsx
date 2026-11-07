@@ -28,7 +28,7 @@ export function AssignTaskModal({
   const [searchQuery, setSearchQuery] = useState("");
 
   const boardId = useBoardStore((state) => state.activeBoardId) ?? "";
-  const { data: BoardDetail } = useBoardDetail(boardId);
+  const { data: BoardDetail } = useBoardDetail();
   const { mutate: updateAssignTask, isPending } = useUpdateAssignTask(boardId);
 
   // Khởi tạo danh sách các User đã chọn từ task ban đầu
@@ -43,6 +43,7 @@ export function AssignTaskModal({
   const [leaderId, setLeaderId] = useState<string | null>(() => {
     if (task.members && task.members.length > 0) {
       const foundLeader = task.members.find(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (m: any) => m.isLeader || m.role === "LEADER",
       );
       return foundLeader ? foundLeader.user.id : task.members[0]?.user?.id || null;
@@ -52,6 +53,7 @@ export function AssignTaskModal({
 
   if (!isOpen || typeof window === "undefined") return null;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const filterBySearch = (member: any) => {
     const query = searchQuery.toLowerCase();
     const name = member.user?.name?.toLowerCase() || "";

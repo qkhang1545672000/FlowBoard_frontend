@@ -10,7 +10,7 @@ import { createPortal } from "react-dom";
 import { useDeleteWorkspace, useInviteMemberW } from "@/hooks/useWorkSpace";
 import InviteMemberModal from "./InviteMemberModal";
 import WorkspaceNotificationPopover from "./WorkspaceNotificationPopover";
-import { useRouter } from "next/navigation";
+import { TaskTooltipTitle } from "../ui/TaskTooltipTitle";
 
 interface Props {
   ws: WorkspaceResponse;
@@ -35,7 +35,7 @@ const WorkspaceCard = ({ ws, onDelete, onRename, onInviteMember }: Props) => {
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const router = useRouter();
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
@@ -73,9 +73,15 @@ const WorkspaceCard = ({ ws, onDelete, onRename, onInviteMember }: Props) => {
                 <Folder className="w-5 h-5 text-indigo-400" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-slate-100 group-hover:text-indigo-400 transition-colors">
-                  {ws.name}
-                </h3>
+                <TaskTooltipTitle
+                  title={
+                    <h3 className="text-sm font-semibold text-slate-100 group-hover:text-indigo-400 transition-colors">
+                      {ws.name}
+                    </h3>
+                  }
+                  className="max-w-[100px]"
+                />
+
                 <p className="text-[11px] text-slate-400">{ws.boardsCount} boards</p>
               </div>
             </div>

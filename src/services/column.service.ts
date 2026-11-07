@@ -41,6 +41,25 @@ export const columnService = {
       throw error;
     }
   },
+  updateColumn: async (
+    data: Partial<Column> & { id: string },
+    boardId: string,
+  ): Promise<Column> => {
+    try {
+      const response = await axiosInstance.patch<Column>(`/api/v1/columns/${data.id}`, {
+        boardId: boardId,
+        title: data.title,
+        lock_type: data.lock_type,
+        position: data.position,
+      });
+      return response.data;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      console.error("Lỗi updateColumn (Server):", error?.response?.data || error.message);
+      throw error;
+    }
+  },
+
   deleteColumn: async (columnId: string): Promise<Column> => {
     try {
       const response = await axiosInstance.delete<Column>(`/api/v1/columns/${columnId}`);

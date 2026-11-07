@@ -14,6 +14,8 @@ import { DeleteConfirmModal } from "../ui/DeleteConfirmModal";
 import { useDeleteBoard } from "@/hooks/useBoard";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { CreateBoardModal } from "./create-board-modal"; // Import modal tạo/sửa board
+import { useWorkspacePermission } from "./useWorkspacePermission";
+import { TaskTooltipTitle } from "../ui/TaskTooltipTitle";
 
 interface BoardCardProps {
   board: BoardOverview;
@@ -24,6 +26,7 @@ export function BoardCard({ board, workspaceMembers = [] }: BoardCardProps) {
   const setActiveBoard = useBoardStore((state) => state.setActiveBoard);
   const activeWorkspace = useWorkspaceStore((state) => state.activeWorkspaceId) ?? "";
   const { mutate: deleteBoard } = useDeleteBoard(activeWorkspace);
+  const { isOwn: isPermissionW } = useWorkspacePermission(activeWorkspace);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
@@ -74,9 +77,14 @@ export function BoardCard({ board, workspaceMembers = [] }: BoardCardProps) {
           {/* Header: Title & Actions */}
           <div>
             <div className="flex justify-between items-start mb-2">
-              <h3 className="text-base font-bold text-slate-100 group-hover:text-indigo-400 transition-colors pr-6 line-clamp-1">
-                {board.title}
-              </h3>
+              <TaskTooltipTitle
+                title={
+                  <h3 className="text-base font-bold text-slate-100 group-hover:text-indigo-400 transition-colors pr-6 line-clamp-1">
+                    {board.title}
+                  </h3>
+                }
+                className="max-w-[100px]"
+              />
 
               {/* Nút 3 chấm & Sub Menu */}
               <div className="relative" ref={menuRef}>
@@ -93,18 +101,24 @@ export function BoardCard({ board, workspaceMembers = [] }: BoardCardProps) {
                 {/* Submenu Dropdown */}
                 {isMenuOpen && (
                   <div className="absolute right-0 top-7 w-36 bg-slate-800 border border-slate-700 rounded-xl shadow-xl py-1 z-50 text-xs text-slate-300 backdrop-blur-md animate-in fade-in zoom-in-95 duration-100">
-                    <button
-                      onClick={handleDeleteClick}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors text-left rounded-md">
-                      <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                      Xóa
-                    </button>
-                    <button
-                      onClick={handleEditBoard}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-slate-700/60 hover:text-white transition-colors text-left">
-                      <Edit3 className="w-3.5 h-3.5 text-indigo-400" />
-                      Chỉnh sửa
-                    </button>
+                    {isPermissionW && (
+                      <button
+                        onClick={handleDeleteClick}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors text-left rounded-md">
+                        <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                        Xóa
+                      </button>
+                    )}
+
+                    {isPermissionW && (
+                      <button
+                        onClick={handleEditBoard}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-slate-700/60 hover:text-white transition-colors text-left">
+                        <Edit3 className="w-3.5 h-3.5 text-indigo-400" />
+                        Chỉnh sửa
+                      </button>
+                    )}
+
                     <button
                       onClick={handleOpenHistory}
                       className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-slate-700/60 hover:text-white transition-colors text-left">

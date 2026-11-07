@@ -19,7 +19,6 @@ export const useChatSocketStore = create<ChatSocketState>((set, get) => ({
   unreadWorkspaceIds: new Set(),
 
   connectSocket: (userId: string) => {
-    console.log("222222222222222", userId);
     if (!userId) {
       console.log("⚠️ Chưa có userId, bỏ qua kết nối socket.");
       return;

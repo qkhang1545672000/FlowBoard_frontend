@@ -49,12 +49,16 @@ import { useWorkspacePermission } from "@/components/workspace/useWorkspacePermi
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { BoardVisibility } from "@/types";
 import { LoadingModal } from "@/components/ui/loading-modal";
+import { useRouter } from "next/navigation";
+import { isAxiosError } from "axios";
 
 export default function BoardDetailPage() {
   // --------------------------------------------------------------------------
   // 1. LẤY DỮ LIỆU TỪ KHO CHUNG (ZUSTAND & AUTH)
   // --------------------------------------------------------------------------
+  const router = useRouter();
   const activeBoardId = useBoardStore((state) => state.activeBoardId) ?? "";
+  const setBoard = useBoardStore((state) => state.setActiveBoard) ?? "";
   const workspaceId = useWorkspaceStore((state) => state.activeWorkspaceId) ?? "";
 
   const user = useAuthStore((state) => state.user);
@@ -65,8 +69,23 @@ export default function BoardDetailPage() {
   // --------------------------------------------------------------------------
   const { mutate: moveTask } = useMoveTask(activeBoardId || "");
   const { mutate: moveColumn } = useMoveColumn(activeBoardId || "");
-  const { data: boardDetail, isLoading } = useBoardDetail(activeBoardId ?? "");
+  const { data: boardDetail, isLoading, error, isError } = useBoardDetail();
+  useEffect(() => {
+    // Chỉ xử lý khi có lỗi xảy ra và lỗi đó là từ Axios
+    if (isError && isAxiosError(error)) {
+      const status = error.response?.status;
+      const serverMessage = error.response?.data?.message;
 
+      // 🛑 Nếu là lỗi 403 (Không có quyền truy cập)
+      if (status === 403) {
+        // 1. Hiển thị thông báo toast lỗi
+        toast.error(serverMessage || "Bạn không có quyền truy cập vào board này!");
+        setBoard({ id: "", slug: "" });
+        // 2. Tự động quay lại trang trước đó
+        router.back();
+      }
+    }
+  }, [isError, error, router]);
   // --------------------------------------------------------------------------
   // 3. QUẢN LÝ TRẠNG THÁI NỘI BỘ (LOCAL STATE)
   // --------------------------------------------------------------------------
@@ -102,6 +121,7 @@ export default function BoardDetailPage() {
   }, [boardDetail]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsMounted(true);
   }, []);
 
@@ -210,7 +230,7 @@ export default function BoardDetailPage() {
           ) {
             return prevCols;
           }
-          console.log("hêlllllllllllllll");
+
           return arrayMove(prevCols, activeColIndex, overColIndex);
         });
         return;

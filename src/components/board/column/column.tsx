@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef, useEffect } from "react";
 import {
   useSortable,
   SortableContext,
@@ -19,6 +19,7 @@ import {
   useCreateColumn,
   useDeleteColumn,
   useUpdateColumnClock,
+  useUpdateColumn, // 🟢 Đảm bảo hook cập nhật cột đã được import (hoặc dùng hàm update tương ứng của bạn)
 } from "@/hooks/useColumn";
 import { useBoardPermission } from "../useBoardPermission";
 import { useWorkspacePermission } from "../../workspace/useWorkspacePermission";
@@ -30,6 +31,7 @@ import { ColumnOptionsMenu } from "./ColumnOptionsMenu";
 import { TaskCreationForm } from "../task/TaskCreationForm";
 import { CreateColumnInput } from "./CreateColumnInput";
 import { LoadingModal } from "@/components/ui/loading-modal";
+import { TaskTooltipTitle } from "@/components/ui/TaskTooltipTitle";
 
 interface Props {
   column: Column;
@@ -48,12 +50,20 @@ export function ColumnComponent({ column, isOverlay }: Props) {
   const { mutate: createColumn, isPending: isPendingCreateColumn } =
     useCreateColumn(boardId);
 
+  // 🟢 Hook cập nhật thông tin cột (ví dụ: đổi tên)
+  const { mutate: updateColumn } = useUpdateColumn(boardId);
+
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLockMenuOpen, setIsLockMenuOpen] = useState(false);
 
   const [isCreatingColumn, setIsCreatingColumn] = useState(false);
+
+  // 🟢 State cho tính năng sửa tên cột trực tiếp
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [columnTitleValue, setColumnTitleValue] = useState(column.title);
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   const { isOwn } = useBoardPermission(boardId);
   const { isOwn: isOwnWorkspace } = useWorkspacePermission(workspaceId);
@@ -66,6 +76,33 @@ export function ColumnComponent({ column, isOverlay }: Props) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayISO = today.toISOString();
+
+  // Focus vào input khi bật chế độ sửa tên cột
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [isEditingTitle]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setColumnTitleValue(column.title);
+  }, [column.title]);
+
+  const handleSaveColumnTitle = () => {
+    if (!columnTitleValue.trim() || columnTitleValue === column.title) {
+      setColumnTitleValue(column.title);
+      setIsEditingTitle(false);
+      return;
+    }
+
+    updateColumn({
+      id: column.id,
+      title: columnTitleValue.trim(),
+    });
+    setIsEditingTitle(false);
+  };
 
   const tasksIds = useMemo(() => {
     return column.tasks ? column.tasks.map((task) => task.id) : [];
@@ -81,6 +118,7 @@ export function ColumnComponent({ column, isOverlay }: Props) {
   } = useSortable({
     id: column.id,
     data: { type: "COLUMN", column },
+    disabled: isEditingTitle, // Vô hiệu hóa kéo thả cột khi đang sửa tên
   });
 
   const { setNodeRef: setDroppableNodeRef } = useDroppable({
@@ -121,7 +159,7 @@ export function ColumnComponent({ column, isOverlay }: Props) {
       title,
       boardId,
       lock_type: ColumnLockType.UNLOCKED,
-    }); // Gọi API tạo cột mới
+    });
     setIsCreatingColumn(false);
   };
 
@@ -135,7 +173,6 @@ export function ColumnComponent({ column, isOverlay }: Props) {
   }
 
   return (
-    // Bọc toàn bộ trong flex gap-3 để Cột và Ô tạo cột mới (nếu có) đứng cạnh nhau theo hàng ngang
     <div className="flex gap-3 shrink-0 items-start">
       {/* Khung Cột hiện tại */}
       <div
@@ -146,20 +183,68 @@ export function ColumnComponent({ column, isOverlay }: Props) {
         } ${isOverlay ? "ring-2 ring-indigo-500 shadow-2xl scale-105" : ""}`}>
         {/* Header Cột */}
         <div className="flex justify-between items-center mb-3 px-1">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
             <button
               {...attributes}
               {...listeners}
               className="p-1 hover:bg-slate-800 text-slate-400 hover:text-slate-200 rounded cursor-grab active:cursor-grabbing shrink-0">
               <GripVertical className="w-4 h-4" />
             </button>
-            <h3 className="font-bold text-sm text-slate-200 truncate">{column.title}</h3>
+
+            {/* 🟢 Inline Edit cho tiêu đề Cột */}
+            {isEditingTitle ? (
+              <input
+                ref={titleInputRef}
+                type="text"
+                value={columnTitleValue}
+                onChange={(e) => setColumnTitleValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveColumnTitle();
+                  if (e.key === "Escape") {
+                    setColumnTitleValue(column.title);
+                    setIsEditingTitle(false);
+                  }
+                }}
+                onBlur={handleSaveColumnTitle}
+                className="w-full bg-slate-950 border border-indigo-500 rounded px-1.5 py-0.5 text-sm text-slate-100 outline-none"
+              />
+            ) : (
+              <TaskTooltipTitle
+                title={
+                  <div
+                    onClick={() => setIsEditingTitle(true)}
+                    title="Nhấp để đổi tên cột"
+                    className="group/title flex items-center gap-1.5 cursor-pointer min-w-0 flex-1">
+                    <h3 className="font-bold text-sm text-slate-200 group-hover/title:text-indigo-400 transition-colors truncate">
+                      {column.title}
+                    </h3>
+                    {/* Icon cây bút nhỏ ẩn hiện khi hover vào tiêu đề */}
+                    <span className="opacity-0 group-hover/title:opacity-100 transition-opacity text-slate-400 shrink-0">
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                        />
+                      </svg>
+                    </span>
+                  </div>
+                }
+                className="max-w-[100px]"
+              />
+            )}
+
             <span className="bg-slate-800 text-slate-400 text-xs px-2 py-0.5 rounded-full font-medium border border-slate-700/50 shrink-0">
               {column.tasks?.length || 0}
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5 text-slate-400">
+          <div className="flex items-center gap-1.5 text-slate-400 shrink-0">
             {/* Menu khóa cột */}
             <ColumnLockMenu
               isOpen={isLockMenuOpen}
@@ -238,7 +323,6 @@ export function ColumnComponent({ column, isOverlay }: Props) {
         </div>
       </div>
 
-      {/* <CreateColumnInput /> hiển thị ngay bên phải cột hiện tại khi người dùng bấm "Thêm cột bên phải" */}
       {isCreatingColumn && (
         <CreateColumnInput
           onSubmit={handleCreateColumnSubmit}

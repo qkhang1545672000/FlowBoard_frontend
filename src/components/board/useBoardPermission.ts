@@ -4,7 +4,7 @@ import { useAuthStore } from "@/store/useAuthStore"; // Zustand store lấy thô
 import { BoardMemberRole } from "@/types";
 
 export const useBoardPermission = (boardId: string) => {
-  const { data: boardDetail } = useBoardDetail(boardId);
+  const { data: boardDetail } = useBoardDetail();
   const user = useAuthStore((state) => state.user);
 
   const isOwn = useMemo(() => {

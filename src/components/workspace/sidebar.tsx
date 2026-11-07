@@ -38,6 +38,7 @@ export function Sidebar({
   const currentBoardSlug = useBoardStore((state) => state.activeBoardSlug);
   const { data: dataUnreadWorkspace } = useUnreadWorkspaces();
   const setBoardId = useBoardStore((state) => state.setActiveBoard);
+
   const unRead = useChatSocketStore((state) => state.unreadWorkspaceIds);
 
   // Khai báo kiểm tra thanh địa chỉ (URL)

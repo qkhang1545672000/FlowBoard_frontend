@@ -3,7 +3,7 @@ import { useBoardDetail } from "@/hooks/useBoard";
 import { useAuthStore } from "@/store/useAuthStore";
 
 export const useTaskPermission = (boardId: string, taskId?: string) => {
-  const { data: boardDetail } = useBoardDetail(boardId);
+  const { data: boardDetail } = useBoardDetail();
   const user = useAuthStore((state) => state.user);
 
   // Kiểm tra user hiện tại có phải là TASK_LEADER của task truyền vào hay không

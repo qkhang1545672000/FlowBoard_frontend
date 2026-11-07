@@ -3,6 +3,7 @@ import { boardService } from "@/services/board.service";
 
 import { BoardDetail, CreateBoardDto, UpdateBoardDto } from "@/types/board";
 import { toast } from "sonner";
+import { useBoardStore } from "@/store/useBoardStore";
 
 // Hook Mutation Tạo Board mới
 export const useCreateBoard = () => {
@@ -33,11 +34,16 @@ export const useCreateBoard = () => {
   });
 };
 
-export const useBoardDetail = (boardId: string) => {
+export const useBoardDetail = (board_id?: string) => {
+  const boardId = useBoardStore((state) => state.activeBoardId) ?? "";
+  let select_boardId = boardId;
+  if (board_id) {
+    select_boardId = board_id;
+  }
   return useQuery<BoardDetail>({
-    queryKey: ["board", boardId], // Query key bao gồm boardId để tự động refetch khi ID thay đổi
-    queryFn: () => boardService.getBoardDetailByBoardId(boardId),
-    enabled: !!boardId, // Chỉ chạy query khi boardId có giá trị (tránh gọi API khi ID bị undefined/null)
+    queryKey: ["board", select_boardId], // Query key bao gồm boardId để tự động refetch khi ID thay đổi
+    queryFn: () => boardService.getBoardDetailByBoardId(select_boardId),
+    enabled: !!select_boardId, // Chỉ chạy query khi boardId có giá trị (tránh gọi API khi ID bị undefined/null)
   });
 };
 

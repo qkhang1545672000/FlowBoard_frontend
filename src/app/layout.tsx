@@ -36,7 +36,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <GlobalChatListener />
           {children}
 
-          <Toaster position="top-right" richColors closeButton />
+          <Toaster
+            position="top-right"
+            richColors
+            closeButton
+            duration={1000} // Thời gian tự biến mất (4000ms = 4 giây). Nếu muốn dài hơn có thể đổi thành 6000
+          />
         </QueryProvider>
       </body>
     </html>

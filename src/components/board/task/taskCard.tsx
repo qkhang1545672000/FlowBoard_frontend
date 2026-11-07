@@ -23,6 +23,7 @@ import { useWorkspacePermission } from "../../workspace/useWorkspacePermission";
 import { formatDateRangeDisplay } from "@/lib/took";
 import { DeleteConfirmModal } from "../../ui/DeleteConfirmModal";
 import { LoadingModal } from "@/components/ui/loading-modal";
+import { TaskTooltipTitle } from "@/components/ui/TaskTooltipTitle";
 
 interface Props {
   task: Task;
@@ -69,14 +70,12 @@ function useRealtimeProgress(task: Task) {
     const calculate = () => {
       const now = Date.now();
 
-      // 🟢 Nếu start >= end hoặc now >= end -> Đã quá hạn / Lỗi mốc thời gian -> Full 100% thanh đỏ
       if (start >= end || now >= end) {
         setProgress(100);
         setTimeRemaining("Đã quá hạn");
         return;
       }
 
-      // Nếu chưa tới thời gian bắt đầu -> Đếm ngược đến lúc bắt đầu
       if (now <= start) {
         setProgress(0);
         const diffToStart = start - now;
@@ -97,7 +96,6 @@ function useRealtimeProgress(task: Task) {
         return;
       }
 
-      // Đang trong thời gian diễn ra task
       const total = end - start;
       const current = now - start;
       setProgress(Math.min(Math.max((current / total) * 100, 0), 100));
@@ -144,6 +142,11 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
   const [isPriorityOpen, setIsPriorityOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
+  // 🟢 State cho tính năng Sửa tên trực tiếp
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleValue, setTitleValue] = useState(task.title);
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const enterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const leaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -156,7 +159,8 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
   const user = useSafeUser();
   const { isTaskLeader } = useTaskPermission(boardId, task.id);
   const { mutate: deleteTask, isPending: isPedingDeleteTask } = useDeleteTask(boardId);
-  const { mutate: updateTaskDates } = useUpdateTask(boardId);
+  const { mutate: updateTask } = useUpdateTask(boardId);
+
   const isLockedByOther = Boolean(lockedBy && lockedBy.id !== user?.id);
   const isAssignee = isTaskLeader || user?.role === "ADMIN" || isOwn || isOwnWorkspace;
   const canDrag = isAssignee && !isLockedByOther;
@@ -164,6 +168,32 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
   const memberTask = task.members.map((t) => t.user);
 
   const { progress: progressValue, timeRemaining, isOverdue } = useRealtimeProgress(task);
+
+  // Focus vào input khi bật chế độ edit
+  useEffect(() => {
+    if (isEditingTitle && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditingTitle]);
+
+  useEffect(() => {
+    setTitleValue(task.title);
+  }, [task.title]);
+
+  const handleSaveTitle = () => {
+    if (!titleValue.trim() || titleValue === task.title) {
+      setTitleValue(task.title);
+      setIsEditingTitle(false);
+      return;
+    }
+
+    updateTask({
+      taskId: task.id,
+      title: titleValue.trim(),
+    });
+    setIsEditingTitle(false);
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -204,7 +234,7 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
         type: "TASK",
         task,
       },
-      disabled: !canDrag,
+      disabled: !canDrag || isEditingTitle,
     });
 
   const combinedRef = (node: HTMLDivElement | null) => {
@@ -223,7 +253,8 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
     isModalOpen ||
     isAssignModalOpen ||
     isDatePopoverOpen ||
-    isPriorityOpen;
+    isPriorityOpen ||
+    isEditingTitle;
 
   const handleMouseEnter = () => {
     if (leaveTimeoutRef.current) {
@@ -268,7 +299,9 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
         style={style}
         {...attributes}
         {...listeners}
-        onClick={() => setIsModalOpen(true)}
+        onClick={() => {
+          if (!isEditingTitle) setIsModalOpen(true);
+        }}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         className={`relative bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 p-3 rounded-xl shadow-md transition-all space-y-2 ${
@@ -368,12 +401,13 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
                     onClick={(e) => {
                       e.stopPropagation();
                       setIsMenuOpen(false);
-                      setIsModalOpen(true);
+                      setIsEditingTitle(true);
                     }}
                     className="w-full text-left px-3 py-1.5 text-slate-200 hover:bg-slate-800 flex items-center gap-2">
                     <Edit3 className="w-3 h-3 text-indigo-400" />
-                    <span>Cập nhật</span>
+                    <span>Sửa tên</span>
                   </button>
+
                   <button
                     type="button"
                     onClick={(e) => {
@@ -402,9 +436,34 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
               </div>
             )}
 
-            <h4 className="text-xs font-medium text-slate-100 line-clamp-2 pr-6">
-              {task.title}
-            </h4>
+            {/* 🟢 Inline Edit cho tiêu đề Task khi bấm Sửa tên */}
+            {isEditingTitle ? (
+              <div
+                className="flex items-center gap-1 pr-6"
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={titleValue}
+                  onChange={(e) => setTitleValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSaveTitle();
+                    if (e.key === "Escape") {
+                      setTitleValue(task.title);
+                      setIsEditingTitle(false);
+                    }
+                  }}
+                  onBlur={handleSaveTitle}
+                  className="w-full bg-slate-900 border border-indigo-500 rounded px-1.5 py-1 text-xs text-slate-100 outline-none"
+                />
+              </div>
+            ) : (
+              <h4 className="text-xs font-medium text-slate-100  pr-6">
+                <TaskTooltipTitle title={task.title} className="max-w-[100px]" />
+              </h4>
+            )}
 
             <div className="space-y-1 pt-1">
               <div className="flex justify-between items-center text-[10px] text-slate-400">
@@ -423,7 +482,7 @@ export function TaskCard({ task, isOverlay, lockedBy, onUpdatePriority }: Props)
                       isOpen={isDatePopoverOpen}
                       onOpenChange={setIsDatePopoverOpen}
                       onUpdateDates={(newStart, newDue) => {
-                        updateTaskDates({
+                        updateTask({
                           taskId: task.id,
                           startDate: newStart,
                           dueDate: newDue,

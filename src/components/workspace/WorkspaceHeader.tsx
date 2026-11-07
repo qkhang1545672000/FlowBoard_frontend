@@ -1,4 +1,5 @@
 import { Plus } from "lucide-react";
+import { TaskTooltipTitle } from "../ui/TaskTooltipTitle";
 
 interface WorkspaceHeaderProps {
   name?: string;
@@ -18,12 +19,22 @@ export const WorkspaceHeader = ({
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-white mb-1">
-          {name || "Workspace"}
-        </h1>
-        <p className="text-slate-400 text-sm">
-          {description?.trim() || "Không có thông tin mô tả"}
-        </p>
+        <TaskTooltipTitle
+          title={
+            <h1 className="text-2xl font-bold tracking-tight text-white mb-1">
+              {name || "Workspace"}
+            </h1>
+          }
+          className="max-w-[100px]"
+        />
+        <TaskTooltipTitle
+          title={
+            <p className="text-slate-400 text-sm">
+              {description?.trim() || "Không có thông tin mô tả"}
+            </p>
+          }
+          className="max-w-[490px]"
+        />
       </div>
 
       <div>
