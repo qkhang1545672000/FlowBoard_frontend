@@ -72,7 +72,7 @@ export function TaskChecklistItem({
         </button>
         <span className="text-xs font-medium truncate">
           <TaskTooltipTitle
-            title={`${index + 1}. ${task.title}`}
+            title={`${index + 1}. ${item.title}`}
             className="max-w-[100px]"
           />
         </span>
