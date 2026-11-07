@@ -13,7 +13,7 @@ export const boardService = {
     }
   },
 
-  deteleBoard: async (boardId: string, workspaceId: string): Promise<Board> => {
+  deteleBoard: async (boardId: string): Promise<Board> => {
     try {
       const response = await axiosInstance.delete<Board>(`/api/v1/boards/${boardId}`);
       return response.data;
