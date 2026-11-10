@@ -97,6 +97,7 @@ export const chatService = {
         "/api/v1/chats",
         { params },
       );
+      console.log("ffffffSSS", response.data);
       return response.data;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
