@@ -33,14 +33,18 @@ export const WorkspaceChat = ({
   userId,
   workspaceMembers = [],
 }: WorkspaceChatProps) => {
+  // Kho chứa nội dung tin nhắn người dùng đang gõ
   const [chatMessage, setChatMessage] = useState("");
+  // Kho chứa danh sách các file/ảnh mà người dùng vừa chọn để đính kèm gửi lên
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  // Cái "cần câu" để chọc vào thẻ input chọn file ẩn trên giao diện
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Định nghĩa phạm vi chat là trong workspace và ID của workspace đó
   const scope = ChatScope.WORKSPACE;
   const targetId = workspaceId;
 
-  // 1. Lấy danh sách tin nhắn qua Infinite Query
+  // 1. Dùng hàng xịn của React Query để gọi API tải danh sách tin nhắn cũ (hỗ trợ cuộn lên tải thêm)
   const {
     data: messagesData,
     isLoading: isMessagesLoading,
@@ -48,10 +52,10 @@ export const WorkspaceChat = ({
     hasNextPage,
   } = useGetMessages(scope, targetId);
 
-  // Gộp tất cả các trang tin nhắn lại từ infinite query
+  // Gom tất cả các trang tin nhắn từ API trả về thành một cục gọn gàng
   const rawMessages = messagesData?.pages?.flatMap((page) => page.items || []) || [];
 
-  // KHỬ TRÙNG LẶP VÀ SẮP XẾP CHUẨN THEO THỜI GIAN (Cũ nhất -> Mới nhất)
+  // Lọc bỏ tin nhắn trùng lặp và sắp xếp lại theo thứ tự thời gian (Cũ nằm trên, mới nằm dưới đáy)
   const messages = Array.from(
     new Map(rawMessages.map((m: any) => [m.id, m])).values(),
   ).sort(
@@ -59,27 +63,27 @@ export const WorkspaceChat = ({
   );
 
   /**
-   * Đảo ngược mảng tin nhắn:
-   * Vì API trả về tin nhắn theo thứ tự Mới -> Cũ, nhưng khi render giao diện với Flexbox 'flex-col-reverse'
-   * ta cần đảo mảng lại để tin nhắn mới nhất nằm ở đáy màn hình.
+   * Đảo ngược mảng tin nhắn lại:
+   * Vì giao diện bên dưới mình dùng khung đảo ngược (flex-col-reverse) để tin mới nhất tự động chìm xuống đáy,
+   * nên mảng dữ liệu cũng phải đảo ngược theo thì hiển thị mới đúng thứ tự.
    */
   const reversedMessages = [...messages].reverse();
 
-  // 2. Hook gửi tin nhắn (Mutation)
+  // 2. Hàm dùng để gửi tin nhắn thông thường lên server bằng HTTP
   const { mutate: sendMessageMutation, isPending: isSending } = useSendMessage();
 
-  // 3. Kết nối WebSocket Real-time
+  // 3. Kết nối đường ống WebSocket để nhắn tin nhanh kiểu thời gian thực (real-time)
   const { emitSendMessage } = useChatSocket(scope, targetId);
 
-  // Tạo key duy nhất để lưu vị trí cuộn vào sessionStorage cho workspace này
+  // Tạo một chìa khóa riêng biệt để lưu vị trí đang cuộn trang của workspace này vào bộ nhớ trình duyệt
   const scrollStorageKey = `chat-scroll-workspace-${targetId}`;
 
-  // REFS: Dùng để tham chiếu đến các thẻ HTML DOM
+  // Các mốc tham chiếu DOM để điều khiển thanh cuộn
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   /**
-   * Tự động cuộn xuống đáy khi mở lần đầu hoặc đổi workspace
+   * Tự động kéo màn hình chat xuống tận đáy ngay khi vừa mở lên hoặc đổi sang workspace khác
    */
   useLayoutEffect(() => {
     if (!messagesEndRef.current) return;
@@ -87,7 +91,7 @@ export const WorkspaceChat = ({
   }, [targetId]);
 
   /**
-   * Lưu vị trí cuộn hiện tại vào sessionStorage khi người dùng cuộn
+   * Mỗi khi người dùng cuộn chuột lên xuống, lưu lại vị trí hiện tại để lát mở lại không bị trôi mất
    */
   const handleScrollSave = () => {
     const container = containerRef.current;
@@ -103,7 +107,8 @@ export const WorkspaceChat = ({
   };
 
   /**
-   * Khôi phục vị trí cuộn sau khi tải thêm tin nhắn cũ để không bị giật màn hình
+   * Khi người dùng cuộn lên trên để xem tin nhắn cũ và tải thêm thành công,
+   * khôi phục lại vị trí cũ để màn hình không bị giật cục khó chịu
    */
   useLayoutEffect(() => {
     const container = containerRef.current;
@@ -118,32 +123,34 @@ export const WorkspaceChat = ({
     }
   }, [messages.length, scrollStorageKey]);
 
+  // Hàm mồi để kéo màn hình cuộn tuột xuống đáy
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Xử lý chọn file từ máy tính
+  // Xử lý khi người dùng bấm nút chọn file từ máy tính
   const handleChatFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files);
       setSelectedFiles((prev) => [...prev, ...newFiles]);
     }
-    e.target.value = "";
+    e.target.value = ""; // Reset lại để lần sau chọn lại được chính file đó nếu muốn
   };
 
-  // Xóa file đang chọn trước khi gửi
+  // Bấm nút X để xóa bớt file lỡ chọn nhầm trước khi gửi
   const handleRemoveSelectedFile = (index: number) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Xử lý gửi tin nhắn kèm text & file
+  // Xử lý sự kiện bấm nút Gửi tin nhắn (có thể kèm chữ hoặc kèm file)
   const handleSendChat = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    // Nếu ô chat trống trơn và không chọn file nào thì thôi không gửi nữa
     if ((!chatMessage.trim() && selectedFiles.length === 0) || !targetId) return;
 
     try {
       if (selectedFiles.length > 0) {
-        // Nếu có chọn file, bắt buộc phải dùng HTTP Mutation (Multipart Form-data) để upload tệp
+        // Nếu có chọn file đính kèm, bắt buộc phải gửi dạng gói tin lớn (Multipart) thông qua HTTP API
         const payload = {
           scope,
           workspaceId: targetId,
@@ -152,7 +159,7 @@ export const WorkspaceChat = ({
         };
         await sendMessageMutation(payload as any);
       } else {
-        // Nếu chỉ là text thông thường, dùng WebSocket realtime qua emitSendMessage
+        // Nếu chỉ là chat chữ bình thường, chơi hàng nhanh qua WebSocket cho mượt
         const dto = {
           scope,
           workspaceId: targetId,
@@ -166,6 +173,7 @@ export const WorkspaceChat = ({
         }
       }
 
+      // Gửi xong thì dọn dẹp sạch sẽ ô nhập và danh sách file đã chọn
       setChatMessage("");
       setSelectedFiles([]);
       setTimeout(scrollToBottom, 100);
@@ -176,7 +184,7 @@ export const WorkspaceChat = ({
 
   return (
     <div className="flex-1 flex flex-col bg-slate-900/40 border border-slate-800 rounded-2xl overflow-hidden min-h-[500px]">
-      {/* Header kênh chat */}
+      {/* Phần đầu khung chat: Tên kênh chat chung */}
       <div className="px-5 py-3 border-b border-slate-800 bg-slate-900/80 flex items-center gap-2 shrink-0">
         <Hash className="w-5 h-5 text-indigo-400" />
         <span className="font-semibold text-white">thông-báo-workspace</span>
@@ -185,13 +193,14 @@ export const WorkspaceChat = ({
         </span>
       </div>
 
-      {/* Danh sách tin nhắn / Màn hình chờ */}
+      {/* Khu vực hiển thị tin nhắn hoặc màn hình chờ lúc đang tải */}
       {isMessagesLoading ? (
         <div className="flex justify-center items-center py-10 flex-1">
           <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
         </div>
       ) : messages.length === 0 ? (
         <div className="flex-1 flex flex-col p-5 overflow-y-auto">
+          {/* Thông báo chào mừng nếu kênh chưa có ai nhắn gì */}
           <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl space-y-1 shrink-0 mb-4">
             <h3 className="text-indigo-300 font-semibold text-base flex items-center gap-2">
               <Hash className="w-5 h-5" /> Chào mừng bạn đến với kênh chat Workspace!
@@ -206,16 +215,16 @@ export const WorkspaceChat = ({
           </div>
         </div>
       ) : (
-        /* Khung chứa danh sách cuộn chính */
+        /* Khung bao bọc danh sách cuộn chính */
         <div
           id="workspaceScrollableDiv"
           ref={containerRef}
           onScroll={handleScrollSave}
           className="flex-1 p-5 overflow-y-auto overflow-x-hidden flex flex-col-reverse relative beautiful-scrollbar">
-          {/* Thẻ div rỗng nằm ở dưới cùng để làm mốc cuộn */}
+          {/* Thẻ mốc nằm ở đáy để làm điểm neo cuộn */}
           <div ref={messagesEndRef} />
 
-          {/* Component hỗ trợ cuộn vô tận (Infinite Scroll) */}
+          {/* Cục thần thánh giúp cuộn vô tận: kéo lên trên là tự động tải thêm tin nhắn cũ */}
           <InfiniteScroll
             dataLength={messages.length}
             next={fetchNextPage}
@@ -233,12 +242,15 @@ export const WorkspaceChat = ({
               overflow: "visible",
             }}>
             {reversedMessages.map((msg: ChatMessage, index: number) => {
+              // Kiểm tra xem tin nhắn này có phải do chính mình gửi hay không
               const isMe = msg.sender?.id === userId;
+              // Định dạng thời gian hiển thị (ví dụ: 14:30)
               const timeString = new Date(msg.createdAt).toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
               });
 
+              // Dò xem người gửi có phải là chủ sở hữu hoặc trưởng nhóm không để gắn huy hiệu
               const senderMember = workspaceMembers.find(
                 (m) => m.user?.id === msg.sender?.id,
               );
@@ -251,6 +263,7 @@ export const WorkspaceChat = ({
                   className={`flex items-start gap-3 mb-4 ${
                     isMe ? "justify-end" : "justify-start"
                   }`}>
+                  {/* Ảnh đại diện của người khác nằm bên trái */}
                   {!isMe && (
                     <div
                       className={`relative shrink-0 rounded-full p-0.5 ${
@@ -261,15 +274,18 @@ export const WorkspaceChat = ({
                             : ""
                       }`}>
                       <UserAvatar name={msg.sender?.name || "User"} type="chat" />
+                      {/* Huy hiệu chủ workspace */}
                       {isOwner && (
                         <ShieldCheck className="w-3 h-3 text-indigo-400 absolute -bottom-0.5 -right-0.5 fill-slate-950" />
                       )}
+                      {/* Huy hiệu trưởng nhóm */}
                       {isLeader && (
                         <Crown className="w-3 h-3 text-amber-400 absolute -bottom-0.5 -right-0.5 fill-amber-400" />
                       )}
                     </div>
                   )}
 
+                  {/* Phần thân chứa tên người gửi và nội dung tin nhắn */}
                   <div
                     className={`space-y-1 max-w-xl flex flex-col ${
                       isMe ? "items-end" : "items-start"
@@ -307,6 +323,7 @@ export const WorkspaceChat = ({
                       )}
                     </div>
 
+                    {/* Nội dung dạng chữ của tin nhắn */}
                     {msg.content && (
                       <p
                         className={`text-sm p-3 rounded-2xl border break-words inline-block ${
@@ -318,7 +335,7 @@ export const WorkspaceChat = ({
                       </p>
                     )}
 
-                    {/* Hiển thị danh sách file/ảnh đính kèm trong tin nhắn */}
+                    {/* Hiển thị hình ảnh hoặc tệp đính kèm đi kèm trong tin nhắn */}
                     {msg.attachments && msg.attachments.length > 0 && (
                       <div
                         className={`flex flex-wrap gap-2 mt-2 ${
@@ -332,7 +349,7 @@ export const WorkspaceChat = ({
                               : att?.name || attUrl.split("/").pop() || "Tệp đính kèm";
                           const attType = typeof att === "string" ? "" : att?.type || "";
 
-                          // Kiểm tra nếu là ảnh
+                          // Kiểm tra xem file đính kèm có phải là ảnh không để hiển thị trực tiếp khung hình
                           const isImage =
                             /\.(jpeg|jpg|gif|png|webp|avif|svg)$/i.test(attUrl) ||
                             attType.startsWith("image/") ||
@@ -352,6 +369,7 @@ export const WorkspaceChat = ({
                               />
                             </a>
                           ) : (
+                            /* Nếu không phải ảnh thì hiện khung tải file thông thường */
                             <a
                               key={idx}
                               href={attUrl}
@@ -370,6 +388,7 @@ export const WorkspaceChat = ({
                     )}
                   </div>
 
+                  {/* Ảnh đại diện của chính mình nằm bên phải */}
                   {isMe && (
                     <div
                       className={`relative shrink-0 rounded-full p-0.5 ${
@@ -398,7 +417,7 @@ export const WorkspaceChat = ({
         </div>
       )}
 
-      {/* Khu vực hiển thị file/ảnh đang chọn trước khi gửi */}
+      {/* Khu vực hiển thị danh sách file đang chọn sẵn sàng gửi lên */}
       {selectedFiles.length > 0 && (
         <div className="px-4 py-2 border-t border-slate-800 bg-slate-900/80 flex flex-wrap gap-2 shrink-0">
           {selectedFiles.map((file, idx) => (
@@ -418,7 +437,7 @@ export const WorkspaceChat = ({
         </div>
       )}
 
-      {/* Input ẩn để chọn file */}
+      {/* Ô input chọn file ẩn đi để giao diện gọn gàng */}
       <input
         type="file"
         ref={fileInputRef}
@@ -427,11 +446,12 @@ export const WorkspaceChat = ({
         onChange={handleChatFileSelect}
       />
 
-      {/* Khung nhập tin nhắn */}
+      {/* Khung nhập văn bản chat ở đáy màn hình */}
       <form
         onSubmit={handleSendChat}
         className="p-4 border-t border-slate-800 bg-slate-900/60 shrink-0">
         <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 focus-within:border-indigo-500 transition-all">
+          {/* Nút bấm hình cái kẹp giấy để mở bảng chọn file */}
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
@@ -439,6 +459,8 @@ export const WorkspaceChat = ({
             title="Đính kèm tệp, ảnh, zip, rar...">
             <Paperclip className="w-4 h-4" />
           </button>
+
+          {/* Ô nhập chữ tin nhắn */}
           <input
             type="text"
             placeholder="Gửi tin nhắn tới workspace..."
@@ -446,11 +468,14 @@ export const WorkspaceChat = ({
             onChange={(e) => setChatMessage(e.target.value)}
             className="flex-1 bg-transparent text-sm text-white placeholder-slate-500 outline-none"
           />
+
           <button
             type="button"
             className="text-slate-400 hover:text-slate-200 cursor-pointer">
             <Smile className="w-4 h-4" />
           </button>
+
+          {/* Nút Gửi tin nhắn */}
           <button
             type="submit"
             disabled={isSending || (!chatMessage.trim() && selectedFiles.length === 0)}
