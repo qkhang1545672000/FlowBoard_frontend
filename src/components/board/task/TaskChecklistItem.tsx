@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Calendar, User as UserIcon, Check, Trash2 } from "lucide-react";
 import { TaskAssigneeDropdown } from "./TaskAssigneeDropdown";
 import { TaskSubtaskDatePicker } from "./TaskSubtaskDatePicker";
-import { SubTask } from "@/services/sub-task.service"; // Hoặc đường dẫn type subtask của bạn
+import { SubTask } from "@/services/sub-task.service";
 
 import { Task } from "@/types/column";
 import { useTaskPermission } from "./useTaskPermission";
@@ -18,8 +19,6 @@ interface TaskChecklistItemProps {
   item: SubTask;
   index: number;
   task: Task;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-
   onToggleComplete: () => void;
   onUpdateAssignee: (memberId: string) => void;
   onSaveDates: (startDate: string | null, dueDate: string | null) => void;
@@ -29,9 +28,7 @@ interface TaskChecklistItemProps {
 export function TaskChecklistItem({
   item,
   index,
-
   task,
-
   onToggleComplete,
   onUpdateAssignee,
   onSaveDates,
@@ -41,6 +38,66 @@ export function TaskChecklistItem({
     coords: { top: number; left: number };
   } | null>(null);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+
+  // 🟢 Hook tính toán thời gian thực từng giây giống như trong TaskCard
+  const [timeRemaining, setTimeRemaining] = useState<string>("");
+
+  useEffect(() => {
+    if (!item.startDate || !item.dueDate) {
+      setTimeRemaining(item.timeLeft || "");
+      return;
+    }
+
+    const start = new Date(item.startDate).getTime();
+    const end = new Date(item.dueDate).getTime();
+
+    const calculate = () => {
+      const now = Date.now();
+
+      if (start >= end || now >= end) {
+        setTimeRemaining("Đã quá hạn");
+        return;
+      }
+
+      if (now <= start) {
+        const diffToStart = start - now;
+        const days = Math.floor(diffToStart / (1000 * 60 * 60 * 24));
+        const hours = Math.floor(
+          (diffToStart % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
+        );
+        const mins = Math.floor((diffToStart % (1000 * 60 * 60)) / (1000 * 60));
+        const secs = Math.floor((diffToStart % (1000 * 60)) / 1000);
+
+        if (days > 0) {
+          setTimeRemaining(`Bắt đầu sau ${days} ngày`);
+        } else if (hours > 0) {
+          setTimeRemaining(`Bắt đầu sau ${hours}h ${mins}p`);
+        } else {
+          setTimeRemaining(`Bắt đầu sau ${mins}p ${secs}s`);
+        }
+        return;
+      }
+
+      const diff = end - now;
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+      if (days > 0) {
+        setTimeRemaining(`Còn ${days} ngày`);
+      } else if (hours > 0) {
+        setTimeRemaining(`Còn ${hours}h ${mins}p`);
+      } else {
+        setTimeRemaining(`Còn ${mins}p ${secs}s`);
+      }
+    };
+
+    calculate();
+    const interval = setInterval(calculate, 1000);
+    return () => clearInterval(interval);
+  }, [item.startDate, item.dueDate, item.timeLeft]);
+
   const taskDueDate = task.dueDate;
   const boardId = useBoardStore((state) => state.activeBoardId) ?? "";
   const workspaceId = useWorkspaceStore((state) => state.activeWorkspaceId) ?? "";
@@ -50,6 +107,7 @@ export function TaskChecklistItem({
   const { isOwn } = useBoardPermission(boardId);
   const { isOwn: isOwnW } = useWorkspacePermission(workspaceId);
   const isPermission = isTaskLeader || isOwn || isOwnW;
+
   return (
     <div
       className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
@@ -122,12 +180,11 @@ export function TaskChecklistItem({
             className={`flex items-center gap-1 bg-slate-900/80 hover:bg-slate-800 px-2 py-1 rounded-lg border border-slate-700/60 transition-colors ${
               item.assignee ? "text-indigo-400 font-medium" : "text-slate-400"
             }`}>
-            {" "}
             <span>{item.assignee?.name}</span>
           </div>
         )}
 
-        {/* Nút bấm chọn thời gian (DatePicker) */}
+        {/* Nút bấm chọn thời gian (DatePicker) với thời gian chạy thời gian thực */}
         {isPermission ? (
           <div className="relative">
             <button
@@ -141,7 +198,7 @@ export function TaskChecklistItem({
                 item.dueDate ? "text-amber-400 font-medium" : "text-slate-400"
               }`}>
               <Calendar className="w-3 h-3" />
-              <span>{item.timeLeft ? item.timeLeft : "Hạn chót"}</span>
+              <span>{timeRemaining ? timeRemaining : "Hạn chót"}</span>
             </button>
 
             <TaskSubtaskDatePicker
@@ -162,7 +219,7 @@ export function TaskChecklistItem({
             className={`flex items-center gap-1 bg-slate-900/80 hover:bg-slate-800 px-2 py-1 rounded-lg border border-slate-700/60 transition-colors ${
               item.dueDate ? "text-amber-400 font-medium" : "text-slate-400"
             }`}>
-            {item.timeLeft ? item.timeLeft : "chưa có"}
+            {timeRemaining ? timeRemaining : "chưa có"}
           </div>
         )}
 

@@ -93,6 +93,10 @@ export const useDeleteWorkspace = () => {
       // 3. Làm mới lại danh sách workspace chung
       queryClient.invalidateQueries({ queryKey: ["workspace"] });
 
+      queryClient.invalidateQueries({
+        queryKey: ["workspace-counts"],
+      });
+
       // 4. Điều hướng mượt mà về trang chủ mà không cần chớp màn hình reload
       router.push("/");
       router.refresh();

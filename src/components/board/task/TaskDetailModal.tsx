@@ -58,23 +58,18 @@ export function TaskDetailModal({
   const workspaceId = useWorkspaceStore((state) => state.activeWorkspaceId) ?? "";
   const leader = task.members.find((i) => i.role === "TASK_LEADER");
 
-  // 🟢 Tích hợp hook update task tổng quát
   const { mutate: updateTask, isPending: isPendingUpdateTask } = useUpdateTask(boardId);
 
   const [inputText, setInputText] = useState("");
-
-  // State quản lý Tab đang active ("discussion" hoặc "checklist")
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [activeTab, setActiveTab] = useState<"discussion" | "checklist">("discussion");
 
-  // 1. Tránh SSR Mismatch khi render React Portal
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // 2. Kết nối Socket Realtime theo scope TASK
   const { emitSendMessage } = useChatSocket(ChatScope.TASK, task?.id || "");
 
-  // 3. Tích hợp React Query cho chat (dùng useInfiniteQuery)
   const {
     data: messagesData,
     isLoading: isLoadingMessages,
@@ -83,36 +78,29 @@ export function TaskDetailModal({
   } = useGetMessages(ChatScope.TASK, task?.id || "");
   const sendMessageMutation = useSendMessage();
 
-  // Gộp tất cả các trang tin nhắn lại (đảo ngược các trang pages để trang cũ lên trên, mới xuống dưới, sau đó flatMap và đảo ngược mảng items để tin mới nhất nằm ở đáy)
-  const messages = messagesData?.pages
+  // Khử trùng lặp ID tin nhắn khi gộp các trang phân trang (Tránh lỗi React key và mất mát dữ liệu cũ)
+  const rawMessages = messagesData?.pages
     ? [...messagesData.pages]
         .reverse()
         .flatMap((page) => page.items || [])
         .reverse()
     : [];
+  const messages = Array.from(new Map(rawMessages.map((m: any) => [m.id, m])).values());
 
-  // Lấy ID của người dùng hiện tại (hỗ trợ cả id lẫn _id)
   const currentUserId = String(user?.id || (user as any)?._id || "");
-
-  // Tạo key duy nhất để lưu vị trí cuộn (Scroll Position) vào sessionStorage cho task này
   const scrollStorageKey = `chat-scroll-task-${task?.id}`;
 
-  // REFS: Dùng để tham chiếu đến các thẻ HTML DOM
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
-  /**
-   * Tự động cuộn xuống đáy khi mở modal hoặc chuyển sang tab discussion
-   */
   useLayoutEffect(() => {
     if (isOpen && activeTab === "discussion" && messagesEndRef.current) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
     }
   }, [isOpen, activeTab, task?.id]);
 
-  /**
-   * Hàm lưu vị trí cuộn hiện tại vào sessionStorage
-   */
   const handleScrollSave = () => {
     const container = containerRef.current;
     if (!container || !task?.id) return;
@@ -126,9 +114,6 @@ export function TaskDetailModal({
     );
   };
 
-  /**
-   * Khôi phục vị trí cuộn sau khi tải thêm tin nhắn cũ để không bị giật màn hình
-   */
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -142,7 +127,6 @@ export function TaskDetailModal({
     }
   }, [messages.length, scrollStorageKey]);
 
-  // Mockup tài liệu đính kèm bên cột phải
   const [files, setFiles] = useState<UploadedFile[]>([
     {
       id: "f1",
@@ -161,40 +145,45 @@ export function TaskDetailModal({
 
   const currentUserName = user?.name || "Me";
 
-  // Xử lý Gửi tin nhắn qua Socket / HTTP API
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputText.trim() || !user) return;
-
-    const payload = {
-      scope: ChatScope.TASK,
-      taskId: task.id,
-      boardId: boardId || undefined,
-      workspaceId: workspaceId || undefined,
-      content: inputText.trim(),
-    };
+    if ((!inputText.trim() && selectedFiles.length === 0) || !user) return;
 
     try {
-      if (emitSendMessage) {
-        emitSendMessage(currentUserId, payload);
-      } else {
-        await sendMessageMutation.mutateAsync(payload);
-      }
+      const payload = {
+        scope: ChatScope.TASK,
+        taskId: task.id,
+        boardId: boardId || undefined,
+        workspaceId: workspaceId || undefined,
+        content: inputText.trim(),
+        files: selectedFiles,
+      };
+
+      await sendMessageMutation.mutateAsync(payload);
+
       setInputText("");
+      setSelectedFiles([]);
       setTimeout(scrollToBottom, 100);
     } catch (error) {
-      console.error("Lỗi gửi tin nhắn:", error);
+      console.error("Lỗi gửi tin nhắn kèm file:", error);
     }
   };
 
-  // Upload file giả lập cho giao diện
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChatFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles = Array.from(e.target.files);
+      setSelectedFiles((prev) => [...prev, ...newFiles]);
+    }
+  };
+
+  const handleFileUploadSidebar = (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFiles = e.target.files;
     if (uploadedFiles && uploadedFiles[0]) {
+      const sizeMB = (uploadedFiles[0].size / (1024 * 1024)).toFixed(1);
       const newFile: UploadedFile = {
         id: Date.now().toString(),
         name: uploadedFiles[0].name,
-        size: `${(uploadedFiles[0].size / (1024 * 1024)).toFixed(1)} MB`,
+        size: `${sizeMB} MB`,
         uploadedBy: currentUserName,
         uploadedAt: "Vừa xong",
       };
@@ -228,7 +217,6 @@ export function TaskDetailModal({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Nút Hoàn thành / Đã hoàn thành */}
             <button
               type="button"
               onClick={() => {
@@ -249,7 +237,6 @@ export function TaskDetailModal({
               <span>{task.isCompleted ? "Đã hoàn thành" : "Hoàn thành"}</span>
             </button>
 
-            {/* Nút Đóng Modal */}
             <button
               onClick={onClose}
               className="p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors shrink-0">
@@ -260,9 +247,8 @@ export function TaskDetailModal({
 
         {/* Body grid */}
         <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-          {/* CỘT TRÁI: Tabs (Thảo luận / Việc cần làm) */}
+          {/* CỘT TRÁI */}
           <div className="flex-1 flex flex-col border-b md:border-b-0 md:border-r border-slate-800 bg-slate-900/30 min-w-0">
-            {/* Header Tabs */}
             <div className="px-4 py-2.5 border-b border-slate-800/80 flex items-center justify-between bg-slate-900/40 shrink-0">
               <div className="flex items-center gap-6">
                 <button
@@ -293,10 +279,8 @@ export function TaskDetailModal({
               </div>
             </div>
 
-            {/* CONTENT TAB 1: THẢO LUẬN */}
             {activeTab === "discussion" && (
               <>
-                {/* Khung tin nhắn */}
                 {isLoadingMessages ? (
                   <div className="flex h-full items-center justify-center text-slate-400 gap-2 flex-1">
                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -312,10 +296,8 @@ export function TaskDetailModal({
                     ref={containerRef}
                     onScroll={handleScrollSave}
                     className="flex-1 overflow-y-auto overflow-x-hidden p-4 flex flex-col-reverse relative beautiful-scrollbar">
-                    {/* Thẻ div rỗng nằm ở dưới cùng để làm mốc cuộn */}
                     <div ref={messagesEndRef} />
 
-                    {/* Component hỗ trợ cuộn vô tận (Infinite Scroll) */}
                     <InfiniteScroll
                       dataLength={messages.length}
                       next={fetchNextPage}
@@ -332,10 +314,8 @@ export function TaskDetailModal({
                         flexDirection: "column-reverse",
                         overflow: "visible",
                       }}>
-                      {messages.map((msg, index) => {
-                        const senderId = String(
-                          msg.sender?.id || (msg as any).senderId || "",
-                        );
+                      {messages.map((msg: any, index: number) => {
+                        const senderId = String(msg.sender?.id || msg.senderId || "");
                         const isMe = Boolean(currentUserId && senderId === currentUserId);
                         const senderName = msg.sender?.name || "Người dùng";
 
@@ -373,21 +353,58 @@ export function TaskDetailModal({
                                 {msg.content}
 
                                 {msg.attachments && msg.attachments.length > 0 && (
-                                  <div className="mt-2 space-y-1.5">
-                                    {msg.attachments.map((att, idx) => (
-                                      <div
-                                        key={idx}
-                                        className={`flex items-center gap-2 p-2 rounded-lg text-xs ${
-                                          isMe
-                                            ? "bg-blue-700/60 text-white"
-                                            : "bg-slate-900/80 text-slate-200"
-                                        }`}>
-                                        <FileText className="w-4 h-4 shrink-0 text-amber-400" />
-                                        <span className="truncate font-medium">
-                                          {att.name || "Tập tin đính kèm"}
-                                        </span>
-                                      </div>
-                                    ))}
+                                  <div className="mt-2 space-y-2">
+                                    {msg.attachments.map((att: any, idx: number) => {
+                                      const attUrl =
+                                        typeof att === "string" ? att : att?.url || "";
+                                      const attName =
+                                        typeof att === "string"
+                                          ? "Tập tin đính kèm"
+                                          : att?.name || "Tập tin đính kèm";
+                                      const attType =
+                                        typeof att === "string" ? "" : att?.type || "";
+
+                                      const isImage =
+                                        /\.(jpg|jpeg|png|webp|gif|avif)$/i.test(attUrl) ||
+                                        attType === "image" ||
+                                        attUrl.includes("/image/upload/");
+
+                                      return isImage ? (
+                                        <a
+                                          key={idx}
+                                          href={attUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="block overflow-hidden rounded-lg border border-slate-700/60 max-w-[240px] max-h-[200px] bg-slate-950/40 hover:opacity-95 transition-opacity">
+                                          <img
+                                            src={attUrl}
+                                            alt={attName}
+                                            className="w-full h-auto object-cover max-h-[180px]"
+                                          />
+                                        </a>
+                                      ) : (
+                                        <a
+                                          key={idx}
+                                          href={attUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className={`flex items-center gap-2 p-2.5 rounded-lg text-xs hover:opacity-90 transition-opacity ${
+                                            isMe
+                                              ? "bg-blue-700/60 text-white"
+                                              : "bg-slate-900/80 text-slate-200 border border-slate-700/50"
+                                          }`}>
+                                          <FileText className="w-4 h-4 shrink-0 text-amber-400" />
+                                          <div className="flex flex-col truncate">
+                                            <span className="truncate font-medium">
+                                              {attName}
+                                            </span>
+                                            <span className="text-[10px] text-slate-400 underline">
+                                              Nhấn để tải về / Xem
+                                            </span>
+                                          </div>
+                                        </a>
+                                      );
+                                    })}
                                   </div>
                                 )}
                               </div>
@@ -406,33 +423,68 @@ export function TaskDetailModal({
                   </div>
                 )}
 
-                {/* Form Soạn Tin nhắn */}
+                {selectedFiles.length > 0 && (
+                  <div className="px-3 pt-2 bg-slate-900/90 border-t border-slate-800 flex flex-wrap gap-2">
+                    {selectedFiles.map((file, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-1.5 bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-lg text-xs text-slate-200">
+                        <FileText className="w-3.5 h-3.5 text-indigo-400" />
+                        <span className="max-w-[120px] truncate">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedFiles((prev) => prev.filter((_, i) => i !== idx))
+                          }
+                          className="text-slate-400 hover:text-red-400 ml-1">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <form
                   onSubmit={handleSendMessage}
                   className="p-3 border-t border-slate-800 bg-slate-900/80 shrink-0">
                   <div className="flex items-center gap-1.5 bg-slate-800/80 border border-slate-700/70 rounded-full px-3 py-1 focus-within:border-blue-500 transition-colors">
                     <label className="cursor-pointer p-1.5 text-slate-400 hover:text-blue-400 transition-colors">
                       <Paperclip className="w-4 h-4" />
-                      <input type="file" className="hidden" onChange={handleFileUpload} />
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={handleChatFileSelect}
+                      />
                     </label>
 
-                    <button
-                      type="button"
-                      className="p-1.5 text-slate-400 hover:text-blue-400 transition-colors">
+                    <label className="cursor-pointer p-1.5 text-slate-400 hover:text-blue-400 transition-colors">
                       <ImageIcon className="w-4 h-4" />
-                    </button>
+                      <input
+                        ref={imageInputRef}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={handleChatFileSelect}
+                      />
+                    </label>
 
                     <input
                       type="text"
                       value={inputText}
                       onChange={(e) => setInputText(e.target.value)}
-                      placeholder="Viết tin nhắn..."
+                      placeholder="Viết tin nhắn hoặc đính kèm file..."
                       className="flex-1 bg-transparent text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none px-2 min-w-0"
                     />
 
                     <button
                       type="submit"
-                      disabled={!inputText.trim() || sendMessageMutation.isPending}
+                      disabled={
+                        (!inputText.trim() && selectedFiles.length === 0) ||
+                        sendMessageMutation.isPending
+                      }
                       className="p-1.5 sm:p-2 rounded-full bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white transition-all shrink-0">
                       {sendMessageMutation.isPending ? (
                         <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
@@ -445,11 +497,10 @@ export function TaskDetailModal({
               </>
             )}
 
-            {/* CONTENT TAB 2: VIỆC CẦN LÀM */}
             {activeTab === "checklist" && <TaskChecklistTab task={task} />}
           </div>
 
-          {/* CỘT PHẢI: Info Task & Files */}
+          {/* CỘT PHẢI */}
           <div className="w-full md:w-80 p-4 flex flex-col gap-4 overflow-y-auto bg-slate-900/60 shrink-0">
             <div className="space-y-2">
               <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
@@ -494,7 +545,11 @@ export function TaskDetailModal({
                 <label className="cursor-pointer text-xs font-medium text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
                   <UploadCloud className="w-3.5 h-3.5" />
                   <span>Tải file</span>
-                  <input type="file" className="hidden" onChange={handleFileUpload} />
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileUploadSidebar}
+                  />
                 </label>
               </div>
 

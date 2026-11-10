@@ -1,8 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useEffect, useLayoutEffect, useRef } from "react";
-import { Send, Hash, Smile, Paperclip, Loader2, ShieldCheck, Crown } from "lucide-react";
+import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
+import {
+  Send,
+  Hash,
+  Smile,
+  Paperclip,
+  Loader2,
+  ShieldCheck,
+  Crown,
+  Image as ImageIcon,
+  FileText,
+  X,
+} from "lucide-react";
 import InfiniteScroll from "react-infinite-scroll-component";
 import UserAvatar from "../ui/UserAvatar";
 import { ChatScope, ChatMessage } from "@/services/chat.service";
@@ -23,6 +34,10 @@ export const WorkspaceChat = ({
   workspaceMembers = [],
 }: WorkspaceChatProps) => {
   const [chatMessage, setChatMessage] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const scope = ChatScope.WORKSPACE;
   const targetId = workspaceId;
@@ -35,8 +50,9 @@ export const WorkspaceChat = ({
     hasNextPage,
   } = useGetMessages(scope, targetId);
 
-  // Gộp tất cả các trang tin nhắn lại từ infinite query
-  const messages = messagesData?.pages.flatMap((page) => page.items || []) || [];
+  // Gộp tất cả các trang tin nhắn lại từ infinite query và khử trùng lặp theo ID
+  const rawMessages = messagesData?.pages?.flatMap((page) => page.items || []) || [];
+  const messages = Array.from(new Map(rawMessages.map((m: any) => [m.id, m])).values());
 
   /**
    * Đảo ngược mảng tin nhắn:
@@ -102,25 +118,36 @@ export const WorkspaceChat = ({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Xử lý gửi tin nhắn
-  const handleSendChat = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!chatMessage.trim() || !userId || !targetId) return;
-
-    const dto = {
-      scope,
-      workspaceId: targetId,
-      content: chatMessage.trim(),
-    };
-
-    if (userId) {
-      emitSendMessage(userId, dto);
-    } else {
-      sendMessageMutation(dto);
+  // Xử lý chọn file từ máy tính
+  const handleChatFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles = Array.from(e.target.files);
+      setSelectedFiles((prev) => [...prev, ...newFiles]);
     }
+  };
 
-    setChatMessage("");
-    setTimeout(scrollToBottom, 100);
+  // Xử lý gửi tin nhắn kèm text & file
+  const handleSendChat = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if ((!chatMessage.trim() && selectedFiles.length === 0) || !userId || !targetId)
+      return;
+
+    try {
+      const payload = {
+        scope,
+        workspaceId: targetId,
+        content: chatMessage.trim(),
+        files: selectedFiles,
+      };
+
+      await sendMessageMutation(payload as any);
+
+      setChatMessage("");
+      setSelectedFiles([]);
+      setTimeout(scrollToBottom, 100);
+    } catch (error) {
+      console.error("Lỗi gửi tin nhắn workspace:", error);
+    }
   };
 
   return (
@@ -161,8 +188,6 @@ export const WorkspaceChat = ({
           ref={containerRef}
           onScroll={handleScrollSave}
           className="flex-1 p-5 overflow-y-auto overflow-x-hidden flex flex-col-reverse relative beautiful-scrollbar">
-          {/* Thông báo chào mừng */}
-
           {/* Thẻ div rỗng nằm ở dưới cùng để làm mốc cuộn */}
           <div ref={messagesEndRef} />
 
@@ -258,32 +283,68 @@ export const WorkspaceChat = ({
                       )}
                     </div>
 
-                    <p
-                      className={`text-sm p-3 rounded-2xl border break-words inline-block ${
+                    <div
+                      className={`text-sm p-3 rounded-2xl border break-words inline-block max-w-full ${
                         isMe
                           ? "bg-indigo-600 text-white rounded-tr-none border-indigo-500/50 shadow-md text-right"
                           : "bg-slate-800/60 text-slate-300 rounded-tl-none border-slate-700/50 text-left"
                       }`}>
                       {msg.content}
-                    </p>
 
-                    {msg.attachments && msg.attachments.length > 0 && (
-                      <div
-                        className={`flex flex-wrap gap-2 mt-2 ${
-                          isMe ? "justify-end" : "justify-start"
-                        }`}>
-                        {msg.attachments.map((att: any, idx: number) => (
-                          <a
-                            key={idx}
-                            href={att.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-xs text-indigo-300 bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700 hover:underline">
-                            📎 {att.name || "Tệp đính kèm"}
-                          </a>
-                        ))}
-                      </div>
-                    )}
+                      {/* Hiển thị file / ảnh đính kèm */}
+                      {msg.attachments && msg.attachments.length > 0 && (
+                        <div className="mt-2 space-y-2">
+                          {msg.attachments.map((att: any, idx: number) => {
+                            const attUrl = typeof att === "string" ? att : att?.url || "";
+                            const attName =
+                              typeof att === "string"
+                                ? "Tập tin đính kèm"
+                                : att?.name || "Tập tin đính kèm";
+                            const attType =
+                              typeof att === "string" ? "" : att?.type || "";
+
+                            const isImage =
+                              /\.(jpg|jpeg|png|webp|gif|avif)$/i.test(attUrl) ||
+                              attType === "image" ||
+                              attUrl.includes("/image/upload/");
+
+                            return isImage ? (
+                              <a
+                                key={idx}
+                                href={attUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block overflow-hidden rounded-lg border border-slate-700/60 max-w-[240px] max-h-[200px] bg-slate-950/40 hover:opacity-95 transition-opacity">
+                                <img
+                                  src={attUrl}
+                                  alt={attName}
+                                  className="w-full h-auto object-cover max-h-[180px]"
+                                />
+                              </a>
+                            ) : (
+                              <a
+                                key={idx}
+                                href={attUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`flex items-center gap-2 p-2.5 rounded-lg text-xs hover:opacity-90 transition-opacity ${
+                                  isMe
+                                    ? "bg-indigo-700/60 text-white"
+                                    : "bg-slate-900/80 text-slate-200 border border-slate-700/50"
+                                }`}>
+                                <FileText className="w-4 h-4 shrink-0 text-amber-400" />
+                                <div className="flex flex-col truncate">
+                                  <span className="truncate font-medium">{attName}</span>
+                                  <span className="text-[10px] text-slate-400 underline">
+                                    Nhấn để tải về / Xem
+                                  </span>
+                                </div>
+                              </a>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {isMe && (
@@ -314,31 +375,75 @@ export const WorkspaceChat = ({
         </div>
       )}
 
+      {/* Hiển thị danh sách file đang chọn chuẩn bị gửi */}
+      {selectedFiles.length > 0 && (
+        <div className="px-4 pt-2 bg-slate-900/90 border-t border-slate-800 flex flex-wrap gap-2">
+          {selectedFiles.map((file, idx) => (
+            <div
+              key={idx}
+              className="flex items-center gap-1.5 bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-lg text-xs text-slate-200">
+              <FileText className="w-3.5 h-3.5 text-indigo-400" />
+              <span className="max-w-[140px] truncate">{file.name}</span>
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedFiles((prev) => prev.filter((_, i) => i !== idx))
+                }
+                className="text-slate-400 hover:text-red-400 ml-1">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Khung nhập tin nhắn */}
       <form
         onSubmit={handleSendChat}
         className="p-4 border-t border-slate-800 bg-slate-900/60 shrink-0">
         <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 focus-within:border-indigo-500 transition-all">
-          <button
-            type="button"
-            className="text-slate-400 hover:text-slate-200 cursor-pointer">
+          {/* Nút đính kèm file */}
+          <label className="cursor-pointer text-slate-400 hover:text-indigo-400 transition-colors">
             <Paperclip className="w-4 h-4" />
-          </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={handleChatFileSelect}
+            />
+          </label>
+
+          {/* Nút đính kèm ảnh */}
+          <label className="cursor-pointer text-slate-400 hover:text-indigo-400 transition-colors">
+            <ImageIcon className="w-4 h-4" />
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleChatFileSelect}
+            />
+          </label>
+
           <input
             type="text"
             placeholder="Gửi tin nhắn tới workspace..."
             value={chatMessage}
             onChange={(e) => setChatMessage(e.target.value)}
-            className="flex-1 bg-transparent text-sm text-white placeholder-slate-500 outline-none"
+            className="flex-1 bg-transparent text-sm text-white placeholder-slate-500 outline-none px-2"
           />
+
           <button
             type="button"
             className="text-slate-400 hover:text-slate-200 cursor-pointer">
             <Smile className="w-4 h-4" />
           </button>
+
           <button
             type="submit"
-            disabled={isSending || !chatMessage.trim()}
+            disabled={isSending || (!chatMessage.trim() && selectedFiles.length === 0)}
             className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white p-1.5 rounded-lg transition-all cursor-pointer">
             {isSending ? (
               <Loader2 className="w-4 h-4 animate-spin" />

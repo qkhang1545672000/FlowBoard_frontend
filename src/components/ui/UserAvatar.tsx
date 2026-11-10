@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 interface IUserAvatarProps {
-  type: "sidebar" | "chat" | "profile" | "min";
+  type: "sidebar" | "chat" | "profile" | "min" | "s_min";
   name?: string;
   avatarUrl?: string;
   className?: string; // Tùy chỉnh Avatar container (kích thước, border,...)
@@ -23,6 +23,7 @@ const UserAvatar = ({
         type === "chat" && "size-8 text-sm",
         type === "profile" && "size-24 text-3xl shadow-md",
         type === "min" && "size-7 text-xs shadow-md", // Đã sửa size-7 đi kèm text-xs cho phù hợp
+        type === "s_min" && "size-5 text-xs shadow-md",
         className,
       )}>
       <AvatarImage src={avatarUrl} alt={name} />

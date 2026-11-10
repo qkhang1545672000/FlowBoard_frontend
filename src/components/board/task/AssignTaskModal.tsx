@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState } from "react";
@@ -34,16 +35,25 @@ export function AssignTaskModal({
   // Khởi tạo danh sách các User đã chọn từ task ban đầu
   const [selectedUsers, setSelectedUsers] = useState<User[]>(() => {
     if (task.members && Array.isArray(task.members)) {
-      return task.members.map((m: TaskMember) => m.user);
+      const users = task.members.map((m: TaskMember) => m.user);
+      // Tìm leader ban đầu để đưa lên đầu danh sách ngay từ lúc khởi tạo nếu có
+      const foundLeader = task.members.find(
+        (m: any) => m.isLeader || m.role === "LEADER",
+      );
+      if (foundLeader) {
+        const leaderUser = foundLeader.user;
+        const others = users.filter((u) => u.id !== leaderUser.id);
+        return [leaderUser, ...others];
+      }
+      return users;
     }
     return [];
   });
 
-  // Lưu ID của Leader Task (mặc định lấy người đầu tiên nếu có)
+  // Lưu ID của Leader Task
   const [leaderId, setLeaderId] = useState<string | null>(() => {
     if (task.members && task.members.length > 0) {
       const foundLeader = task.members.find(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (m: any) => m.isLeader || m.role === "LEADER",
       );
       return foundLeader ? foundLeader.user.id : task.members[0]?.user?.id || null;
@@ -51,9 +61,24 @@ export function AssignTaskModal({
     return null;
   });
 
+  // 🟢 Hàm phụ trợ sắp xếp lại danh sách: Leader luôn đứng đầu tiên
+  const sortUsersWithLeader = (users: User[], currentLeaderId: string | null) => {
+    if (!currentLeaderId) return users;
+    const leaderIndex = users.findIndex((u) => u.id === currentLeaderId);
+    if (leaderIndex <= 0) return users; // Đã ở đầu hoặc không tìm thấy
+    const leader = users[leaderIndex];
+    const others = users.filter((u) => u.id !== currentLeaderId);
+    return [leader, ...others];
+  };
+
+  // 🟢 Hàm xử lý khi thay đổi Leader: Cập nhật state leaderId và tự động đẩy lên đầu danh sách
+  const handleSetLeader = (userId: string) => {
+    setLeaderId(userId);
+    setSelectedUsers((prev) => sortUsersWithLeader(prev, userId));
+  };
+
   if (!isOpen || typeof window === "undefined") return null;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const filterBySearch = (member: any) => {
     const query = searchQuery.toLowerCase();
     const name = member.user?.name?.toLowerCase() || "";
@@ -67,17 +92,24 @@ export function AssignTaskModal({
     setSelectedUsers((prev) => {
       const exists = prev.some((u) => u.id === user.id);
       if (exists) {
+        // Nếu bỏ chọn thành viên đang là leader
+        let newLeaderId = leaderId;
         if (leaderId === user.id) {
           const remaining = prev.filter((u) => u.id !== user.id);
-          setLeaderId(remaining.length > 0 ? remaining[0].id : null);
+          newLeaderId = remaining.length > 0 ? remaining[0].id : null;
+          setLeaderId(newLeaderId);
         }
-        return prev.filter((u) => u.id !== user.id);
+        const filtered = prev.filter((u) => u.id !== user.id);
+        return sortUsersWithLeader(filtered, newLeaderId);
       } else {
+        // Nếu chọn thêm thành viên mới
         const newList = [...prev, user];
+        let newLeaderId = leaderId;
         if (!leaderId) {
-          setLeaderId(user.id);
+          newLeaderId = user.id;
+          setLeaderId(newLeaderId);
         }
-        return newList;
+        return sortUsersWithLeader(newList, newLeaderId);
       }
     });
   };
@@ -94,23 +126,21 @@ export function AssignTaskModal({
       },
       {
         onSuccess: () => {
-          // 🚀 Chỉ đóng modal sau khi API gọi thành công và data đã trả về xong
           onClose();
         },
       },
     );
   };
+
   if (isPending) {
     return <LoadingModal isOpen={isPending} message="Đang cập nhật phân công" />;
   }
 
   return createPortal(
     <div
-      // Bấm vào background (lớp phủ ngoài) sẽ gọi onClose để tắt modal
       onClick={onClose}
       onMouseDown={onClose}
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-      {/* Thẻ chứa nội dung: Dùng e.stopPropagation() để ngăn sự kiện click lan ra ngoài làm tắt nhầm modal khi bấm bên trong */}
       <div
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
@@ -144,30 +174,40 @@ export function AssignTaskModal({
                   return (
                     <div
                       key={user.id}
-                      className={`group relative flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                      className={`group relative flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-full text-xs font-medium border transition-all ${
                         isLeader
                           ? "bg-amber-950/60 border-amber-500/50 text-amber-200"
                           : "bg-indigo-950/60 border-indigo-500/30 text-indigo-200 hover:border-amber-500/40"
                       }`}>
-                      <UserAvatar type="min" avatarUrl={user.image} name={user.name} />
+                      {/* Avatar kèm icon vương miện đè góc nếu là leader */}
+                      <div className="relative">
+                        <UserAvatar type="min" avatarUrl={user.image} name={user.name} />
+                        {isLeader && (
+                          <span className="absolute -top-1 -right-1 bg-amber-500 text-slate-950 p-0.5 rounded-full shadow">
+                            <Crown className="w-2.5 h-2.5" />
+                          </span>
+                        )}
+                      </div>
 
-                      {isLeader ? (
-                        <span className="flex items-center gap-0.5 text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-bold">
-                          <Crown className="w-3 h-3 text-amber-400" /> Leader
-                        </span>
-                      ) : (
+                      {/* Tên thành viên gọn gàng */}
+                      <span className="max-w-[80px] truncate">{user.name}</span>
+
+                      {/* Nút set nhanh làm leader khi hover (nếu chưa phải leader) */}
+                      {!isLeader && (
                         <button
                           type="button"
-                          onClick={() => setLeaderId(user.id)}
-                          className="hidden group-hover:flex items-center gap-1 text-[10px] bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded transition-all">
-                          <Crown className="w-3 h-3" /> Leader
+                          onClick={() => handleSetLeader(user.id)}
+                          title="Chọn làm Leader"
+                          className="hidden group-hover:flex items-center text-amber-400 hover:text-amber-300 p-0.5 transition-colors">
+                          <Crown className="w-3.5 h-3.5" />
                         </button>
                       )}
 
+                      {/* Nút bỏ chọn (X) */}
                       <button
                         type="button"
                         onClick={() => handleToggleSelect(user)}
-                        className="hover:text-white transition-colors ml-1">
+                        className="hover:text-white transition-colors ml-0.5 text-slate-400">
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </div>

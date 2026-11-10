@@ -4,6 +4,7 @@ import React, { useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Check } from "lucide-react";
 import { TaskMember } from "@/types/column";
+import UserAvatar from "@/components/ui/UserAvatar";
 
 interface Member {
   id: string;
@@ -75,9 +76,11 @@ export function TaskAssigneeDropdown({
                   : "hover:bg-slate-800 text-slate-300"
               }`}>
               <div className="flex items-center gap-2">
-                <div className="w-5 h-5 rounded-full bg-indigo-500/20 flex items-center justify-center text-[10px] text-indigo-300 font-bold">
-                  {member.user.name.charAt(0)}
-                </div>
+                <UserAvatar
+                  type="s_min"
+                  avatarUrl={member.user.image}
+                  name={member.user.name}
+                />
                 <span className="truncate">{member.user.name}</span>
               </div>
               {isSelected && <Check className="w-3.5 h-3.5" />}
