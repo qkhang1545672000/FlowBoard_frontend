@@ -107,7 +107,11 @@ const MemberWorkspaceCard = ({ member }: Props) => {
       {/* Thông tin chính của thành viên */}
       <div className="flex items-center gap-3 min-w-0 flex-1 pr-1">
         <div className="relative shrink-0">
-          <UserAvatar name={member.user?.name} type="chat" />
+          <UserAvatar
+            name={member.user?.name}
+            type="chat"
+            avatarUrl={member.user.image}
+          />
           {/* Chấm trạng thái online/offline cập nhật trực tiếp realtime qua cache */}
           <span
             className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-slate-900 ${

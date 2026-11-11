@@ -273,7 +273,11 @@ export const WorkspaceChat = ({
                             ? "ring-2 ring-amber-400 shadow-sm shadow-amber-400/30"
                             : ""
                       }`}>
-                      <UserAvatar name={msg.sender?.name || "User"} type="chat" />
+                      <UserAvatar
+                        name={msg.sender?.name || "User"}
+                        type="chat"
+                        avatarUrl={msg.sender.image}
+                      />
                       {/* Huy hiệu chủ workspace */}
                       {isOwner && (
                         <ShieldCheck className="w-3 h-3 text-indigo-400 absolute -bottom-0.5 -right-0.5 fill-slate-950" />
@@ -401,7 +405,11 @@ export const WorkspaceChat = ({
                       title={`${msg.sender?.name || "User"} ${
                         isOwner ? "(Owner)" : isLeader ? "(Leader)" : ""
                       }`}>
-                      <UserAvatar name={msg.sender?.name || "User"} type="chat" />
+                      <UserAvatar
+                        name={msg.sender?.name || "User"}
+                        type="chat"
+                        avatarUrl={msg.sender.image}
+                      />
                       {isOwner && (
                         <ShieldCheck className="w-3 h-3 text-indigo-400 absolute -bottom-0.5 -right-0.5 fill-slate-950" />
                       )}

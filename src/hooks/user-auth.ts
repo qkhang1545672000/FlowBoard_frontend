@@ -291,6 +291,9 @@ export const useUpdateProfile = (messages?: AuthToastMessages) => {
 
       setUser(updatedUser as User);
       queryClient.invalidateQueries({ queryKey: ["workspace"] });
+      queryClient.invalidateQueries({
+        queryKey: ["messages"],
+      });
       queryClient.invalidateQueries({ queryKey: ["board"] });
       // 2. Cập nhật TanStack Query cache session nếu có
       queryClient.setQueryData(["auth", "session"], (oldData: any) => {
