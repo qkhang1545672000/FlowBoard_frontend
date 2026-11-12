@@ -129,12 +129,16 @@ export function BoardHistoryModal({
                           </span>
                         </>
                       )}
+                      {log.action === "TASK_OVERDUE" && (
+                        <>task {log.details?.title} quá hạn</>
+                      )}
                       {/* Fallback nếu có action khác */}
                       {![
                         "CREATED_TASK",
                         "MOVED_TASK",
                         "UPDATED_TASK",
                         "DELETED_TASK",
+                        "TASK_OVERDUE",
                       ].includes(log.action) && <>{log.action}</>}
                     </p>
                   </div>

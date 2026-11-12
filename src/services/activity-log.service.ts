@@ -43,6 +43,7 @@ export const activityLogService = {
         "/api/v1/activity-logs",
         { params },
       );
+
       return response.data;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
