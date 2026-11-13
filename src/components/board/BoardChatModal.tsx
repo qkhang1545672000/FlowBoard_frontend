@@ -222,7 +222,7 @@ export function BoardChatModal({
                 const senderName = isMe ? "Bạn" : msg.sender?.name || "Thành viên";
                 const senderAvatar =
                   msg.sender?.image ||
-                  msg.sender?.avatar ||
+                  msg.sender?.image ||
                   (isMe ? user?.avatar : undefined);
 
                 return (

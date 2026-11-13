@@ -51,6 +51,7 @@ export const DirectChatModal = ({ recipient, onClose }: DirectChatModalProps) =>
 
   // Đảm bảo Portal chỉ render ở phía Client (tránh lỗi SSR của Next.js)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
@@ -172,7 +173,7 @@ export const DirectChatModal = ({ recipient, onClose }: DirectChatModalProps) =>
           files: selectedFiles,
         };
 
-        const res = await sendMessageMutation(payload as any);
+        const res: any = await sendMessageMutation(payload as any);
 
         if (res) {
           queryClient.setQueryData(["messages", scope, targetId], (oldData: any) => {
@@ -200,7 +201,7 @@ export const DirectChatModal = ({ recipient, onClose }: DirectChatModalProps) =>
         if (currentUser.id) {
           emitSendMessage(currentUser.id, dto);
         } else {
-          const res = await sendMessageMutation(dto as any);
+          const res: any = await sendMessageMutation(dto as any);
           if (res) {
             queryClient.setQueryData(["messages", scope, targetId], (oldData: any) => {
               if (!oldData) return { pages: [{ items: [res] }], pageParams: [1] };
