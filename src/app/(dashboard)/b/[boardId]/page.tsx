@@ -485,7 +485,6 @@ export default function BoardDetailPage() {
         onClose={() => setIsChatOpen(false)}
         boardTitle={boardDetail?.title ?? "Board Chat"}
         boardId={activeBoardId}
-        socket={socket}
         user={user}
       />
     </div>

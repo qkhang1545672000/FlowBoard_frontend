@@ -24,6 +24,7 @@ interface BoardChatModalProps {
   boardTitle: string;
   boardId: string;
   user: any;
+
   boardMembers?: any[];
 }
 
