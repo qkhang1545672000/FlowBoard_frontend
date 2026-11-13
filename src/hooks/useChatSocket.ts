@@ -46,8 +46,6 @@ export const useChatSocket = (scope: ChatScope, targetId: string) => {
 
     // 2. Lắng nghe tin nhắn mới phát ra từ Gateway
     socket.on("new-message", (newMessage: ChatMessage) => {
-      console.log("nnnnnewmanga", newMessage);
-
       // 🟢 Kiểm tra xem tin nhắn này có thực sự thuộc về khung chat hiện tại không
       // - Nếu là WORKSPACE/BOARD/TASK: kiểm tra workspaceId/boardId/taskId khớp targetId không.
       // - Nếu là DIRECT: kiểm tra tin nhắn phải liên quan giữa currentUser.id và targetId (recipientId hoặc senderId).
