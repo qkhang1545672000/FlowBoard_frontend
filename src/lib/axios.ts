@@ -39,7 +39,7 @@ axiosInstance.interceptors.response.use(
         !window.location.pathname.includes("/auth/signin")
       ) {
         toast.error("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại");
-        window.location.href = "/auth/signin";
+        useAuthStore.getState().signOut("/auth/signin");
       }
     }
 
