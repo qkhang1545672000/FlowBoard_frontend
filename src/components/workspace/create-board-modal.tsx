@@ -58,8 +58,12 @@ export const CreateBoardModal = ({
     workspaceId,
     boardToEdit?.id,
   );
+
   const { data: boardDetail, isLoading: isLoadingBoarDetail } = useBoardDetail(
-    boardToEdit?.id ?? "",
+    boardToEdit?.id,
+    {
+      enabled: isOpen && !!boardToEdit?.id, // 👈 Chỉ gọi khi modal mở và có ID
+    },
   );
   const user = useAuthStore((state) => state.user);
   const isLoading = isCreating || isUpdating || isLoadingBoarDetail;

@@ -26,6 +26,7 @@ export const boardService = {
   // lấy chi tiết của board theo boardId
   getBoardDetailByBoardId: async (boardId: string): Promise<BoardDetail> => {
     try {
+      console.log("dsfasdfsdf", boardId);
       const response = await axiosInstance.get<BoardDetail>(`/api/v1/boards/${boardId}`);
 
       return response.data;

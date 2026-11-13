@@ -34,16 +34,23 @@ export const useCreateBoard = () => {
   });
 };
 
-export const useBoardDetail = (board_id?: string) => {
+export const useBoardDetail = (board_id?: string, options?: { enabled?: boolean }) => {
   const boardId = useBoardStore((state) => state.activeBoardId) ?? "";
   let select_boardId = boardId;
   if (board_id) {
     select_boardId = board_id;
   }
+
+  // Kết hợp điều kiện có ID VÀ điều kiện enabled từ bên ngoài truyền vào (nếu có)
+  const isEnabled =
+    options?.enabled !== undefined
+      ? options.enabled && !!select_boardId
+      : !!select_boardId;
+
   return useQuery<BoardDetail>({
-    queryKey: ["board", select_boardId], // Query key bao gồm boardId để tự động refetch khi ID thay đổi
+    queryKey: ["board", select_boardId],
     queryFn: () => boardService.getBoardDetailByBoardId(select_boardId),
-    enabled: !!select_boardId, // Chỉ chạy query khi boardId có giá trị (tránh gọi API khi ID bị undefined/null)
+    enabled: isEnabled,
   });
 };
 

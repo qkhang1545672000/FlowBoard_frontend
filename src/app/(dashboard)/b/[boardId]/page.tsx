@@ -85,7 +85,7 @@ export default function BoardDetailPage() {
         router.back();
       }
     }
-  }, [isError, error, router]);
+  }, [isError, error, router, setBoard]);
   // --------------------------------------------------------------------------
   // 3. QUẢN LÝ TRẠNG THÁI NỘI BỘ (LOCAL STATE)
   // --------------------------------------------------------------------------
