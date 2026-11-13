@@ -20,6 +20,7 @@ import { WorkspaceRole } from "@/types";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useChatSocketStore } from "@/store/useChatSocketStore";
 import { TaskTooltipTitle } from "../ui/TaskTooltipTitle";
+import UserAvatar from "../ui/UserAvatar";
 
 interface SidebarProps {
   workspaces: WorkspaceResponse[];
@@ -127,14 +128,16 @@ export function Sidebar({
 
         {/* User Info Quick View */}
         <div className="bg-slate-800/60 rounded-xl p-2.5 flex items-center gap-3 border border-slate-700/50">
-          <img
-            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop"
-            alt="Alex Rivera"
-            className="w-8 h-8 rounded-full object-cover shrink-0"
+          <UserAvatar
+            type="chat"
+            avatarUrl={currentUserId?.image}
+            name={currentUserId?.name}
           />
           {!isCollapsed && (
             <div className="flex flex-col text-xs truncate whitespace-nowrap">
-              <span className="font-semibold text-slate-200 truncate">Alex Rivera</span>
+              <span className="font-semibold text-slate-200 truncate">
+                {currentUserId?.name}
+              </span>
               <span className="text-slate-400">Logged in</span>
             </div>
           )}

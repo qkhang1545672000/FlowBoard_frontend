@@ -16,6 +16,8 @@ import {
 import { useChatSocketStore } from "@/store/useChatSocketStore";
 import { useWorkspaceStore } from "@/store/useWorkspaceStore";
 import { useUnreadWorkspaces, useUpdateLastRead } from "@/hooks/useWorkSpace";
+import { useAuthStore } from "@/store/useAuthStore";
+import UserAvatar from "../ui/UserAvatar";
 
 interface HeaderProps {
   activeMainTab?: "boards" | "chat";
@@ -34,6 +36,7 @@ export function Header({
 }: HeaderProps) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const w = useWorkspaceStore((state) => state.activeWorkspaceId) ?? "";
+  const user = useAuthStore((state) => state.user);
   const unRead = useChatSocketStore((state) => state.unreadWorkspaceIds);
   const resetUnread = useChatSocketStore((state) => state.resetUnreadChat);
   const { data: dataUnreadWorkspace } = useUnreadWorkspaces();
@@ -124,39 +127,6 @@ export function Header({
         </button>
 
         {/* Profile Dropdown Menu */}
-        <div className="relative">
-          <button
-            onClick={() => setIsProfileOpen(!isProfileOpen)}
-            className="flex items-center gap-2 p-1 rounded-full hover:bg-slate-800 transition-all cursor-pointer">
-            <img
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop"
-              alt="Alex Rivera"
-              className="w-8 h-8 rounded-full border border-indigo-500/50"
-            />
-            <span className="text-sm font-medium text-slate-200 pr-1 hidden sm:inline">
-              Alex Rivera
-            </span>
-          </button>
-
-          {isProfileOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl py-2 z-50 text-slate-300 text-sm">
-              <a
-                href="#profile"
-                className="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-700/50">
-                <UserIcon className="w-4 h-4" /> Profile
-              </a>
-              <a
-                href="#settings"
-                className="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-700/50">
-                <Settings className="w-4 h-4" /> Settings
-              </a>
-              <div className="my-1 border-t border-slate-700" />
-              <button className="w-full flex items-center gap-2.5 px-4 py-2 text-red-400 hover:bg-slate-700/50 text-left cursor-pointer">
-                <LogOut className="w-4 h-4" /> Log out
-              </button>
-            </div>
-          )}
-        </div>
       </div>
     </header>
   );

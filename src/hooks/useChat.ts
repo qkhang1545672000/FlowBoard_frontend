@@ -25,7 +25,11 @@ export const useSendMessage = () => {
   return useMutation({
     mutationFn: (data: CreateMessageDto) => chatService.sendMessage(data),
     onSuccess: (newMessage) => {
-      const targetId = newMessage.taskId || newMessage.boardId || newMessage.workspaceId;
+      // 🟢 Xác định targetId dựa trên scope (bao gồm cả recipientId cho chat DIRECT)
+      const targetId =
+        newMessage.scope === ChatScope.DIRECT
+          ? newMessage.recipientId // Trong chat 1-1, targetId phía queryKey tương ứng với userId của người nhận
+          : newMessage.taskId || newMessage.boardId || newMessage.workspaceId;
 
       if (targetId) {
         queryClient.invalidateQueries({

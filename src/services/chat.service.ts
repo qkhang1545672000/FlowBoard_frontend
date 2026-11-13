@@ -4,6 +4,7 @@ export enum ChatScope {
   WORKSPACE = "WORKSPACE",
   BOARD = "BOARD",
   TASK = "TASK",
+  DIRECT = "DIRECT", // 🟢 Thêm scope chat 1-1
 }
 
 export interface ChatMessageSender {
@@ -27,8 +28,10 @@ export interface ChatMessage {
   workspaceId?: string | null;
   boardId?: string | null;
   taskId?: string | null;
+  recipientId?: string | null; // 🟢 Thêm recipientId cho tin nhắn 1-1
   createdAt: string;
   sender: ChatMessageSender;
+  recipient?: ChatMessageSender | null; // 🟢 Thông tin người nhận trong chat 1-1
 }
 
 export interface CreateMessageDto {
@@ -36,14 +39,15 @@ export interface CreateMessageDto {
   workspaceId?: string;
   boardId?: string;
   taskId?: string;
+  recipientId?: string; // 🟢 Thêm recipientId khi gửi tin nhắn 1-1
   content?: string;
   attachments?: ChatAttachment[];
-  files?: File[]; // 🟢 Hỗ trợ mảng file/ảnh
+  files?: File[]; // Hỗ trợ mảng file/ảnh
 }
 
 export interface QueryMessageParams {
   scope: ChatScope;
-  targetId: string;
+  targetId: string; // Có thể là workspaceId, boardId, taskId HOẶC userId của người đang chat 1-1
   cursor?: string;
   limit?: number;
 }
@@ -61,7 +65,7 @@ export const chatService = {
       const formData = new FormData();
       formData.append("scope", String(dto.scope || "TASK"));
 
-      // 🟢 Nếu không có nội dung chữ nhưng có file, gán chữ mặc định để thỏa mãn @IsNotEmpty() của backend
+      // Nếu không có nội dung chữ nhưng có file, gán chữ mặc định để thỏa mãn @IsNotEmpty() của backend
       const finalContent =
         dto.content?.trim() ||
         (dto.files && dto.files.length > 0 ? "[Tập tin đính kèm]" : "");
@@ -70,6 +74,7 @@ export const chatService = {
       if (dto.workspaceId) formData.append("workspaceId", dto.workspaceId);
       if (dto.boardId) formData.append("boardId", dto.boardId);
       if (dto.taskId) formData.append("taskId", dto.taskId);
+      if (dto.recipientId) formData.append("recipientId", dto.recipientId); // 🟢 Gửi thêm recipientId lên server
 
       if (dto.files && dto.files.length > 0) {
         dto.files.forEach((file) => {
@@ -97,7 +102,7 @@ export const chatService = {
         "/api/v1/chats",
         { params },
       );
-      console.log("ffffffSSS", response.data);
+
       return response.data;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {

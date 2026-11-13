@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChatScope, ChatMessage, CreateMessageDto } from "@/services/chat.service";
+import { useAuthStore } from "@/store/useAuthStore"; // 🟢 Import auth store để lấy current user id
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3000";
 
@@ -19,26 +20,48 @@ export const useChatSocket = (scope: ChatScope, targetId: string) => {
   const queryClient = useQueryClient();
   const queryKey = ["messages", scope, targetId];
 
-  useEffect(() => {
-    if (!targetId || !scope) return;
+  // 🟢 Lấy id của user đang đăng nhập từ Zustand Store
+  const currentUser = useAuthStore((state) => state.user);
 
-    // 1. Kết nối tới namespace /chat
+  useEffect(() => {
+    if (!targetId || !scope || !currentUser?.id) return;
+
+    // 1. Kết nối tới namespace /chat và truyền kèm userId vào query handshake
     const socket = io(`${SOCKET_URL}/chat`, {
       transports: ["websocket"],
       withCredentials: true,
+      query: {
+        userId: currentUser.id, // 🟢 Bắt buộc để backend đưa client vào phòng cá nhân user_{userId}
+      },
     });
 
     socketRef.current = socket;
 
     socket.on("connect", () => {
       console.log("[ChatSocket] Connected:", socket.id);
-      // Tham gia room chat
+
+      // Tham gia room chat (với DIRECT, backend sẽ dựa vào socket join cá nhân hoặc bạn có thể emit join-chat)
       socket.emit("join-chat", { scope, targetId });
     });
 
     // 2. Lắng nghe tin nhắn mới phát ra từ Gateway
     socket.on("new-message", (newMessage: ChatMessage) => {
       console.log("nnnnnewmanga", newMessage);
+
+      // 🟢 Kiểm tra xem tin nhắn này có thực sự thuộc về khung chat hiện tại không
+      // - Nếu là WORKSPACE/BOARD/TASK: kiểm tra workspaceId/boardId/taskId khớp targetId không.
+      // - Nếu là DIRECT: kiểm tra tin nhắn phải liên quan giữa currentUser.id và targetId (recipientId hoặc senderId).
+      const isRelevant =
+        scope === ChatScope.DIRECT
+          ? (newMessage.sender.id === currentUser.id &&
+              newMessage.recipientId === targetId) ||
+            (newMessage.sender.id === targetId &&
+              newMessage.recipientId === currentUser.id)
+          : newMessage.workspaceId === targetId ||
+            newMessage.boardId === targetId ||
+            newMessage.taskId === targetId;
+
+      if (!isRelevant) return;
 
       queryClient.setQueryData(queryKey, (oldData: InfiniteChatData | undefined) => {
         if (!oldData || !oldData.pages || oldData.pages.length === 0) {
@@ -54,7 +77,7 @@ export const useChatSocket = (scope: ChatScope, targetId: string) => {
           };
         }
 
-        // Kiểm tra an toàn chống lỗi undefined (reading 'some') bằng ?. và || []
+        // Kiểm tra an toàn chống trùng lặp tin nhắn
         const allItems = oldData.pages.flatMap((page) => page.items || []);
         const isDuplicated = allItems.some((msg) => msg?.id === newMessage.id);
 
@@ -62,7 +85,7 @@ export const useChatSocket = (scope: ChatScope, targetId: string) => {
           return oldData;
         }
 
-        // Thêm tin nhắn mới vào trang cuối cùng (hoặc trang đầu tiên tùy thuộc vào cách bạn append)
+        // Thêm tin nhắn mới vào trang cuối cùng
         const newPages = [...oldData.pages];
         const lastPageIndex = newPages.length - 1;
 
@@ -85,7 +108,7 @@ export const useChatSocket = (scope: ChatScope, targetId: string) => {
         socket.disconnect();
       }
     };
-  }, [scope, targetId, queryClient, queryKey]);
+  }, [scope, targetId, currentUser?.id, queryClient, queryKey]);
 
   // Hàm hỗ trợ phát sự kiện 'send-message' trực tiếp qua Socket
   const emitSendMessage = (senderId: string, dto: CreateMessageDto) => {

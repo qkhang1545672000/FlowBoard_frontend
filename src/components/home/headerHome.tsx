@@ -6,11 +6,13 @@ import { Bell, MessageSquare, Search } from "lucide-react";
 import UserAvatar from "../ui/UserAvatar";
 import { UserProfileMenu } from "./user-profile-menu";
 import WorkspaceNotificationPopover from "../Notification/NotificationPopover";
+import { useAuthStore } from "@/store/useAuthStore";
 
 const HeaderIndex = () => {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [mounted, setMounted] = useState(false); // Thêm trạng thái kiểm tra đã mount hay chưa
   const bellRef = useRef<HTMLButtonElement>(null);
+  const user = useAuthStore((state) => state.user);
   const [modalCoords, setModalCoords] = useState<{
     top: number;
     right: number;
@@ -82,10 +84,7 @@ const HeaderIndex = () => {
 
         <UserProfileMenu>
           <div className="flex items-center gap-2.5 pl-3 border-l border-slate-800">
-            <UserAvatar
-              type="chat"
-              avatarUrl="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop"
-            />
+            <UserAvatar type="chat" avatarUrl={user?.image} name={user?.name} />
             <div className="flex flex-col text-left">
               <span className="text-xs font-semibold text-slate-200 leading-tight">
                 Alex Rivera

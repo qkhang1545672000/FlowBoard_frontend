@@ -31,6 +31,7 @@ export enum ChatScope {
   WORKSPACE = "WORKSPACE",
   BOARD = "BOARD",
   TASK = "TASK",
+  DIRECT = "DIRECT",
 }
 
 export enum ColumnLockType {
